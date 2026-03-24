@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  --esi-blue: #0097D7;
+  --esi-blue-light: #33b3e8;
+  --esi-red: #B30133;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Select / option dark theme */
+select, option {
+  background-color: #1e293b;
+  color: #e2e8f0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,151,215,0.3); border-radius: 3px; }

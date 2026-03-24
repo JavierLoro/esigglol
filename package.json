@@ -1,0 +1,47 @@
+{
+  "name": "esigglol",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "sync-ddragon": "tsx scripts/sync-ddragon.ts",
+    "test-riot": "tsx scripts/test-riot-api.ts",
+    "collect-stats-dev": "tsx scripts/collect-stats-dev.ts",
+    "collect-stats-prod": "tsx scripts/collect-stats-prod.ts",
+    "predev": "tsx scripts/sync-ddragon.ts",
+    "prebuild": "tsx scripts/sync-ddragon.ts",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.8.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "jose": "^6.2.2",
+    "lucide-react": "^0.577.0",
+    "next": "16.2.1",
+    "react": "19.2.4",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "19.2.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "tailwindcss": "^4",
+    "tsx": "^4.21.0",
+    "typescript": "^5",
+    "vitest": "^4.1.0"
+  }
+}

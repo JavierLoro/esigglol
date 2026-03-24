@@ -1,0 +1,121 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
+const VERSIONS_URL = 'https://ddragon.leagueoflegends.com/api/versions.json'
+const DDRAGON_CDN = 'https://ddragon.leagueoflegends.com/cdn'
+const CDRAGON_BASE = 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images'
+
+const VERSION_FILE = path.join(process.cwd(), 'data', 'ddragon-version.txt')
+const ASSETS_DIR = path.join(process.cwd(), 'public', 'ddragon')
+
+const TIERS = ['iron', 'bronze', 'silver', 'gold', 'platinum', 'emerald', 'diamond', 'master', 'grandmaster', 'challenger']
+
+// ── Version helpers ─────────────────────────────────────────────────────────
+
+export function getVersion(): string | null {
+  try {
+    return fs.readFileSync(VERSION_FILE, 'utf-8').trim()
+  } catch {
+    return null
+  }
+}
+
+function saveVersion(version: string): void {
+  fs.writeFileSync(VERSION_FILE, version, 'utf-8')
+}
+
+async function fetchLatestVersion(): Promise<string> {
+  const res = await fetch(VERSIONS_URL)
+  if (!res.ok) throw new Error(`Failed to fetch DDragon versions: ${res.status}`)
+  const versions = await res.json() as string[]
+  return versions[0]
+}
+
+// ── Download helpers ────────────────────────────────────────────────────────
+
+async function downloadFile(url: string, dest: string): Promise<void> {
+  const dir = path.dirname(dest)
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+
+  const res = await fetch(url)
+  if (!res.ok) {
+    console.warn(`[DDragon] Failed to download ${url}: ${res.status}`)
+    return
+  }
+
+  const buffer = Buffer.from(await res.arrayBuffer())
+  fs.writeFileSync(dest, buffer)
+}
+
+// ── Sync: ranked emblems ────────────────────────────────────────────────────
+
+async function syncRankedEmblems(): Promise<void> {
+  const destDir = path.join(ASSETS_DIR, 'ranked')
+  if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true })
+
+  const allTiers = [...TIERS, 'unranked']
+  await Promise.all(allTiers.map(async tier => {
+    const dest = path.join(destDir, `${tier}.svg`)
+    if (fs.existsSync(dest)) return
+    const url = `${CDRAGON_BASE}/ranked-mini-crests/${tier}.svg`
+    await downloadFile(url, dest)
+    console.log(`[DDragon] Downloaded ranked mini crest: ${tier}`)
+  }))
+}
+
+// ── Sync: champion data ─────────────────────────────────────────────────────
+
+async function syncChampionData(version: string): Promise<void> {
+  const dest = path.join(ASSETS_DIR, 'champion.json')
+  const url = `${DDRAGON_CDN}/${version}/data/es_ES/champion.json`
+  await downloadFile(url, dest)
+  console.log(`[DDragon] Downloaded champion data (${version})`)
+}
+
+// ── Main sync ───────────────────────────────────────────────────────────────
+
+export async function checkAndUpdate(): Promise<void> {
+  const latest = await fetchLatestVersion()
+  const local = getVersion()
+
+  if (local === latest) {
+    console.log(`[DDragon] Assets up to date (${latest})`)
+    return
+  }
+
+  console.log(`[DDragon] Updating: ${local ?? 'none'} → ${latest}`)
+
+  if (!fs.existsSync(ASSETS_DIR)) fs.mkdirSync(ASSETS_DIR, { recursive: true })
+
+  await Promise.all([
+    syncRankedEmblems(),
+    syncChampionData(latest),
+  ])
+
+  saveVersion(latest)
+  console.log(`[DDragon] Sync complete (${latest})`)
+}
+
+// ── Profile icon (on-demand download) ───────────────────────────────────────
+
+export async function ensureProfileIcon(iconId: number): Promise<void> {
+  const dest = path.join(ASSETS_DIR, 'profileicon', `${iconId}.png`)
+  if (fs.existsSync(dest)) return
+
+  const version = getVersion()
+  if (!version) return
+
+  const url = `${DDRAGON_CDN}/${version}/img/profileicon/${iconId}.png`
+  await downloadFile(url, dest)
+}
+
+// ── URL helpers (for use in components) ─────────────────────────────────────
+
+export function profileIconUrl(iconId: number | undefined): string {
+  if (!iconId) return ''
+  return `/ddragon/profileicon/${iconId}.png`
+}
+
+export function rankedEmblemUrl(tier: string): string {
+  return `/ddragon/ranked/${tier.toLowerCase()}.svg`
+}
