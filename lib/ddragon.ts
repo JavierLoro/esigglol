@@ -21,6 +21,7 @@ export function getVersion(): string | null {
 }
 
 function saveVersion(version: string): void {
+  fs.mkdirSync(path.dirname(VERSION_FILE), { recursive: true })
   fs.writeFileSync(VERSION_FILE, version, 'utf-8')
 }
 
