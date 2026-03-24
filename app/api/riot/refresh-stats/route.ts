@@ -6,7 +6,7 @@ import { getTeams, getPlayerStatsCache, savePlayerStatsCache } from '@/lib/data'
 import { getPlayerStats, getChampionMastery, getMatchIds, getMatchDetails } from '@/lib/riot'
 import { savePlayerMastery, savePlayerMatches, getStoredMatchIds, getPlayerLastUpdated } from '@/lib/data-riot'
 import { ensureProfileIcon } from '@/lib/ddragon'
-import type { Player, Team } from '@/lib/types'
+import type { Player, Team, PlayerRow } from '@/lib/types'
 
 const COOLDOWN_MS = 5 * 60 * 1000 // 5 minutos entre actualizaciones
 const PLAYER_COOLDOWN_MS = 2 * 60 * 60 * 1000 // 2 horas entre actualizaciones por jugador
@@ -97,7 +97,7 @@ async function runRefresh(teamIds?: string[]) {
   const championMap = buildChampionMap()
   const previousCache = getPlayerStatsCache()
 
-  const rows: unknown[] = []
+  const rows: PlayerRow[] = []
 
   for (let i = 0; i < players.length; i += BATCH) {
     const batch = players.slice(i, i + BATCH)
@@ -106,7 +106,7 @@ async function runRefresh(teamIds?: string[]) {
       const playerLastUpdated = getPlayerLastUpdated(p.summonerName)
       if (playerLastUpdated && (Date.now() - new Date(playerLastUpdated).getTime()) < PLAYER_COOLDOWN_MS) {
         console.log(`[refresh-stats] Skip ${p.summonerName} (actualizado ${playerLastUpdated})`)
-        const prev = (previousCache.players as any[]).find((cp: any) => cp.summonerName === p.summonerName)
+        const prev = previousCache.players.find(cp => cp.summonerName === p.summonerName)
         if (prev) rows.push(prev)
         return
       }
@@ -137,9 +137,9 @@ async function runRefresh(teamIds?: string[]) {
     }))
 
     // Merge parcial: mantener jugadores no refrescados del cache anterior
-    const refreshedNames = new Set(rows.map((r: any) => r.summonerName))
-    const kept = (previousCache.players as any[]).filter(
-      (p: any) => !refreshedNames.has(p.summonerName)
+    const refreshedNames = new Set(rows.map(r => r.summonerName))
+    const kept = previousCache.players.filter(
+      p => !refreshedNames.has(p.summonerName)
     )
     savePlayerStatsCache({ lastUpdated: new Date().toISOString(), players: [...kept, ...rows] })
 

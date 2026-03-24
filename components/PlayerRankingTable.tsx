@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import type { PlayerRow } from '@/app/ranking/page'
+import type { PlayerRow } from '@/lib/types'
 import { clsx } from 'clsx'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 
@@ -40,10 +40,8 @@ export default function PlayerRankingTable({ rows }: Props) {
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [showSubs, setShowSubs] = useState(true)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getPrimary = (r: PlayerRow) => r.primaryRole ?? (r as any).role ?? ''
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isSub = (r: PlayerRow) => r.primaryRole === 'Suplente' || (r as any).substitute === true
+  const getPrimary = (r: PlayerRow) => r.primaryRole ?? ''
+  const isSub = (r: PlayerRow) => r.primaryRole === 'Suplente'
 
   const roles = ['all', ...Array.from(new Set(rows.flatMap(r => [getPrimary(r), r.secondaryRole].filter((x): x is string => Boolean(x)))))]
 
@@ -75,7 +73,7 @@ export default function PlayerRankingTable({ rows }: Props) {
     else { setSortKey(key); setSortDir('desc') }
   }
 
-  function SortIcon({ k }: { k: SortKey }) {
+  const sortIcon = (k: SortKey) => {
     if (sortKey !== k) return <ChevronUp size={12} className="text-white/20" />
     return sortDir === 'desc' ? <ChevronDown size={12} className="text-[#0097D7]" /> : <ChevronUp size={12} className="text-[#0097D7]" />
   }
@@ -123,19 +121,19 @@ export default function PlayerRankingTable({ rows }: Props) {
               <th className="text-left px-3 py-3">Equipo</th>
               <th className="text-left px-3 py-3">Rol</th>
               <th className="px-3 py-3 cursor-pointer select-none" onClick={() => toggleSort('rank')}>
-                <span className="flex items-center justify-center gap-1">Rango <SortIcon k="rank" /></span>
+                <span className="flex items-center justify-center gap-1">Rango {sortIcon('rank')}</span>
               </th>
               <th className="px-3 py-3 cursor-pointer select-none" onClick={() => toggleSort('lp')}>
-                <span className="flex items-center justify-center gap-1">LP <SortIcon k="lp" /></span>
+                <span className="flex items-center justify-center gap-1">LP {sortIcon('lp')}</span>
               </th>
               <th className="px-3 py-3 cursor-pointer select-none" onClick={() => toggleSort('winrate')}>
-                <span className="flex items-center justify-center gap-1">Winrate <SortIcon k="winrate" /></span>
+                <span className="flex items-center justify-center gap-1">Winrate {sortIcon('winrate')}</span>
               </th>
               <th className="px-3 py-3 cursor-pointer select-none" onClick={() => toggleSort('wins')}>
-                <span className="flex items-center justify-center gap-1">Partidas <SortIcon k="wins" /></span>
+                <span className="flex items-center justify-center gap-1">Partidas {sortIcon('wins')}</span>
               </th>
               <th className="px-3 py-3 cursor-pointer select-none" onClick={() => toggleSort('level')}>
-                <span className="flex items-center justify-center gap-1">Nivel <SortIcon k="level" /></span>
+                <span className="flex items-center justify-center gap-1">Nivel {sortIcon('level')}</span>
               </th>
             </tr>
           </thead>

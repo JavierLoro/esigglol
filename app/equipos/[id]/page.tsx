@@ -12,6 +12,8 @@ import { clsx } from 'clsx'
 
 export const dynamic = 'force-dynamic'
 
+function currentTimestamp() { return Date.now() }
+
 const TIER_COLORS: Record<string, string> = {
   CHALLENGER: 'text-yellow-300',
   GRANDMASTER: 'text-red-400',
@@ -158,7 +160,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
     : ''
 
   // Fetch champion data for each player
-  const seasonStartMs = Date.now() - 30 * 24 * 60 * 60 * 1000
+  const seasonStartMs = currentTimestamp() - 30 * 24 * 60 * 60 * 1000
   const champDataMap = new Map<string, PlayerChampionData>()
   for (const player of team.players) {
     const mastery = getPlayerMastery(player.summonerName)

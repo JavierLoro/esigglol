@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 interface Props {
   channel: string
@@ -8,19 +8,13 @@ interface Props {
 const IP_RE = /^(\d{1,3}\.){3}\d{1,3}$/
 
 export default function TwitchEmbed({ channel }: Props) {
-  const [src, setSrc] = useState<string | null>(null)
-
-  useEffect(() => {
+  const [src] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
     const hostname = window.location.hostname
-    if (IP_RE.test(hostname)) {
-      setSrc(null)
-      return
-    }
+    if (IP_RE.test(hostname)) return null
     const parent = hostname === '127.0.0.1' ? 'localhost' : hostname
-    setSrc(
-      `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${parent}&autoplay=false`
-    )
-  }, [channel])
+    return `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${parent}&autoplay=false`
+  })
 
   if (!channel) return null
 

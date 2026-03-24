@@ -1,5 +1,5 @@
 import db from './db'
-import type { Team, Phase, Match } from './types'
+import type { Team, Phase, Match, PlayerRow } from './types'
 
 // ── Teams ────────────────────────────────────────────────────────────────────
 
@@ -110,9 +110,7 @@ export function getMatchById(id: string): Match | undefined {
 
 export interface PlayerStatsCache {
   lastUpdated: string | null
-  // PlayerRow shape from app/ranking/page — stored as plain objects
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  players: any[]
+  players: PlayerRow[]
 }
 
 export function getPlayerStatsCache(): PlayerStatsCache {

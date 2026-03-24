@@ -143,3 +143,12 @@ export interface PlayerStats {
   losses: number
   winrate: number      // porcentaje 0-100
 }
+
+export interface PlayerRow extends PlayerStats {
+  teamId: string
+  teamName: string
+  teamLogo: string
+  primaryRole: string
+  secondaryRole?: string
+  apiError?: boolean
+}

@@ -23,7 +23,6 @@ function TeamRow({ teamId, score, isWinner, isPlayed, teams }: {
   teams: Team[]
 }) {
   const team = teams.find(t => t.id === teamId)
-  const isTbd = !team
 
   return (
     <div className={clsx(

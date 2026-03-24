@@ -1,18 +1,8 @@
 import { getPlayerStatsCache, getTeams } from '@/lib/data'
 import RankingTable from '@/components/PlayerRankingTable'
 import RefreshStatsButton from '@/components/RefreshStatsButton'
-import type { PlayerStats } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
-
-export interface PlayerRow extends PlayerStats {
-  teamId: string
-  teamName: string
-  teamLogo: string
-  primaryRole: string
-  secondaryRole?: string
-  apiError?: boolean
-}
 
 const TIER_ORDER: Record<string, number> = {
   CHALLENGER: 14, GRANDMASTER: 13, MASTER: 12,
@@ -24,7 +14,7 @@ const RANK_ORDER: Record<string, number> = { I: 4, II: 3, III: 2, IV: 1 }
 export default function RankingPage() {
   const cache = getPlayerStatsCache()
   const teamLookup = new Map(getTeams().map(t => [t.id, { logo: t.logo, name: t.name }]))
-  const rows = (cache.players as PlayerRow[]).map(r => {
+  const rows = cache.players.map(r => {
     const t = teamLookup.get(r.teamId)
     if (t) { r.teamLogo = t.logo ?? ''; r.teamName = t.name }
     return r
@@ -47,7 +37,7 @@ export default function RankingPage() {
 
       {rows.length === 0 && (
         <div className="rounded-xl border border-white/10 p-8 text-center text-white/40 text-sm">
-          Sin datos. Pulsa "Actualizar datos" para cargar los stats desde la Riot API.
+          Sin datos. Pulsa &quot;Actualizar datos&quot; para cargar los stats desde la Riot API.
         </div>
       )}
 

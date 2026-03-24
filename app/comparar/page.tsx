@@ -2,17 +2,19 @@ import { getTeams, getMatches, getPlayerStatsCache } from '@/lib/data'
 import { getPlayerMastery, getChampionStats, getTopRecentChampions } from '@/lib/data-riot'
 import { getVersion } from '@/lib/ddragon'
 import CompareClient from '@/components/CompareClient'
-import type { PlayerRow } from '@/app/ranking/page'
+import type { PlayerRow } from '@/lib/types'
 import type { PlayerChampionData } from '@/components/ChampionBubbles'
 
 export const dynamic = 'force-dynamic'
+
+function currentTimestamp() { return Date.now() }
 
 export default function CompararPage() {
   const teams = getTeams()
   const matches = getMatches()
 
   const cache = getPlayerStatsCache()
-  const allPlayers = cache.players as PlayerRow[]
+  const allPlayers = cache.players
 
   const allStats: Record<string, PlayerRow[]> = {}
   const playerMap = new Map(allPlayers.map(p => [p.summonerName, p]))
@@ -29,7 +31,7 @@ export default function CompararPage() {
     : ''
 
   const champData: Record<string, PlayerChampionData> = {}
-  const seasonStartMs = Date.now() - 30 * 24 * 60 * 60 * 1000
+  const seasonStartMs = currentTimestamp() - 30 * 24 * 60 * 60 * 1000
   for (const team of teams) {
     for (const player of team.players) {
       const mastery = getPlayerMastery(player.summonerName)

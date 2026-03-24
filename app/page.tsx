@@ -5,12 +5,14 @@ import { TWITCH_CHANNEL } from '@/lib/env'
 
 export const dynamic = 'force-dynamic'
 
+function currentTimestamp() { return Date.now() }
+
 export default function HomePage() {
   const teams = getTeams()
   const matches = getMatches()
   const phases = getPhases()
 
-  const now = Date.now()
+  const now = currentTimestamp()
   const sortedMatches = [...matches].sort((a, b) => {
     const aPlayed = !!a.result
     const bPlayed = !!b.result

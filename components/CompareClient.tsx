@@ -1,9 +1,9 @@
 'use client'
-import { useState, useCallback, useRef } from 'react'
+import { useState, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import type { Team, Match } from '@/lib/types'
-import type { PlayerRow } from '@/app/ranking/page'
+import type { PlayerRow } from '@/lib/types'
 import type { PlayerChampionData } from '@/components/ChampionBubbles'
 import { clsx } from 'clsx'
 import RefreshStatsButton from '@/components/RefreshStatsButton'
@@ -265,17 +265,7 @@ export default function CompareClient({ teams, allStats, matches, lastUpdated, c
   const [order1, setOrder1] = useState<number[]>([])
   const [order2, setOrder2] = useState<number[]>([])
 
-  // Reset order when teams change
-  const prevTeams = useRef({ t1: team1Id, t2: team2Id })
-  if (prevTeams.current.t1 !== team1Id) {
-    prevTeams.current.t1 = team1Id
-    if (order1.length !== starters1.length) setOrder1(starters1.map((_, i) => i))
-  }
-  if (prevTeams.current.t2 !== team2Id) {
-    prevTeams.current.t2 = team2Id
-    if (order2.length !== starters2.length) setOrder2(starters2.map((_, i) => i))
-  }
-
+  // Reset order when teams change (effectiveOrder handles length mismatch)
   const effectiveOrder1 = order1.length === starters1.length ? order1 : starters1.map((_, i) => i)
   const effectiveOrder2 = order2.length === starters2.length ? order2 : starters2.map((_, i) => i)
 
@@ -285,9 +275,8 @@ export default function CompareClient({ teams, allStats, matches, lastUpdated, c
   // Tap-to-swap state
   const [selected, setSelected] = useState<{ side: 1 | 2; idx: number } | null>(null)
 
-  const handleSelect = useCallback((side: 1 | 2, idx: number) => {
+  function handleSelect(side: 1 | 2, idx: number) {
     if (selected && selected.side === side && selected.idx !== idx) {
-      // Swap
       const setOrder = side === 1 ? setOrder1 : setOrder2
       const currentOrder = side === 1 ? effectiveOrder1 : effectiveOrder2
       const newOrder = [...currentOrder]
@@ -301,7 +290,7 @@ export default function CompareClient({ teams, allStats, matches, lastUpdated, c
     } else {
       setSelected({ side, idx })
     }
-  }, [selected, effectiveOrder1, effectiveOrder2])
+  }
 
   // Drag state
   const dragIdx = useRef<number | null>(null)

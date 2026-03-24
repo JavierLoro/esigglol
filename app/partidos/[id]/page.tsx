@@ -255,7 +255,6 @@ function GameCard({
   riotData: RiotMatchData | null
   ddragonVersion: string | null
 }) {
-  const hasData = storedData || riotData
   const duration = storedData?.duration ?? (riotData ? formatDuration(riotData.info.gameDuration) : null)
 
   return (
@@ -339,7 +338,7 @@ export default async function PartidoPage({
     : played && match.result!.team2Score > match.result!.team1Score ? 'team2'
     : null
 
-  function TeamDisplay({ team, side }: { team: Team | undefined; side: 'left' | 'right' }) {
+  const teamDisplay = (team: Team | undefined, side: 'left' | 'right') => {
     const isWinner = (side === 'left' && winner === 'team1') || (side === 'right' && winner === 'team2')
     const isLoser = played && !isWinner
     return (
@@ -390,7 +389,7 @@ export default async function PartidoPage({
 
         <div className="px-6 py-6 flex items-center justify-between gap-4">
           <div className="flex-1">
-            <TeamDisplay team={team1} side="left" />
+            {teamDisplay(team1, 'left')}
           </div>
           <div className="flex items-center gap-3 shrink-0">
             {played ? (
@@ -408,7 +407,7 @@ export default async function PartidoPage({
             )}
           </div>
           <div className="flex-1 flex justify-end">
-            <TeamDisplay team={team2} side="right" />
+            {teamDisplay(team2, 'right')}
           </div>
         </div>
       </div>
