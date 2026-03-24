@@ -1,5 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import logger from '@/lib/logger'
+
+const log = logger.child({ module: 'ddragon' })
 
 const VERSIONS_URL = 'https://ddragon.leagueoflegends.com/api/versions.json'
 const DDRAGON_CDN = 'https://ddragon.leagueoflegends.com/cdn'
@@ -40,7 +43,7 @@ async function downloadFile(url: string, dest: string): Promise<void> {
 
   const res = await fetch(url)
   if (!res.ok) {
-    console.warn(`[DDragon] Failed to download ${url}: ${res.status}`)
+    log.warn({ url, status: res.status }, 'Failed to download asset')
     return
   }
 
@@ -60,7 +63,7 @@ async function syncRankedEmblems(): Promise<void> {
     if (fs.existsSync(dest)) return
     const url = `${CDRAGON_BASE}/ranked-mini-crests/${tier}.svg`
     await downloadFile(url, dest)
-    console.log(`[DDragon] Downloaded ranked mini crest: ${tier}`)
+    log.info({ tier }, 'Downloaded ranked mini crest')
   }))
 }
 
@@ -70,7 +73,7 @@ async function syncChampionData(version: string): Promise<void> {
   const dest = path.join(ASSETS_DIR, 'champion.json')
   const url = `${DDRAGON_CDN}/${version}/data/es_ES/champion.json`
   await downloadFile(url, dest)
-  console.log(`[DDragon] Downloaded champion data (${version})`)
+  log.info({ version }, 'Downloaded champion data')
 }
 
 // ── Main sync ───────────────────────────────────────────────────────────────
@@ -80,11 +83,11 @@ export async function checkAndUpdate(): Promise<void> {
   const local = getVersion()
 
   if (local === latest) {
-    console.log(`[DDragon] Assets up to date (${latest})`)
+    log.info({ version: latest }, 'Assets up to date')
     return
   }
 
-  console.log(`[DDragon] Updating: ${local ?? 'none'} → ${latest}`)
+  log.info({ from: local ?? 'none', to: latest }, 'Updating DDragon assets')
 
   if (!fs.existsSync(ASSETS_DIR)) fs.mkdirSync(ASSETS_DIR, { recursive: true })
 
@@ -94,7 +97,7 @@ export async function checkAndUpdate(): Promise<void> {
   ])
 
   saveVersion(latest)
-  console.log(`[DDragon] Sync complete (${latest})`)
+  log.info({ version: latest }, 'Sync complete')
 }
 
 // ── Profile icon (on-demand download) ───────────────────────────────────────

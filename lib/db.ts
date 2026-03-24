@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import path from 'path'
 
-const DB_PATH = path.join(process.cwd(), 'esigglol.db')
+const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), 'data', 'esigglol.db')
 
 // Singleton: en Next.js el módulo se cachea entre requests en el mismo proceso
 let _db: Database.Database | null = null

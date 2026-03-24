@@ -10,7 +10,7 @@ Documento de seguimiento de tareas pendientes para llevar ESIgg.lol a produccion
 - [ ] Rotar todas las API keys (Riot, Anthropic) y generar nuevos secrets
 - [ ] Generar `SESSION_SECRET` con un valor criptograficamente seguro (no UUID simple)
 - [ ] Usar un gestor de secretos (Vault, AWS Secrets Manager, o similar) en lugar de `.env.local`
-- [ ] Asegurar que `.env.local` nunca se commitea (ya esta en `.gitignore`, verificar)
+- [x] Asegurar que `.env.local` nunca se commitea (ya esta en `.gitignore`, verificar)
 
 ### Hasheo de password de admin
 - [x] Implementar hashing con bcrypt para `ADMIN_PASSWORD_HASH` (bcryptjs, cost 12)
@@ -33,10 +33,10 @@ Documento de seguimiento de tareas pendientes para llevar ESIgg.lol a produccion
 ## Alta prioridad — Primera semana
 
 ### Infraestructura de despliegue
-- [ ] Crear Dockerfile para el proyecto
-- [ ] Configurar CI/CD (GitHub Actions) con lint + build
-- [ ] Documentar proceso de despliegue
-- [ ] Configurar health check endpoint (`/api/health`)
+- [x] Crear Dockerfile para el proyecto
+- [x] Configurar CI/CD (GitHub Actions) con lint + build
+- [x] Documentar proceso de despliegue
+- [x] Configurar health check endpoint (`/api/health`)
 
 ### Base de datos
 - [ ] Implementar sistema de migraciones (versionado de schema)
@@ -114,7 +114,7 @@ Documento de seguimiento de tareas pendientes para llevar ESIgg.lol a produccion
 - [ ] Notificaciones en tiempo real cuando Riot envia callback de resultado
 
 ### Calidad de codigo
-- [ ] Reducir uso de `any` en `lib/data.ts` (player stats cache)
+- [x] Reducir uso de `any` en `lib/data.ts` (player stats cache)
 - [ ] Extraer constantes magicas a configuracion (delays, batch sizes, TTLs)
 - [ ] Revisar y limpiar scripts en `scripts/` (documentar uso de cada uno)
 
@@ -146,7 +146,7 @@ Documento de seguimiento de tareas pendientes para llevar ESIgg.lol a produccion
 ### DDragon — sincronizacion manual
 - [ ] `scripts/sync-ddragon.ts` debe ejecutarse manualmente para actualizar la version
 - [ ] Si la version queda desactualizada, las URLs de iconos de campeon/item se rompen
-- [ ] Automatizar con cron o check al arrancar la app
+- [x] Automatizar con cron o check al arrancar la app (predev/prebuild ya lo hacen)
 
 ### Scripts sin automatizar
 - [ ] `scripts/collect-stats-dev.ts` y `collect-stats-prod.ts` — recoleccion manual de stats
@@ -164,8 +164,8 @@ Documento de seguimiento de tareas pendientes para llevar ESIgg.lol a produccion
 - [ ] En desarrollo local con IP siempre se ve "stream no disponible"
 
 ### Comparador de equipos (`/comparar`)
-- [ ] Revisar que se muestran todas las stats disponibles (mastery, historial reciente)
-- [ ] Los datos de `data-riot.ts` (mastery/historial) solo se usan en paginas de equipo, no en comparacion
+- [x] Revisar que se muestran todas las stats disponibles (mastery, historial reciente)
+- [x] Los datos de `data-riot.ts` (mastery/historial) solo se usan en paginas de equipo, no en comparacion
 
 ### Datos de partida: prioridad screenshot vs Riot API
 - [ ] Los datos de screenshot parseados tienen prioridad sobre los de Riot API
@@ -173,7 +173,7 @@ Documento de seguimiento de tareas pendientes para llevar ESIgg.lol a produccion
 - [ ] No hay validacion cruzada entre datos de screenshot y datos reales de Riot
 
 ### Bracket — edge cases sin tests
-- [ ] Logica de avance en `lib/bracket.ts` no tiene tests automatizados
+- [x] Logica de avance en `lib/bracket.ts` no tiene tests automatizados (12 tests en Vitest)
 - [ ] Posibles edge cases en:
   - Brackets elimination con numero impar de equipos
   - Rondas suizas con empates o walkovers

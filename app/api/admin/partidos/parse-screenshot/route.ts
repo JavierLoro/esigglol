@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { parseScreenshot } from '@/lib/screenshot-parser'
+import logger from '@/lib/logger'
+
+const log = logger.child({ module: 'parse-screenshot' })
 
 export async function POST(req: Request) {
   const denied = await requireAdminSession()
@@ -26,7 +29,7 @@ export async function POST(req: Request) {
     return NextResponse.json(gameData)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error desconocido'
-    console.error('[parse-screenshot]', message)
+    log.error({ err: message }, 'Error parsing screenshot')
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPhaseById, getMatches, saveMatches, generateId } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { GenerateSchema } from '@/lib/schemas'
+import logger from '@/lib/logger'
 import type { Match, BOFormat } from '@/lib/types'
+
+const log = logger.child({ module: 'generate' })
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
@@ -221,7 +224,7 @@ export async function POST(req: NextRequest) {
       }
     }
   } catch (err) {
-    console.error('[generate] Error generando partidos:', err)
+    log.error({ err }, 'Error generando partidos')
     return NextResponse.json({ error: 'Error al generar el bracket' }, { status: 500 })
   }
 

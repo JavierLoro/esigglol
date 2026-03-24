@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 import { after } from 'next/server'
+import logger from '@/lib/logger'
+
+const log = logger.child({ module: 'refresh-stats' })
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { getTeams, getPlayerStatsCache, savePlayerStatsCache } from '@/lib/data'
@@ -28,7 +31,7 @@ function buildChampionMap(): Map<number, string> {
     }
     return map
   } catch {
-    console.warn('[refresh-stats] No se pudo leer champion.json, mastery sin nombres')
+    log.warn('No se pudo leer champion.json, mastery sin nombres')
     return new Map()
   }
 }
@@ -81,11 +84,11 @@ async function collectChampionData(summonerName: string, puuid: string, champion
       }])
       saved++
     } catch (err) {
-      console.warn(`[refresh-stats] Error fetching match ${matchId} for ${summonerName}`, err)
+      log.warn({ matchId, summonerName, err }, 'Error fetching match')
     }
   }
 
-  console.log(`[refresh-stats] ${summonerName}: mastery ${masteries.length}, matches nuevos ${saved}/${newIds.length}`)
+  log.info({ summonerName, mastery: masteries.length, matchesSaved: saved, matchesNew: newIds.length }, 'Player refreshed')
 }
 
 async function runRefresh(teamIds?: string[]) {
@@ -105,7 +108,7 @@ async function runRefresh(teamIds?: string[]) {
       // Skip si el jugador se actualizó hace menos de 2h
       const playerLastUpdated = getPlayerLastUpdated(p.summonerName)
       if (playerLastUpdated && (Date.now() - new Date(playerLastUpdated).getTime()) < PLAYER_COOLDOWN_MS) {
-        console.log(`[refresh-stats] Skip ${p.summonerName} (actualizado ${playerLastUpdated})`)
+        log.info({ summonerName: p.summonerName, lastUpdated: playerLastUpdated }, 'Skip: recently updated')
         const prev = previousCache.players.find(cp => cp.summonerName === p.summonerName)
         if (prev) rows.push(prev)
         return
@@ -128,11 +131,11 @@ async function runRefresh(teamIds?: string[]) {
           try {
             await collectChampionData(p.summonerName, stats.puuid, championMap)
           } catch (err) {
-            console.warn('[refresh-stats] Error en champion data para', p.summonerName, err)
+            log.warn({ summonerName: p.summonerName, err }, 'Error collecting champion data')
           }
         }
       } catch (err) {
-        console.error('[Riot API] Error al cargar', p.summonerName, err)
+        log.error({ summonerName: p.summonerName, err }, 'Error loading player stats from Riot API')
       }
     }))
 
