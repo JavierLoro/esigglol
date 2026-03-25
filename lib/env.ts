@@ -30,7 +30,7 @@ export const ADMIN_PASSWORD_HASH = (() => {
   if (!val) throw new Error('ADMIN_PASSWORD_HASH env var is required')
   return val
 })()
-export const RIOT_API_KEY = required('RIOT_API_KEY')
+export const RIOT_API_KEY = process.env.RIOT_API_KEY ?? ''
 
 // ── Optional (with defaults) ─────────────────────────────────────────────────
 
