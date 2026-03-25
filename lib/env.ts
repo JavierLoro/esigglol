@@ -3,6 +3,7 @@
 // imports from this module instead of accessing process.env directly.
 
 import path from 'path'
+import { readFileSync } from 'fs'
 
 function required(name: string): string {
   const value = process.env[name]
@@ -21,8 +22,7 @@ export const ADMIN_PASSWORD_HASH = (() => {
   if (val && val.startsWith('$2')) return val
   // dotenv-expand corrupted the value — read raw from .env.local
   try {
-    const fs = require('fs') as typeof import('fs')
-    const raw = fs.readFileSync(path.join(process.cwd(), '.env.local'), 'utf-8')
+    const raw = readFileSync(path.join(process.cwd(), '.env.local'), 'utf-8')
     const match = raw.match(/^ADMIN_PASSWORD_HASH='([^']+)'/m)
       ?? raw.match(/^ADMIN_PASSWORD_HASH=(.+)$/m)
     if (match?.[1]) return match[1]
