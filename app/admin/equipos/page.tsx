@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { Team, Player, Role } from '@/lib/types'
-import { Plus, Trash2, Save, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, Save, ChevronDown, ChevronRight, Upload } from 'lucide-react'
 
 const PRIMARY_ROLES: Role[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente']
 const SECONDARY_ROLES: Exclude<Role, 'Suplente'>[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill']
@@ -12,6 +12,7 @@ export default function AdminEquipos() {
   const [teams, setTeams] = useState<Team[]>([])
   const [expanded, setExpanded] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
+  const [uploading, setUploading] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
@@ -50,6 +51,23 @@ export default function AdminEquipos() {
 
   function updateTeam(id: string, patch: Partial<Team>) {
     setTeams(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t))
+  }
+
+  async function uploadLogo(teamId: string, file: File) {
+    setUploading(teamId)
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('teamId', teamId)
+    const res = await fetch('/api/admin/equipos/upload-logo', { method: 'POST', body: formData })
+    setUploading(null)
+    if (!res.ok) {
+      const { error } = await res.json()
+      notify(error || 'Error al subir logo')
+      return
+    }
+    const { path } = await res.json()
+    updateTeam(teamId, { logo: path })
+    notify('Logo subido')
   }
 
   function addPlayer(teamId: string) {
@@ -108,13 +126,31 @@ export default function AdminEquipos() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-white/40 mb-1 block">Ruta del logo</label>
-                  <input
-                    value={team.logo}
-                    onChange={e => updateTeam(team.id, { logo: e.target.value })}
-                    className="w-full px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#0097D7]/50"
-                    placeholder="/logos/team.png"
-                  />
+                  <label className="text-xs text-white/40 mb-1 block">Logo</label>
+                  <div className="flex items-center gap-3">
+                    {team.logo && (
+                      <img
+                        src={team.logo}
+                        alt={team.name}
+                        className="w-10 h-10 rounded-lg object-contain bg-white/5"
+                      />
+                    )}
+                    <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/60 hover:border-[#0097D7]/50 cursor-pointer transition-colors">
+                      <Upload size={14} />
+                      {uploading === team.id ? 'Subiendo...' : 'Subir logo'}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0]
+                          if (file) uploadLogo(team.id, file)
+                          e.target.value = ''
+                        }}
+                        disabled={uploading === team.id}
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
 
