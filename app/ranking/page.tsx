@@ -1,6 +1,7 @@
 import { getPlayerStatsCache, getTeams } from '@/lib/data'
 import RankingTable from '@/components/PlayerRankingTable'
 import RefreshStatsButton from '@/components/RefreshStatsButton'
+import type { PlayerRow } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,12 +14,42 @@ const RANK_ORDER: Record<string, number> = { I: 4, II: 3, III: 2, IV: 1 }
 
 export default function RankingPage() {
   const cache = getPlayerStatsCache()
-  const teamLookup = new Map(getTeams().map(t => [t.id, { logo: t.logo, name: t.name }]))
-  const rows = cache.players.map(r => {
+  const teams = getTeams()
+  const teamLookup = new Map(teams.map(t => [t.id, { logo: t.logo, name: t.name }]))
+
+  // Jugadores en cache (actualizar teamName/logo por si cambió)
+  const cachedNames = new Set(cache.players.map(r => r.summonerName))
+  const cachedRows = cache.players.map(r => {
     const t = teamLookup.get(r.teamId)
     if (t) { r.teamLogo = t.logo ?? ''; r.teamName = t.name }
     return r
-  }).sort((a, b) => {
+  })
+
+  // Jugadores en el roster que aún no tienen datos en cache
+  const pendingRows: PlayerRow[] = teams.flatMap(team =>
+    (team.players ?? [])
+      .filter(p => !cachedNames.has(p.summonerName))
+      .map(p => ({
+        summonerName: p.summonerName,
+        puuid: '',
+        profileIconId: 0,
+        level: 0,
+        tier: 'UNRANKED' as const,
+        rank: 'IV' as const,
+        lp: 0,
+        wins: 0,
+        losses: 0,
+        winrate: 0,
+        teamId: team.id,
+        teamName: team.name,
+        teamLogo: team.logo ?? '',
+        primaryRole: p.primaryRole,
+        secondaryRole: p.secondaryRole,
+        apiError: false,
+      }))
+  )
+
+  const rows = [...cachedRows, ...pendingRows].sort((a, b) => {
     const tierDiff = (TIER_ORDER[b.tier] ?? 0) - (TIER_ORDER[a.tier] ?? 0)
     if (tierDiff !== 0) return tierDiff
     const rankDiff = (RANK_ORDER[b.rank] ?? 0) - (RANK_ORDER[a.rank] ?? 0)

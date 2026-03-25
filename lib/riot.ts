@@ -63,7 +63,7 @@ export async function getSummonerByRiotId(name: string, tag: string): Promise<Ri
 }
 
 export async function getSummonerByName(nameTag: string): Promise<RiotSummoner> {
-  const [name, tag] = nameTag.includes('#') ? nameTag.split('#') : [nameTag, REGION.toUpperCase()]
+  const [name, tag] = nameTag.includes('#') ? nameTag.split('#').map(s => s.trim()) : [nameTag.trim(), REGION.toUpperCase()]
   return getSummonerByRiotId(name, tag)
 }
 
@@ -92,7 +92,7 @@ export async function getMatchDetails(matchId: string): Promise<unknown> {
 }
 
 export async function getPlayerStats(nameTag: string): Promise<PlayerStats> {
-  const [name, tag] = nameTag.includes('#') ? nameTag.split('#') : [nameTag, REGION.toUpperCase()]
+  const [name, tag] = nameTag.includes('#') ? nameTag.split('#').map(s => s.trim()) : [nameTag.trim(), REGION.toUpperCase()]
 
   const accountUrl = `https://${MATCH_CLUSTER}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`
   const account = await riotFetch<{ puuid: string; gameName: string; tagLine: string }>(accountUrl)
