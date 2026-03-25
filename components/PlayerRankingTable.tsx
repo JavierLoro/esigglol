@@ -142,12 +142,12 @@ export default function PlayerRankingTable({ rows }: Props) {
           </thead>
           <tbody>
             {sorted.map((r, i) => (
-              <tr key={r.summonerName} className="border-b border-white/5 hover:bg-white/3 transition-colors">
+              <tr key={`${r.summonerName}-${r.teamId}`} className="border-b border-white/5 hover:bg-white/3 transition-colors">
                 <td className="px-4 py-3 text-white/30">{i + 1}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2.5">
                     {r.profileIconId ? (
-                      <Image src={`/ddragon/profileicon/${r.profileIconId}.png`} alt="" width={28} height={28} className="rounded shrink-0" unoptimized />
+                      <Image src={`/api/ddragon/profileicon/${r.profileIconId}`} alt="" width={28} height={28} className="rounded shrink-0" unoptimized />
                     ) : (
                       <div className="w-7 h-7 rounded bg-white/10 shrink-0" />
                     )}
