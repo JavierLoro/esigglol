@@ -169,14 +169,15 @@ async function runRefresh(teamIds?: string[]) {
     }))
 
     // Deduplicar rows (un jugador en varios equipos puede aparecer varias veces)
+    const normalizeName = (name: string) => name.trim().replace(/\s*#\s*/g, '#').toLowerCase()
     const dedupedMap = new Map<string, PlayerRow>()
-    for (const r of rows) dedupedMap.set(r.summonerName.toLowerCase(), r)
+    for (const r of rows) dedupedMap.set(normalizeName(r.summonerName), r)
     const uniqueRows = Array.from(dedupedMap.values())
 
     // Merge parcial: mantener jugadores no refrescados del cache anterior
-    const refreshedNames = new Set(uniqueRows.map(r => r.summonerName.toLowerCase()))
+    const refreshedNames = new Set(uniqueRows.map(r => normalizeName(r.summonerName)))
     const kept = previousCache.players.filter(
-      p => !refreshedNames.has(p.summonerName.toLowerCase())
+      p => !refreshedNames.has(normalizeName(p.summonerName))
     )
     savePlayerStatsCache({ lastUpdated: new Date().toISOString(), players: [...kept, ...uniqueRows] })
 

@@ -17,10 +17,13 @@ export default function RankingPage() {
   const teams = getTeams()
   const teamLookup = new Map(teams.map(t => [t.id, { logo: t.logo, name: t.name }]))
 
+  // Normaliza el nombre para deduplicar: trim + eliminar espacios alrededor del '#'
+  const normalizeName = (name: string) => name.trim().replace(/\s*#\s*/g, '#').toLowerCase()
+
   // Jugadores en cache deduplicados (la BD puede contener entradas duplicadas)
   const seenInCache = new Map<string, PlayerRow>()
   for (const r of cache.players) {
-    const key = r.summonerName.toLowerCase()
+    const key = normalizeName(r.summonerName)
     if (!seenInCache.has(key)) seenInCache.set(key, r)
   }
   const cachedNames = new Set(seenInCache.keys())
@@ -33,7 +36,7 @@ export default function RankingPage() {
   // Jugadores en el roster que aún no tienen datos en cache
   const pendingRows: PlayerRow[] = teams.flatMap(team =>
     (team.players ?? [])
-      .filter(p => !cachedNames.has(p.summonerName.toLowerCase()))
+      .filter(p => !cachedNames.has(normalizeName(p.summonerName)))
       .map(p => ({
         summonerName: p.summonerName,
         puuid: '',
