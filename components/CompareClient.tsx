@@ -188,7 +188,7 @@ function PlayerCard({
     >
       {/* Profile icon */}
       {player.profileIconId ? (
-        <Image src={`/ddragon/profileicon/${player.profileIconId}.png`} alt="" width={36} height={36} className="rounded-lg shrink-0" />
+        <Image src={`/ddragon/profileicon/${player.profileIconId}.png`} alt="" width={36} height={36} className="rounded-lg shrink-0" unoptimized />
       ) : (
         <div className="w-9 h-9 rounded-lg bg-white/10 shrink-0" />
       )}

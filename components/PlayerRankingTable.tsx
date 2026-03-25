@@ -147,7 +147,7 @@ export default function PlayerRankingTable({ rows }: Props) {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2.5">
                     {r.profileIconId ? (
-                      <Image src={`/ddragon/profileicon/${r.profileIconId}.png`} alt="" width={28} height={28} className="rounded shrink-0" />
+                      <Image src={`/ddragon/profileicon/${r.profileIconId}.png`} alt="" width={28} height={28} className="rounded shrink-0" unoptimized />
                     ) : (
                       <div className="w-7 h-7 rounded bg-white/10 shrink-0" />
                     )}
