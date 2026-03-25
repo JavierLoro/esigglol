@@ -204,7 +204,17 @@ export default function AdminPartidos() {
   }
 
   function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text).then(() => notify('Copiado'))
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => notify('Copiado'))
+    } else {
+      const el = document.createElement('textarea')
+      el.value = text
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      notify('Copiado')
+    }
   }
 
   const filtered = selectedPhase === 'all' ? matches : matches.filter(m => m.phaseId === selectedPhase)
@@ -554,14 +564,25 @@ export default function AdminPartidos() {
                 </div>
               </div>
 
-              <button
-                onClick={() => saveMatch(match)}
-                disabled={saving === match.id}
-                className="self-end flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
-              >
-                <Save size={14} />
-                {saving === match.id ? 'Guardando...' : 'Guardar'}
-              </button>
+              <div className="self-end flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(`${window.location.origin}/overlay/partidos/${match.id}`)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-white/40 text-sm hover:text-white hover:border-white/30 transition-colors"
+                  title="Copiar URL del overlay"
+                >
+                  <Copy size={14} />
+                  Overlay
+                </button>
+                <button
+                  onClick={() => saveMatch(match)}
+                  disabled={saving === match.id}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
+                >
+                  <Save size={14} />
+                  {saving === match.id ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
             </div>
           )
         })}

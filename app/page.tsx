@@ -1,4 +1,4 @@
-import TwitchEmbed from '@/components/TwitchEmbed'
+import LiveSection from '@/components/LiveSection'
 import MatchCard from '@/components/MatchCard'
 import { getMatches, getTeams, getPhases } from '@/lib/data'
 import { TWITCH_CHANNEL } from '@/lib/env'
@@ -48,29 +48,9 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col">
-      {/* Hero banner */}
-      <div className="border-b border-white/8 bg-gradient-to-b from-[#0097D7]/8 to-transparent">
-        <div className="max-w-7xl mx-auto px-4 py-6 flex items-center gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold uppercase tracking-widest text-[#0097D7]">ESI Ciudad Real</span>
-              <span className="w-1 h-1 rounded-full bg-white/20" />
-              <span className="text-xs text-white/40 uppercase tracking-widest">Torneo LoL</span>
-            </div>
-            <h1 className="text-2xl font-bold text-white">Liga ESIgg.lol</h1>
-          </div>
-          <div className="ml-auto hidden sm:flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#B30133] animate-pulse" />
-            <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">En directo</span>
-          </div>
-        </div>
-      </div>
+      <LiveSection channel={channel} />
 
       <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col gap-8 w-full">
-        <section>
-          <TwitchEmbed channel={channel} />
-        </section>
-
         <section>
           <div className="flex items-center gap-3 mb-4">
             <h2 className="text-sm font-bold uppercase tracking-widest text-white/60">Partidos</h2>

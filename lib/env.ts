@@ -43,6 +43,7 @@ export const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
 export const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), 'data', 'esigglol.db')
 export const DATA_DIR = path.dirname(DB_PATH)
 export const UPLOADS_DIR = path.join(DATA_DIR, 'uploads')
+export const PROFILE_ICONS_DIR = path.join(DATA_DIR, 'ddragon', 'profileicon')
 
 // ── Derived ──────────────────────────────────────────────────────────────────
 

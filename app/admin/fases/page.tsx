@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { Phase, PhaseType, PhaseStatus, BOFormat, Team, Match } from '@/lib/types'
-import { Plus, Trash2, Save, GripVertical, Zap, Check } from 'lucide-react'
+import { Plus, Trash2, Save, GripVertical, Zap, Check, Copy } from 'lucide-react'
 
 const PHASE_TYPES: { value: PhaseType; label: string }[] = [
   { value: 'groups', label: 'Fase de Grupos' },
@@ -32,6 +32,21 @@ export default function AdminFases() {
   }, [])
 
   function notify(text: string) { setMsg(text); setTimeout(() => setMsg(''), 3000) }
+
+  function copyOverlayUrl(phaseId: string) {
+    const url = `${window.location.origin}/overlay/fases/${phaseId}`
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url)
+    } else {
+      const el = document.createElement('textarea')
+      el.value = url
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
+    notify('URL de overlay copiada')
+  }
 
   async function addPhase() {
     const res = await fetch('/api/admin/fases', {
@@ -445,14 +460,24 @@ export default function AdminFases() {
               </div>
             )}
 
-            <button
-              onClick={() => savePhase(phase)}
-              disabled={saving === phase.id}
-              className="self-end flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
-            >
-              <Save size={14} />
-              {saving === phase.id ? 'Guardando...' : 'Guardar'}
-            </button>
+            <div className="self-end flex items-center gap-2">
+              <button
+                onClick={() => copyOverlayUrl(phase.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-white/40 text-sm hover:text-white hover:border-white/30 transition-colors"
+                title="Copiar URL del overlay"
+              >
+                <Copy size={14} />
+                Overlay
+              </button>
+              <button
+                onClick={() => savePhase(phase)}
+                disabled={saving === phase.id}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
+              >
+                <Save size={14} />
+                {saving === phase.id ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
           </div>
         )
       })}

@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import logger from '@/lib/logger'
+import { PROFILE_ICONS_DIR } from '@/lib/env'
 
 const log = logger.child({ module: 'ddragon' })
 
@@ -103,7 +104,7 @@ export async function checkAndUpdate(): Promise<void> {
 // ── Profile icon (on-demand download) ───────────────────────────────────────
 
 export async function ensureProfileIcon(iconId: number): Promise<void> {
-  const dest = path.join(ASSETS_DIR, 'profileicon', `${iconId}.png`)
+  const dest = path.join(PROFILE_ICONS_DIR, `${iconId}.png`)
   if (fs.existsSync(dest)) return
 
   const version = getVersion()
@@ -117,7 +118,7 @@ export async function ensureProfileIcon(iconId: number): Promise<void> {
 
 export function profileIconUrl(iconId: number | undefined): string {
   if (!iconId) return ''
-  return `/ddragon/profileicon/${iconId}.png`
+  return `/api/ddragon/profileicon/${iconId}`
 }
 
 export function rankedEmblemUrl(tier: string): string {

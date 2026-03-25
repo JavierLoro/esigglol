@@ -1,38 +1,80 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import clsx from 'clsx'
 
 interface Props {
   channel: string
+  onLiveChange?: (live: boolean) => void
 }
 
 const IP_RE = /^(\d{1,3}\.){3}\d{1,3}$/
+const EMBED_ID = 'twitch-embed-root'
 
-export default function TwitchEmbed({ channel }: Props) {
-  const [src] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySDK = any
+
+export default function TwitchEmbed({ channel, onLiveChange }: Props) {
+  const [isLive, setIsLive] = useState<boolean | null>(null)
+  const onLiveChangeRef = useRef(onLiveChange)
+  useEffect(() => { onLiveChangeRef.current = onLiveChange }, [onLiveChange])
+
+  useEffect(() => {
+    if (!channel) return
+
     const hostname = window.location.hostname
-    if (IP_RE.test(hostname)) return null
+    if (IP_RE.test(hostname)) return
+
     const parent = hostname === '127.0.0.1' ? 'localhost' : hostname
-    return `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${parent}&autoplay=false`
-  })
+
+    function initEmbed() {
+      const Twitch: AnySDK = (window as AnySDK).Twitch
+      const embed = new Twitch.Embed(EMBED_ID, {
+        width: '100%',
+        height: '100%',
+        channel,
+        parent: [parent],
+        autoplay: false,
+        layout: 'video',
+      })
+
+      embed.addEventListener(Twitch.Embed.VIDEO_READY, () => {
+        const player = embed.getPlayer()
+        player.addEventListener(Twitch.Player.ONLINE, () => {
+          setIsLive(true)
+          onLiveChangeRef.current?.(true)
+        })
+        player.addEventListener(Twitch.Player.OFFLINE, () => {
+          setIsLive(false)
+          onLiveChangeRef.current?.(false)
+        })
+      })
+    }
+
+    const tw = (window as AnySDK).Twitch
+    if (tw?.Embed) {
+      initEmbed()
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://embed.twitch.tv/embed/v1.js'
+    script.onload = initEmbed
+    document.head.appendChild(script)
+
+    return () => {
+      if (script.parentNode) script.parentNode.removeChild(script)
+    }
+  }, [channel])
 
   if (!channel) return null
 
   return (
-    <div className="w-full aspect-video rounded-xl overflow-hidden border border-white/10 bg-black flex items-center justify-center">
-      {src ? (
-        <iframe
-          src={src}
-          width="100%"
-          height="100%"
-          allowFullScreen
-          className="w-full h-full"
-        />
-      ) : (
-        <p className="text-white/30 text-sm">
-          El stream no está disponible desde una dirección IP.
-        </p>
+    <div
+      id={EMBED_ID}
+      className={clsx(
+        'w-full rounded-xl overflow-hidden border border-white/10 bg-black',
+        isLive ? 'aspect-video' : 'h-0 overflow-hidden border-0'
       )}
-    </div>
+    />
   )
 }
