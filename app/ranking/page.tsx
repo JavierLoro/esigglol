@@ -74,9 +74,7 @@ export default function RankingPage() {
 
       {anyFailed && (
         <div className="mb-4 px-4 py-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 text-sm">
-          Algunos jugadores no pudieron cargarse desde la Riot API.
-          Comprueba que la key en <code className="font-mono">.env.local</code> es válida y no ha expirado (caducan cada 24h).
-          Revisa los logs del servidor para el error exacto.
+          Algunos jugadores no pudieron cargarse. Los datos pueden estar temporalmente no disponibles — inténtalo de nuevo más tarde.
         </div>
       )}
 

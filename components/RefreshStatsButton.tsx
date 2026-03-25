@@ -41,11 +41,11 @@ export default function RefreshStatsButton({ lastUpdated, teamIds }: Props) {
         } else {
           // Terminó pero sin cambiar lastUpdated (error total)
           setLoading(false)
-          setError('La actualización terminó pero no se guardaron datos. Revisa los logs del servidor.')
+          setError('No se pudieron cargar los datos. Inténtalo de nuevo en unos minutos.')
         }
       } catch {
         setLoading(false)
-        setError('Error de red al comprobar el estado')
+        setError('Error de conexión. Inténtalo de nuevo.')
       }
     }
 
