@@ -38,6 +38,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Cache directory for Next.js image optimization (writable by any uid via compose user override)
+RUN mkdir -p /app/.next/cache && chmod 777 /app/.next/cache
+
 # Directory for SQLite database (mount as volume)
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
 VOLUME /app/data
