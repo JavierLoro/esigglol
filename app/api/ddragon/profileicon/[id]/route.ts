@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { PROFILE_ICONS_DIR } from '@/lib/env'
+import { ensureProfileIcon } from '@/lib/ddragon'
 import { readFile } from 'fs/promises'
 import path from 'path'
 
@@ -12,6 +13,8 @@ export async function GET(
   if (!/^\d+$/.test(id)) {
     return NextResponse.json({ error: 'ID no válido' }, { status: 400 })
   }
+
+  await ensureProfileIcon(parseInt(id, 10))
 
   const filePath = path.join(PROFILE_ICONS_DIR, `${id}.png`)
 
