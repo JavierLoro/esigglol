@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { Team, Player, Role } from '@/lib/types'
+import Image from 'next/image'
 import { Plus, Trash2, Save, ChevronDown, ChevronRight, Upload } from 'lucide-react'
 
 const PRIMARY_ROLES: Role[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente']
@@ -129,10 +130,12 @@ export default function AdminEquipos() {
                   <label className="text-xs text-white/40 mb-1 block">Logo</label>
                   <div className="flex items-center gap-3">
                     {team.logo && (
-                      <img
+                      <Image
                         src={team.logo}
                         alt={team.name}
-                        className="w-10 h-10 rounded-lg object-contain bg-white/5"
+                        width={40}
+                        height={40}
+                        className="rounded-lg object-contain bg-white/5"
                       />
                     )}
                     <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/60 hover:border-[#0097D7]/50 cursor-pointer transition-colors">
