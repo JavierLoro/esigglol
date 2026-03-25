@@ -17,9 +17,14 @@ export default function RankingPage() {
   const teams = getTeams()
   const teamLookup = new Map(teams.map(t => [t.id, { logo: t.logo, name: t.name }]))
 
-  // Jugadores en cache (actualizar teamName/logo por si cambió)
-  const cachedNames = new Set(cache.players.map(r => r.summonerName.toLowerCase()))
-  const cachedRows = cache.players.map(r => {
+  // Jugadores en cache deduplicados (la BD puede contener entradas duplicadas)
+  const seenInCache = new Map<string, PlayerRow>()
+  for (const r of cache.players) {
+    const key = r.summonerName.toLowerCase()
+    if (!seenInCache.has(key)) seenInCache.set(key, r)
+  }
+  const cachedNames = new Set(seenInCache.keys())
+  const cachedRows = Array.from(seenInCache.values()).map(r => {
     const t = teamLookup.get(r.teamId)
     if (t) { r.teamLogo = t.logo ?? ''; r.teamName = t.name }
     return r
