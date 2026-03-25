@@ -14,7 +14,9 @@ const EMBED_ID = 'twitch-embed-root'
 type AnySDK = any
 
 export default function TwitchEmbed({ channel, onLiveChange }: Props) {
-  const [isLive, setIsLive] = useState<boolean | null>(null)
+  // Default true: show embed immediately; OFFLINE event hides it if channel is not live.
+  // Twitch.Player.ONLINE only fires on transitions, not on initial load when already live.
+  const [isLive, setIsLive] = useState(true)
   const onLiveChangeRef = useRef(onLiveChange)
   useEffect(() => { onLiveChangeRef.current = onLiveChange }, [onLiveChange])
 
