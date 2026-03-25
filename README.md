@@ -27,11 +27,12 @@ ESIgg.lol is a private League of Legends tournament platform for ESIUCLM. It pro
 - Live Twitch stream embed
 
 ### Admin panel (`/admin`)
-- Team, phase, and match management
+- Team, phase, and match management (with logo upload)
 - Automatic bracket generation
 - Match screenshot parsing via Claude Vision
 - Riot Tournament API integration (tournament codes, lobby events)
 - Player stats collection from Riot API
+- Runtime Riot API key management (no restart needed)
 
 ---
 
@@ -83,13 +84,15 @@ App available at `http://localhost:3000`.
 
 | Variable | Required | Description |
 |---|---|---|
-| `RIOT_API_KEY` | Yes | Riot Games API key |
 | `ADMIN_PASSWORD_HASH` | Yes | bcrypt hash of the admin password |
 | `SESSION_SECRET` | Yes | JWT signing secret (min 32 chars) |
+| `RIOT_API_KEY` | No | Riot Games API key (can also be set from admin panel) |
 | `RIOT_REGION` | No | Riot API region (default: `euw1`) |
 | `TWITCH_CHANNEL` | No | Twitch channel name for embed |
 | `ANTHROPIC_API_KEY` | No | Anthropic API key (enables screenshot parsing) |
 | `DB_PATH` | No | SQLite database path (default: `./data/esigglol.db`) |
+
+> **Note:** The Riot API key can be configured at runtime from the admin dashboard — no server restart needed when the dev key expires.
 
 > **Note:** `ADMIN_PASSWORD_HASH` contains `$` characters. Always wrap the value in single quotes in `.env.local` to prevent shell variable expansion:
 > ```
@@ -183,11 +186,12 @@ ESIgg.lol es una plataforma privada de torneos de League of Legends para ESIUCLM
 - Embed del directo de Twitch
 
 ### Panel de administracion (`/admin`)
-- Gestion de equipos, fases y partidos
+- Gestion de equipos, fases y partidos (con subida de logos)
 - Generacion automatica de brackets
 - Parseo de screenshots de partidos via Claude Vision
 - Integracion con Riot Tournament API (codigos de torneo, lobby events)
 - Recoleccion de stats de jugadores desde la API de Riot
+- Gestion de la API key de Riot en tiempo real (sin reinicio)
 
 ---
 
@@ -239,13 +243,15 @@ La app estara disponible en `http://localhost:3000`.
 
 | Variable | Requerida | Descripcion |
 |---|---|---|
-| `RIOT_API_KEY` | Si | API key de Riot Games |
 | `ADMIN_PASSWORD_HASH` | Si | Hash bcrypt del password de admin |
 | `SESSION_SECRET` | Si | Secreto para firmar JWT (min 32 chars) |
+| `RIOT_API_KEY` | No | API key de Riot Games (tambien configurable desde el panel admin) |
 | `RIOT_REGION` | No | Region de Riot API (default: `euw1`) |
 | `TWITCH_CHANNEL` | No | Canal de Twitch para el embed |
 | `ANTHROPIC_API_KEY` | No | API key de Anthropic (habilita parseo de screenshots) |
 | `DB_PATH` | No | Ruta de la BD SQLite (default: `./data/esigglol.db`) |
+
+> **Nota:** La API key de Riot se puede configurar en tiempo real desde el panel admin — no requiere reiniciar el servidor cuando la dev key expira.
 
 > **Importante:** `ADMIN_PASSWORD_HASH` contiene caracteres `$`. En `.env.local` envuelve el valor entre comillas simples para evitar expansion de variables:
 > ```

@@ -37,7 +37,7 @@ export default function AdminEquipos() {
     const res = await fetch('/api/admin/equipos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Nuevo equipo', logo: '/logos/default.png', players: [] }),
+      body: JSON.stringify({ name: 'Nuevo equipo', logo: '', players: [] }),
     })
     const team = await res.json()
     setTeams(prev => [...prev, team])

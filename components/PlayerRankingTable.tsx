@@ -55,6 +55,9 @@ export default function PlayerRankingTable({ rows }: Props) {
     })
 
     return [...filtered].sort((a, b) => {
+      // Players with apiError always go last
+      if (a.apiError !== b.apiError) return a.apiError ? 1 : -1
+
       let diff = 0
       if (sortKey === 'rank') {
         diff = (TIER_ORDER[a.tier] - TIER_ORDER[b.tier]) ||
