@@ -27,7 +27,7 @@ export default function AdminFases() {
 
   useEffect(() => {
     fetch('/api/admin/fases').then(r => r.json()).then(setPhases)
-    fetch('/api/data/equipos').then(r => r.json()).then(setTeams)
+    fetch('/api/admin/equipos').then(r => r.json()).then(setTeams)
     loadMatches()
   }, [])
 
