@@ -3,6 +3,9 @@ import { getPhases, savePhases, generateId } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { PhaseSchema, PhaseUpdateSchema, DeleteIdSchema } from '@/lib/schemas'
 import type { Phase } from '@/lib/types'
+import logger from '@/lib/logger'
+
+const log = logger.child({ module: 'fases' })
 
 export async function GET() {
   const deny = await requireAdminSession()
@@ -23,7 +26,7 @@ export async function POST(req: NextRequest) {
   const phases = getPhases()
   const phase: Phase = { id: generateId('phase'), ...parsed.data }
   phases.push(phase)
-  savePhases(phases)
+  try { savePhases(phases) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json(phase, { status: 201 })
 }
 
@@ -41,7 +44,7 @@ export async function PUT(req: NextRequest) {
   const idx = phases.findIndex(p => p.id === parsed.data.id)
   if (idx === -1) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   phases[idx] = parsed.data as Phase
-  savePhases(phases)
+  try { savePhases(phases) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json(parsed.data)
 }
 
@@ -56,6 +59,6 @@ export async function DELETE(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
   const phases = getPhases().filter(p => p.id !== parsed.data.id)
-  savePhases(phases)
+  try { savePhases(phases) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json({ ok: true })
 }

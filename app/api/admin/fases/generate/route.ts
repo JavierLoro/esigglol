@@ -233,6 +233,6 @@ export async function POST(req: NextRequest) {
   }
 
   allMatches.push(...created)
-  saveMatches(allMatches)
+  try { saveMatches(allMatches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json({ created: created.length })
 }

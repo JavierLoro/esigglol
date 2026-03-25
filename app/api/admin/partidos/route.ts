@@ -5,6 +5,9 @@ import { advanceWinner } from '@/lib/bracket'
 import { MatchSchema, MatchUpdateSchema, DeleteIdsSchema } from '@/lib/schemas'
 import type { Match } from '@/lib/types'
 import { z } from 'zod'
+import logger from '@/lib/logger'
+
+const log = logger.child({ module: 'partidos' })
 
 export async function GET() {
   const deny = await requireAdminSession()
@@ -27,7 +30,7 @@ export async function POST(req: NextRequest) {
   const newMatches: Match[] = items.map(m => ({ id: generateId('match'), ...m } satisfies Match))
 
   matches.push(...newMatches)
-  saveMatches(matches)
+  try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json(newMatches, { status: 201 })
 }
 
@@ -56,7 +59,7 @@ export async function PUT(req: NextRequest) {
     }
   }
 
-  saveMatches(matches)
+  try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
 
   // ── Actualizar estado de la fase ────────────────────────────────────────
   const phase = getPhaseById(body.phaseId)
@@ -64,7 +67,7 @@ export async function PUT(req: NextRequest) {
     const phaseMatches = matches.filter(m => m.phaseId === body.phaseId)
     const hasResult = phaseMatches.some(m => m.result !== null)
     if (hasResult) {
-      savePhase({ ...phase, status: 'active' })
+      try { savePhase({ ...phase, status: 'active' }) } catch (err) { log.error({ err }, 'DB write failed on phase status update') }
     }
   }
 
@@ -87,6 +90,6 @@ export async function DELETE(req: NextRequest) {
   }
 
   const matches = getMatches().filter(m => !toDelete.has(m.id))
-  saveMatches(matches)
+  try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json({ ok: true, deleted: toDelete.size })
 }

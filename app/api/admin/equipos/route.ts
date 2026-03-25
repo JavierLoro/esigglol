@@ -3,6 +3,9 @@ import { getTeams, saveTeams, generateId } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { TeamSchema, TeamUpdateSchema, DeleteIdSchema } from '@/lib/schemas'
 import type { Team } from '@/lib/types'
+import logger from '@/lib/logger'
+
+const log = logger.child({ module: 'equipos' })
 
 export async function GET() {
   const deny = await requireAdminSession()
@@ -23,7 +26,7 @@ export async function POST(req: NextRequest) {
   const teams = getTeams()
   const team: Team = { id: generateId('team'), ...parsed.data }
   teams.push(team)
-  saveTeams(teams)
+  try { saveTeams(teams) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json(team, { status: 201 })
 }
 
@@ -41,7 +44,7 @@ export async function PUT(req: NextRequest) {
   const idx = teams.findIndex(t => t.id === parsed.data.id)
   if (idx === -1) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   teams[idx] = parsed.data as Team
-  saveTeams(teams)
+  try { saveTeams(teams) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json(parsed.data)
 }
 
@@ -56,6 +59,6 @@ export async function DELETE(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
   const teams = getTeams().filter(t => t.id !== parsed.data.id)
-  saveTeams(teams)
+  try { saveTeams(teams) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json({ ok: true })
 }
