@@ -2,6 +2,7 @@ import { getTeams, getPhases, getMatches } from '@/lib/data'
 import Link from 'next/link'
 import { Users, Trophy, Calendar, CheckCircle } from 'lucide-react'
 import TournamentSetup from '@/components/admin/TournamentSetup'
+import RiotApiKeySettings from '@/components/admin/RiotApiKeySettings'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,6 +31,7 @@ export default function AdminDashboard() {
           </Link>
         ))}
       </div>
+      <RiotApiKeySettings />
       <TournamentSetup />
       <div className="text-sm text-white/30">
         Accede a cada sección desde el menú lateral para gestionar el torneo.

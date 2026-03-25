@@ -1,7 +1,7 @@
 import type { RiotSummoner, RiotLeagueEntry, PlayerStats } from './types'
-import { RIOT_API_KEY, RIOT_REGION, MATCH_CLUSTER } from './env'
+import { RIOT_REGION, MATCH_CLUSTER } from './env'
+import { getRiotApiKey } from './data'
 
-const API_KEY = RIOT_API_KEY
 const REGION = RIOT_REGION
 
 const BASE = `https://${REGION}.api.riotgames.com`
@@ -30,7 +30,7 @@ async function riotFetch<T>(url: string): Promise<T> {
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch(url, {
-      headers: { 'X-Riot-Token': API_KEY },
+      headers: { 'X-Riot-Token': getRiotApiKey() },
       next: { revalidate: 0 },
     })
 

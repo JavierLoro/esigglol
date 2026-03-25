@@ -124,6 +124,21 @@ export function savePlayerStatsCache(data: PlayerStatsCache): void {
     .run('cache', JSON.stringify(data))
 }
 
+// ── Settings (API keys) ─────────────────────────────────────────────────────
+
+export function getRiotApiKey(): string {
+  const row = db.prepare('SELECT data FROM tournament_config WHERE key = ?')
+    .get('riot-api-key') as { data: string } | undefined
+  if (row) return JSON.parse(row.data) as string
+  // Fallback to env var
+  return process.env.RIOT_API_KEY ?? ''
+}
+
+export function saveRiotApiKey(key: string): void {
+  db.prepare('INSERT OR REPLACE INTO tournament_config (key, data) VALUES (?, ?)')
+    .run('riot-api-key', JSON.stringify(key))
+}
+
 // ── ID generator ─────────────────────────────────────────────────────────────
 
 export function generateId(prefix: string): string {
