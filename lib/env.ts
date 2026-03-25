@@ -20,6 +20,14 @@ export const RIOT_REGION = process.env.RIOT_REGION || 'euw1'
 export const TWITCH_CHANNEL = process.env.TWITCH_CHANNEL ?? ''
 export const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
 
+// ── Paths ────────────────────────────────────────────────────────────────────
+
+import path from 'path'
+
+export const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), 'data', 'esigglol.db')
+export const DATA_DIR = path.dirname(DB_PATH)
+export const UPLOADS_DIR = path.join(DATA_DIR, 'uploads')
+
 // ── Derived ──────────────────────────────────────────────────────────────────
 
 export const MATCH_CLUSTER = RIOT_REGION.startsWith('na')
