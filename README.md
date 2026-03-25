@@ -1,4 +1,4 @@
-<![CDATA[<div align="center">
+<div align="center">
 
 # ESIgg.lol
 
@@ -312,4 +312,3 @@ Push a `main` dispara GitHub Actions:
 1. **CI** — lint + test + build
 2. **Docker** — build y push de imagen a `ghcr.io/javierloro/esigglol:latest`
 3. **Watchtower** — detecta la nueva imagen en ~60s y redespliega el contenedor automaticamente
-]]>
