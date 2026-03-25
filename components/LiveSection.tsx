@@ -8,7 +8,8 @@ interface Props {
 }
 
 export default function LiveSection({ channel }: Props) {
-  const [isLive, setIsLive] = useState<boolean | null>(null)
+  // Default true: show embed immediately; TwitchEmbed fires OFFLINE if not live.
+  const [isLive, setIsLive] = useState<boolean | null>(true)
 
   return (
     <>
