@@ -110,7 +110,18 @@ async function runRefresh(teamIds?: string[]) {
       if (playerLastUpdated && (Date.now() - new Date(playerLastUpdated).getTime()) < PLAYER_COOLDOWN_MS) {
         log.info({ summonerName: p.summonerName, lastUpdated: playerLastUpdated }, 'Skip: recently updated')
         const prev = previousCache.players.find(cp => cp.summonerName === p.summonerName)
-        if (prev) rows.push(prev)
+        if (prev) {
+          rows.push(prev)
+        } else {
+          rows.push({
+            summonerName: p.summonerName, puuid: '', profileIconId: 0,
+            level: 0, tier: 'UNRANKED', rank: 'IV', lp: 0,
+            wins: 0, losses: 0, winrate: 0,
+            teamId: team.id, teamName: team.name, teamLogo: team.logo,
+            primaryRole: p.primaryRole, secondaryRole: p.secondaryRole,
+            apiError: true,
+          })
+        }
         return
       }
 
@@ -136,6 +147,24 @@ async function runRefresh(teamIds?: string[]) {
         }
       } catch (err) {
         log.error({ summonerName: p.summonerName, err }, 'Error loading player stats from Riot API')
+        rows.push({
+          summonerName: p.summonerName,
+          puuid: '',
+          profileIconId: 0,
+          level: 0,
+          tier: 'UNRANKED',
+          rank: 'IV',
+          lp: 0,
+          wins: 0,
+          losses: 0,
+          winrate: 0,
+          teamId: team.id,
+          teamName: team.name,
+          teamLogo: team.logo,
+          primaryRole: p.primaryRole,
+          secondaryRole: p.secondaryRole,
+          apiError: true,
+        })
       }
     }))
 
