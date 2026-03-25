@@ -16,6 +16,7 @@ interface Pool {
   losses: number
   type: PoolType
   matches: Match[]
+  teamIds: string[]
 }
 
 interface RoundColumn {
@@ -96,7 +97,11 @@ function buildColumns(
     const pools: Pool[] = [...poolMap.entries()]
       .map(([key, ms]) => {
         const [w, l] = key.split('-').map(Number)
-        return { wins: w, losses: l, type: getPoolType(w, l, advW, elimL), matches: ms }
+        const poolTeamIds = teamIds.filter(id => {
+          const r = preRecords[id] ?? { wins: 0, losses: 0 }
+          return r.wins < advW && r.losses < elimL && r.wins === w && r.losses === l
+        })
+        return { wins: w, losses: l, type: getPoolType(w, l, advW, elimL), matches: ms, teamIds: poolTeamIds }
       })
       .sort((a, b) => b.wins - a.wins || a.losses - b.losses)
 
@@ -325,8 +330,21 @@ function PoolCardWithTeams({ pool, bo, confirmed, teams }: { pool: Pool; bo: num
       {/* Matches or placeholder */}
       <div className="px-2.5 pb-2.5 flex flex-col">
         {!confirmed ? (
-          <div className="py-3 text-center">
-            <span className="text-[10px] text-white/20 italic">Pendiente de confirmación</span>
+          <div className="py-2 flex flex-col gap-1.5">
+            <span className="text-[10px] text-white/20 italic text-center block mb-0.5">Pendiente de confirmación</span>
+            {pool.teamIds.map(id => {
+              const team = teams.find(t => t.id === id)
+              return (
+                <div key={id} className="flex items-center gap-1.5 px-0.5">
+                  {team?.logo ? (
+                    <Image src={team.logo} alt={team.name} width={16} height={16} className="rounded shrink-0" />
+                  ) : (
+                    <div className="w-4 h-4 rounded bg-white/5 shrink-0" />
+                  )}
+                  <span className="text-xs text-white/40 truncate">{team?.name ?? id}</span>
+                </div>
+              )
+            })}
           </div>
         ) : pool.matches.length === 0 ? (
           <div className="py-2 text-center">
