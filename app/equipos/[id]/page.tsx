@@ -69,7 +69,7 @@ function PlayerCard({
       <div className="flex flex-col gap-3 px-4 py-4 flex-1">
         <div className="flex items-center gap-3">
           {stats?.profileIconId ? (
-            <Image src={`/ddragon/profileicon/${stats.profileIconId}.png`} alt="" width={40} height={40} className="rounded-lg shrink-0" />
+            <Image src={`/ddragon/profileicon/${stats.profileIconId}.png`} alt="" width={40} height={40} className="rounded-lg shrink-0" unoptimized />
           ) : (
             <div className="w-10 h-10 rounded-lg bg-white/10 shrink-0" />
           )}
