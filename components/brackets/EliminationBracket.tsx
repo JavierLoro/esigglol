@@ -7,6 +7,7 @@ interface Props {
   matches: Match[]
   teams: Team[]
   title?: string
+  teamCount?: number
 }
 
 const SLOT = 112    // base slot height for first round (px)
@@ -114,6 +115,21 @@ function getRoundName(ri: number, totalRounds: number) {
   return `Ronda ${ri + 1}`
 }
 
+function PlaceholderCard() {
+  return (
+    <div className="rounded-lg border border-white/[0.06] bg-[#0e1117]/50">
+      <div className="flex items-center gap-2.5 px-3 h-12 border-b border-white/[0.04]">
+        <div className="w-[22px] h-[22px] rounded bg-white/5 shrink-0" />
+        <span className="text-sm text-white/15 italic">TBD</span>
+      </div>
+      <div className="flex items-center gap-2.5 px-3 h-12">
+        <div className="w-[22px] h-[22px] rounded bg-white/5 shrink-0" />
+        <span className="text-sm text-white/15 italic">TBD</span>
+      </div>
+    </div>
+  )
+}
+
 function ConnectorSVG({ numPairs, slotH }: { numPairs: number; slotH: number }) {
   const totalH = numPairs * slotH * 2
   const mx = CONN_W / 2
@@ -139,8 +155,53 @@ function ConnectorSVG({ numPairs, slotH }: { numPairs: number; slotH: number }) 
   )
 }
 
-export default function EliminationBracket({ matches, teams, title }: Props) {
+export default function EliminationBracket({ matches, teams, title, teamCount }: Props) {
   if (matches.length === 0) {
+    const numRounds = teamCount && teamCount >= 2 ? Math.log2(teamCount) : 0
+    if (numRounds >= 1) {
+      const placeholderRounds = Array.from({ length: numRounds }, (_, ri) => ({
+        ri,
+        count: teamCount! / Math.pow(2, ri + 1),
+      }))
+      return (
+        <div className="flex flex-col gap-3">
+          {title && (
+            <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest">{title}</h3>
+          )}
+          <div className="flex overflow-x-auto pb-3">
+            {placeholderRounds.map(({ ri, count }) => {
+              const slotH = SLOT * Math.pow(2, ri)
+              const isLast = ri === placeholderRounds.length - 1
+              const vPad = (slotH - CARD_H) / 2
+              return (
+                <div key={ri} style={{ display: 'flex', alignItems: 'flex-start' }}>
+                  <div style={{ width: COL_W, flexShrink: 0 }}>
+                    <div style={{ height: HEADER_H }} className="flex items-center justify-center">
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-white/20">
+                        {getRoundName(ri, numRounds)}
+                      </span>
+                    </div>
+                    {Array.from({ length: count }, (_, i) => (
+                      <div
+                        key={i}
+                        style={{ height: slotH, paddingTop: vPad, paddingBottom: vPad, paddingLeft: 6, paddingRight: 6, boxSizing: 'border-box' }}
+                      >
+                        <PlaceholderCard />
+                      </div>
+                    ))}
+                  </div>
+                  {!isLast && (
+                    <div style={{ paddingTop: HEADER_H }}>
+                      <ConnectorSVG numPairs={Math.floor(count / 2)} slotH={slotH} />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )
+    }
     return (
       <p className="text-white/25 text-sm py-4">
         {title && <span className="text-white/40 font-medium">{title} — </span>}

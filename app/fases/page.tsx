@@ -51,11 +51,11 @@ export default function FasesPage() {
               <SwissView phase={phase} matches={matches} teams={teams} />
             )}
             {phase.type === 'elimination' && (
-              <EliminationBracket matches={matches} teams={teams} />
+              <EliminationBracket matches={matches} teams={teams} teamCount={phase.config.bracketTeamIds?.length} />
             )}
             {phase.type === 'final-four' && (
               <>
-                <EliminationBracket matches={matches.filter(m => m.round !== 98)} teams={teams} />
+                <EliminationBracket matches={matches.filter(m => m.round !== 98)} teams={teams} teamCount={4} />
                 {matches.some(m => m.round === 98) && (
                   <div className="mt-6">
                     <p className="text-xs text-white/40 uppercase tracking-wider mb-3">3er / 4to puesto</p>
