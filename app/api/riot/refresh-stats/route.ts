@@ -168,12 +168,17 @@ async function runRefresh(teamIds?: string[]) {
       }
     }))
 
+    // Deduplicar rows (un jugador en varios equipos puede aparecer varias veces)
+    const dedupedMap = new Map<string, PlayerRow>()
+    for (const r of rows) dedupedMap.set(r.summonerName.toLowerCase(), r)
+    const uniqueRows = Array.from(dedupedMap.values())
+
     // Merge parcial: mantener jugadores no refrescados del cache anterior
-    const refreshedNames = new Set(rows.map(r => r.summonerName))
+    const refreshedNames = new Set(uniqueRows.map(r => r.summonerName.toLowerCase()))
     const kept = previousCache.players.filter(
-      p => !refreshedNames.has(p.summonerName)
+      p => !refreshedNames.has(p.summonerName.toLowerCase())
     )
-    savePlayerStatsCache({ lastUpdated: new Date().toISOString(), players: [...kept, ...rows] })
+    savePlayerStatsCache({ lastUpdated: new Date().toISOString(), players: [...kept, ...uniqueRows] })
 
     if (i + BATCH < players.length) await delay(BATCH_DELAY_MS)
   }
