@@ -11,7 +11,7 @@ const PlayerSchema = z.object({
 
 export const TeamSchema = z.object({
   name: z.string().min(1).max(100),
-  logo: z.string().min(1),
+  logo: z.string().default(''),
   players: z.array(PlayerSchema).default([]),
 })
 
