@@ -9,7 +9,7 @@ const isProd = IS_PRODUCTION
 
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://embed.twitch.tv",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https://ddragon.leagueoflegends.com",
   "font-src 'self'",

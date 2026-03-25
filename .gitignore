@@ -39,6 +39,14 @@ yarn-error.log*
 
 # claude code
 .claude/
+.agents/
+skills-lock.json
+
+# app assets (generated)
+/assetsApp/
+
+# runtime data directory
+/data/
 
 # typescript
 *.tsbuildinfo

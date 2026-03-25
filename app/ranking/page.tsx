@@ -18,7 +18,7 @@ export default function RankingPage() {
   const teamLookup = new Map(teams.map(t => [t.id, { logo: t.logo, name: t.name }]))
 
   // Jugadores en cache (actualizar teamName/logo por si cambió)
-  const cachedNames = new Set(cache.players.map(r => r.summonerName))
+  const cachedNames = new Set(cache.players.map(r => r.summonerName.toLowerCase()))
   const cachedRows = cache.players.map(r => {
     const t = teamLookup.get(r.teamId)
     if (t) { r.teamLogo = t.logo ?? ''; r.teamName = t.name }
@@ -28,7 +28,7 @@ export default function RankingPage() {
   // Jugadores en el roster que aún no tienen datos en cache
   const pendingRows: PlayerRow[] = teams.flatMap(team =>
     (team.players ?? [])
-      .filter(p => !cachedNames.has(p.summonerName))
+      .filter(p => !cachedNames.has(p.summonerName.toLowerCase()))
       .map(p => ({
         summonerName: p.summonerName,
         puuid: '',
@@ -50,6 +50,7 @@ export default function RankingPage() {
   )
 
   const rows = [...cachedRows, ...pendingRows].sort((a, b) => {
+    if (a.apiError !== b.apiError) return a.apiError ? 1 : -1
     const tierDiff = (TIER_ORDER[b.tier] ?? 0) - (TIER_ORDER[a.tier] ?? 0)
     if (tierDiff !== 0) return tierDiff
     const rankDiff = (RANK_ORDER[b.rank] ?? 0) - (RANK_ORDER[a.rank] ?? 0)
