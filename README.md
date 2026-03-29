@@ -163,6 +163,17 @@ docker compose restart app
 | `npm run sync-ddragon` | Manually sync Data Dragon assets |
 | `npm run collect-stats-dev` | Collect player stats (dev key, rate-limited) |
 | `npm run collect-stats-prod` | Collect player stats (production key) |
+| `npx tsx scripts/seed-data.ts` | Seed placeholder teams and players into the database |
+
+### Seeding placeholder data
+
+Populates the database with placeholder teams and players for development and testing. Always **adds** without touching existing data.
+
+```bash
+npx tsx scripts/seed-data.ts              # 8 teams × 5 starters + 1 sub
+npx tsx scripts/seed-data.ts --teams 4    # custom team count
+npx tsx scripts/seed-data.ts --players 6  # custom starters per team
+```
 
 ---
 
@@ -336,6 +347,17 @@ docker compose restart app
 | `npm run sync-ddragon` | Sincronizar assets de Data Dragon manualmente |
 | `npm run collect-stats-dev` | Recolectar stats de jugadores (dev key, con delays) |
 | `npm run collect-stats-prod` | Recolectar stats de jugadores (prod key) |
+| `npx tsx scripts/seed-data.ts` | Poblar la BD con equipos y jugadores placeholder |
+
+### Generar datos de prueba (seed)
+
+Puebla la base de datos con equipos y jugadores ficticios para desarrollo. **Siempre añade** sin tocar los datos existentes.
+
+```bash
+npx tsx scripts/seed-data.ts              # 8 equipos × 5 titulares + 1 suplente
+npx tsx scripts/seed-data.ts --teams 4    # numero de equipos personalizado
+npx tsx scripts/seed-data.ts --players 6  # titulares por equipo personalizado
+```
 
 ---
 
