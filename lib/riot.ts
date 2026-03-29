@@ -2,6 +2,13 @@ import type { RiotSummoner, RiotLeagueEntry, PlayerStats } from './types'
 import { RIOT_REGION, MATCH_CLUSTER } from './env'
 import { getRiotApiKey } from './data'
 
+export class RiotApiKeyError extends Error {
+  constructor(status: number) {
+    super(`Riot API key invalid or expired (HTTP ${status})`)
+    this.name = 'RiotApiKeyError'
+  }
+}
+
 const REGION = RIOT_REGION
 
 const BASE = `https://${REGION}.api.riotgames.com`
@@ -38,6 +45,10 @@ async function riotFetch<T>(url: string): Promise<T> {
       const retryAfter = parseInt(res.headers.get('Retry-After') ?? '5', 10)
       await new Promise(r => setTimeout(r, retryAfter * 1000))
       continue
+    }
+
+    if (res.status === 401 || res.status === 403) {
+      throw new RiotApiKeyError(res.status)
     }
 
     if (!res.ok) {

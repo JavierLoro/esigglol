@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 
 interface Props {
   lastUpdated: string | null
+  isAdmin: boolean
   teamIds?: string[]
 }
 
@@ -17,7 +18,7 @@ function timeAgo(iso: string): string {
 
 const POLL_INTERVAL = 15_000 // cada 15s
 
-export default function RefreshStatsButton({ lastUpdated, teamIds }: Props) {
+export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -26,20 +27,23 @@ export default function RefreshStatsButton({ lastUpdated, teamIds }: Props) {
     const check = async (): Promise<void> => {
       try {
         const res = await fetch('/api/riot/refresh-stats')
-        const data = await res.json() as { lastUpdated: string | null; running: boolean }
+        const data = await res.json() as { lastUpdated: string | null; running: boolean; keyExpired: boolean }
+
+        if (data.keyExpired) {
+          setLoading(false)
+          setError('La API key ha caducado. Actualízala en el panel de administración.')
+          return
+        }
 
         if (data.lastUpdated !== previousLastUpdated) {
-          // Datos actualizados — refrescar la página
           setLoading(false)
           router.refresh()
           return
         }
 
         if (data.running) {
-          // Todavía corriendo — volver a comprobar
           setTimeout(check, POLL_INTERVAL)
         } else {
-          // Terminó pero sin cambiar lastUpdated (error total)
           setLoading(false)
           setError('No se pudieron cargar los datos. Inténtalo de nuevo en unos minutos.')
         }
@@ -70,12 +74,10 @@ export default function RefreshStatsButton({ lastUpdated, teamIds }: Props) {
       }
 
       if (data.status === 'running') {
-        // Ya hay una en curso — sólo esperar
         await pollUntilDone(lastUpdated)
         return
       }
 
-      // Arrancada con éxito — empezar polling
       await pollUntilDone(lastUpdated)
     } catch {
       setError('Error de red')
@@ -85,13 +87,15 @@ export default function RefreshStatsButton({ lastUpdated, teamIds }: Props) {
 
   return (
     <div className="flex flex-col sm:items-end gap-1">
-      <button
-        onClick={handleRefresh}
-        disabled={loading}
-        className="w-full sm:w-auto px-4 py-2 rounded-lg bg-[#0097D7] text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#007ab5] transition-colors"
-      >
-        {loading ? 'Actualizando...' : 'Actualizar datos'}
-      </button>
+      {isAdmin && (
+        <button
+          onClick={handleRefresh}
+          disabled={loading}
+          className="w-full sm:w-auto px-4 py-2 rounded-lg bg-[#0097D7] text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#007ab5] transition-colors"
+        >
+          {loading ? 'Actualizando...' : 'Actualizar datos'}
+        </button>
+      )}
       {loading && (
         <span className="text-xs text-white/30">Procesando en background — puede tardar varios minutos</span>
       )}

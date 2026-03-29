@@ -3,6 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { getTeams, getPlayerStatsCache } from '@/lib/data'
+import { getSessionFromCookies } from '@/lib/auth'
 import RefreshStatsButton from '@/components/RefreshStatsButton'
 import { getPlayerMastery, getChampionStats, getTopRecentChampions } from '@/lib/data-riot'
 import { getVersion } from '@/lib/ddragon'
@@ -144,6 +145,7 @@ function PlayerCard({
 
 export default async function TeamPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const isAdmin = await getSessionFromCookies()
   const teams = getTeams()
   const team = teams.find(t => t.id === id)
   if (!team) notFound()
@@ -211,7 +213,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
             )}
           </p>
         </div>
-        <RefreshStatsButton lastUpdated={cache.lastUpdated} teamIds={[id]} />
+        <RefreshStatsButton lastUpdated={cache.lastUpdated} isAdmin={isAdmin} teamIds={[id]} />
       </div>
 
       {/* Players grid */}
