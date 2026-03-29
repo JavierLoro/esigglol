@@ -172,7 +172,7 @@ Populates the database with placeholder teams and players for development and te
 ```bash
 npx tsx scripts/seed-data.ts              # 8 teams × 5 starters + 1 sub
 npx tsx scripts/seed-data.ts --teams 4    # custom team count
-npx tsx scripts/seed-data.ts --players 6  # custom starters per team
+npx tsx scripts/seed-data.ts --players 5  # custom starters per team (max 5 with current pool)
 ```
 
 ---
@@ -356,7 +356,7 @@ Puebla la base de datos con equipos y jugadores ficticios para desarrollo. **Sie
 ```bash
 npx tsx scripts/seed-data.ts              # 8 equipos × 5 titulares + 1 suplente
 npx tsx scripts/seed-data.ts --teams 4    # numero de equipos personalizado
-npx tsx scripts/seed-data.ts --players 6  # titulares por equipo personalizado
+npx tsx scripts/seed-data.ts --players 5  # titulares por equipo personalizado (máx 5 con el pool actual)
 ```
 
 ---

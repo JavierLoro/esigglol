@@ -70,12 +70,14 @@ const newTeams: Team[] = TEAM_NAMES.slice(0, numTeams).map((name, ti) => {
     })
   }
 
-  // Suplente siempre añadido
-  players.push({
-    id: generateId('player'),
-    summonerName: PLAYER_POOL[ti * 6 + numPlayers],
-    primaryRole: 'Suplente',
-  })
+  // Suplente solo si hay entrada disponible en el pool (requiere numPlayers < 6)
+  if (numPlayers < 6) {
+    players.push({
+      id: generateId('player'),
+      summonerName: PLAYER_POOL[ti * 6 + numPlayers],
+      primaryRole: 'Suplente',
+    })
+  }
 
   return { id: generateId('team'), name, logo: '', players }
 })

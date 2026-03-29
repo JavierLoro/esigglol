@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface Props {
@@ -22,12 +22,16 @@ export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Pr
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const cancelledRef = useRef(false)
 
   async function pollUntilDone(previousLastUpdated: string | null) {
     const check = async (): Promise<void> => {
+      if (cancelledRef.current) return
       try {
         const res = await fetch('/api/riot/refresh-stats')
         const data = await res.json() as { lastUpdated: string | null; running: boolean; keyExpired: boolean }
+
+        if (cancelledRef.current) return
 
         if (data.keyExpired) {
           setLoading(false)
@@ -48,6 +52,7 @@ export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Pr
           setError('No se pudieron cargar los datos. Inténtalo de nuevo en unos minutos.')
         }
       } catch {
+        if (cancelledRef.current) return
         setLoading(false)
         setError('Error de conexión. Inténtalo de nuevo.')
       }
@@ -57,15 +62,17 @@ export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Pr
   }
 
   useEffect(() => {
+    cancelledRef.current = false
     fetch('/api/riot/refresh-stats')
       .then(r => r.json())
       .then((data: { running: boolean; lastUpdated: string | null; keyExpired: boolean }) => {
-        if (data.running) {
+        if (data.running && !cancelledRef.current) {
           setLoading(true)
           pollUntilDone(lastUpdated)
         }
       })
       .catch(() => {})
+    return () => { cancelledRef.current = true }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleRefresh() {

@@ -181,6 +181,7 @@ export async function runRefresh(teamIds?: string[]) {
 
 export async function triggerAutoRefresh() {
   if (isRunning) return
+  if (keyExpired) return
   const cache = getPlayerStatsCache()
   if (cache.lastUpdated) {
     const age = Date.now() - new Date(cache.lastUpdated).getTime()
