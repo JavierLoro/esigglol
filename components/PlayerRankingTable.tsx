@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import type { PlayerRow } from '@/lib/types'
 import { clsx } from 'clsx'
-import { ChevronUp, ChevronDown } from 'lucide-react'
+import { ChevronUp, ChevronDown, TriangleAlert } from 'lucide-react'
 
 type SortKey = 'rank' | 'level' | 'winrate' | 'wins' | 'lp'
 
@@ -156,6 +156,7 @@ export default function PlayerRankingTable({ rows }: Props) {
                       <span className="text-xs text-white/30">#{r.summonerName.split('#')[1]}</span>
                     </div>
                     {isSub(r) && <span className="text-xs text-white/30">(sup)</span>}
+                    {r.apiError && <TriangleAlert size={13} className="text-yellow-400 shrink-0" />}
                   </div>
                 </td>
                 <td className="px-3 py-3">
@@ -176,41 +177,27 @@ export default function PlayerRankingTable({ rows }: Props) {
                   {r.secondaryRole && <span className="text-white/30"> / {r.secondaryRole}</span>}
                 </td>
                 <td className="px-3 py-3 text-center">
-                  {r.apiError ? (
-                    <span className="text-xs text-white/20 italic">sin datos</span>
-                  ) : (
-                    <span className={clsx('font-bold text-xs flex items-center justify-center gap-1.5', TIER_COLORS[r.tier])}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={`/ddragon/ranked/${r.tier.toLowerCase()}.svg`} alt={r.tier} className="w-8 h-8 shrink-0" />
-                      {r.tier === 'UNRANKED' ? 'Unranked' : `${r.tier} ${r.rank}`}
-                    </span>
-                  )}
+                  <span className={clsx('font-bold text-xs flex items-center justify-center gap-1.5', TIER_COLORS[r.tier])}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`/ddragon/ranked/${r.tier.toLowerCase()}.svg`} alt={r.tier} className="w-8 h-8 shrink-0" />
+                    {r.tier === 'UNRANKED' ? 'Unranked' : `${r.tier} ${r.rank}`}
+                  </span>
                 </td>
-                <td className="px-3 py-3 text-center text-white/70">{r.apiError ? '—' : r.lp}</td>
+                <td className="px-3 py-3 text-center text-white/70">{r.lp}</td>
                 <td className="px-3 py-3 text-center">
-                  {r.apiError ? (
-                    <span className="text-white/20">—</span>
-                  ) : (
-                    <span className={clsx(
-                      'font-medium',
-                      r.winrate >= 55 ? 'text-green-400' : r.winrate >= 50 ? 'text-white/70' : 'text-red-400/70'
-                    )}>
-                      {r.winrate}%
-                    </span>
-                  )}
+                  <span className={clsx(
+                    'font-medium',
+                    r.winrate >= 55 ? 'text-green-400' : r.winrate >= 50 ? 'text-white/70' : 'text-red-400/70'
+                  )}>
+                    {r.winrate}%
+                  </span>
                 </td>
                 <td className="px-3 py-3 text-center text-white/50 text-xs">
-                  {r.apiError ? (
-                    <span className="text-white/20">—</span>
-                  ) : (
-                    <>
-                      <span className="text-green-400">{r.wins}V</span>
-                      <span className="text-white/20 mx-1">/</span>
-                      <span className="text-red-400">{r.losses}D</span>
-                    </>
-                  )}
+                  <span className="text-green-400">{r.wins}V</span>
+                  <span className="text-white/20 mx-1">/</span>
+                  <span className="text-red-400">{r.losses}D</span>
                 </td>
-                <td className="px-3 py-3 text-center text-white/40">{r.apiError ? '—' : r.level}</td>
+                <td className="px-3 py-3 text-center text-white/40">{r.level}</td>
               </tr>
             ))}
           </tbody>

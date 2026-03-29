@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 @AGENTS.md
 
 # ESIgg.lol — Codebase Guide
@@ -233,7 +237,8 @@ All route handlers are in `app/api/` using the App Router convention (`route.ts`
 
 ### Docker
 - **Dockerfile**: multi-stage build (deps → builder → runner), Node 22 Alpine, standalone Next.js output
-- **docker-compose.yml**: app on port 3000 + Watchtower for auto-updates (requires `DOCKER_API_VERSION=1.40`)
+- **docker-compose.yml**: prod — pulls `ghcr.io/javierloro/esigglol:latest` + Watchtower auto-updates
+- **docker-compose.dev.yml**: dev — builds desde el `Dockerfile` local, sin watchtower (`docker-compose -f docker-compose.dev.yml up --build`)
 - Image: `ghcr.io/javierloro/esigglol:latest`
 - Volume: `./data:/app/data` for SQLite database + uploaded files persistence
 - Env file: `.env.local` (via `env_file:`)
@@ -319,6 +324,7 @@ RIOT_REGION=euw1           # Riot region (default: euw1)
 TWITCH_CHANNEL=            # Twitch channel name for embed
 ANTHROPIC_API_KEY=         # Claude API key (enables screenshot parsing)
 DB_PATH=./data/esigglol.db # SQLite database path (default: ./data/esigglol.db)
+LOG_PRETTY=true            # Enables pino-pretty (colorized, human-readable logs). Optional in dev.
 ```
 
 > **Riot API Key:** Can be configured via the admin panel at runtime (stored in `tournament_config` table). The DB value takes priority over the env var. This avoids server restarts when the dev key expires every 24h.
@@ -336,6 +342,23 @@ npx tsx scripts/gen-password-hash.ts <nueva-password>
 
 ## Development Workflow
 
+### Docker (recomendado — idéntico a producción)
+
+```bash
+# Primera vez en una máquina nueva:
+cp .env.example .env.local   # rellenar SESSION_SECRET + ADMIN_PASSWORD_HASH
+
+# Arrancar (construye la misma imagen que va a producción):
+docker compose -f docker-compose.dev.yml up --build
+
+# Tras cambios de código, rebuildar:
+docker compose -f docker-compose.dev.yml up --build
+```
+
+La app queda disponible en `http://localhost:3000`. El runtime es idéntico al de producción: mismo `Dockerfile`, mismo `NODE_ENV=production`, mismo `node server.js`.
+
+### Sin Docker (iteración rápida con HMR)
+
 ```bash
 npm run dev              # Start dev server (runs sync-ddragon first)
 npm run build            # Production build (runs sync-ddragon first)
@@ -343,6 +366,7 @@ npm run start            # Start production server
 npm run lint             # Run ESLint (v9 flat config)
 npm run test             # Run Vitest tests
 npm run test:watch       # Run Vitest in watch mode
+npx vitest run lib/__tests__/bracket.test.ts  # Run a single test file
 npm run collect-stats-dev  # Batch collect player stats (dev rate limits)
 npm run collect-stats-prod # Batch collect player stats (prod rate limits)
 ```

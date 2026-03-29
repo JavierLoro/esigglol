@@ -22,7 +22,7 @@ export default function AdminFases() {
   const [msg, setMsg] = useState('')
 
   function loadMatches() {
-    fetch('/api/data/fases').then(r => r.json()).then(d => setAllMatches(d.matches ?? []))
+    fetch('/api/admin/partidos').then(r => r.json()).then(setAllMatches)
   }
 
   useEffect(() => {
@@ -98,6 +98,13 @@ export default function AdminFases() {
 
   function updateConfig(id: string, patch: Partial<Phase['config']>) {
     setPhases(prev => prev.map(p => p.id === id ? { ...p, config: { ...p.config, ...patch } } : p))
+  }
+
+  async function confirmBracket(phase: Phase) {
+    const updated = { ...phase, config: { ...phase.config, confirmedBracket: true } }
+    setPhases(prev => prev.map(p => p.id === phase.id ? updated : p))
+    await fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) })
+    notify('Bracket confirmado')
   }
 
   async function confirmRound(phase: Phase, round: number) {
@@ -246,16 +253,23 @@ export default function AdminFases() {
                     </div>
                   ))}
                 </div>
-                {(phase.config.groups ?? []).some(g => g.teamIds.length >= 2) && (
-                  <button
-                    onClick={() => generateMatches(phase, 'groups')}
-                    disabled={generating === phase.id}
-                    className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#0097D7]/40 text-[#0097D7] text-xs font-bold hover:bg-[#0097D7]/10 transition-colors disabled:opacity-50"
-                  >
-                    <Zap size={13} />
-                    {generating === phase.id ? 'Generando...' : 'Generar partidos'}
-                  </button>
-                )}
+                {(phase.config.groups ?? []).some(g => g.teamIds.length >= 2) && (() => {
+                  const hasMatches = allMatches.some(m => m.phaseId === phase.id)
+                  return hasMatches ? (
+                    <span className="mt-3 flex items-center gap-1 text-xs text-green-400/80 font-medium">
+                      <Check size={13} /> Generado
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => generateMatches(phase, 'groups')}
+                      disabled={generating === phase.id}
+                      className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#0097D7]/40 text-[#0097D7] text-xs font-bold hover:bg-[#0097D7]/10 transition-colors disabled:opacity-50"
+                    >
+                      <Zap size={13} />
+                      {generating === phase.id ? 'Generando...' : 'Generar partidos'}
+                    </button>
+                  )
+                })()}
               </div>
             )}
 
@@ -447,16 +461,33 @@ export default function AdminFases() {
                   </label>
                 )}
 
-                {(phase.config.bracketTeamIds ?? []).length >= 2 && (
-                  <button
-                    onClick={() => generateMatches(phase, phase.type as 'elimination' | 'final-four' | 'upper-lower')}
-                    disabled={generating === phase.id}
-                    className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#0097D7]/40 text-[#0097D7] text-xs font-bold hover:bg-[#0097D7]/10 transition-colors disabled:opacity-50"
-                  >
-                    <Zap size={13} />
-                    {generating === phase.id ? 'Generando...' : 'Generar bracket'}
-                  </button>
-                )}
+                {(phase.config.bracketTeamIds ?? []).length >= 2 && (() => {
+                  const hasMatches = allMatches.some(m => m.phaseId === phase.id)
+                  const isConfirmed = phase.config.confirmedBracket === true
+                  if (isConfirmed) return (
+                    <span className="self-start flex items-center gap-1 text-xs text-green-400/80 font-medium">
+                      <Check size={13} /> Confirmado
+                    </span>
+                  )
+                  if (hasMatches) return (
+                    <button
+                      onClick={() => confirmBracket(phase)}
+                      className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-green-400/40 text-green-400 text-xs font-bold hover:bg-green-400/10 transition-colors"
+                    >
+                      <Check size={13} /> Confirmar
+                    </button>
+                  )
+                  return (
+                    <button
+                      onClick={() => generateMatches(phase, phase.type as 'elimination' | 'final-four' | 'upper-lower')}
+                      disabled={generating === phase.id}
+                      className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#0097D7]/40 text-[#0097D7] text-xs font-bold hover:bg-[#0097D7]/10 transition-colors disabled:opacity-50"
+                    >
+                      <Zap size={13} />
+                      {generating === phase.id ? 'Generando...' : 'Generar bracket'}
+                    </button>
+                  )
+                })()}
               </div>
             )}
 

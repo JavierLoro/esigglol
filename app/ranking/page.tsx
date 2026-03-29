@@ -1,4 +1,7 @@
+import { after } from 'next/server'
 import { getPlayerStatsCache, getTeams } from '@/lib/data'
+import { getSessionFromCookies } from '@/lib/auth'
+import { triggerAutoRefresh } from '@/lib/refresh'
 import RankingTable from '@/components/PlayerRankingTable'
 import RefreshStatsButton from '@/components/RefreshStatsButton'
 import type { PlayerRow } from '@/lib/types'
@@ -12,15 +15,16 @@ const TIER_ORDER: Record<string, number> = {
 }
 const RANK_ORDER: Record<string, number> = { I: 4, II: 3, III: 2, IV: 1 }
 
-export default function RankingPage() {
+export default async function RankingPage() {
+  const isAdmin = await getSessionFromCookies()
+  after(triggerAutoRefresh)
+
   const cache = getPlayerStatsCache()
   const teams = getTeams()
   const teamLookup = new Map(teams.map(t => [t.id, { logo: t.logo, name: t.name }]))
 
-  // Normaliza el nombre para deduplicar: trim + eliminar espacios alrededor del '#'
   const normalizeName = (name: string) => name.trim().replace(/\s*#\s*/g, '#').toLowerCase()
 
-  // Jugadores en cache deduplicados (la BD puede contener entradas duplicadas)
   const seenInCache = new Map<string, PlayerRow>()
   for (const r of cache.players) {
     const key = normalizeName(r.summonerName)
@@ -33,7 +37,6 @@ export default function RankingPage() {
     return r
   })
 
-  // Jugadores en el roster que aún no tienen datos en cache
   const pendingRows: PlayerRow[] = teams.flatMap(team =>
     (team.players ?? [])
       .filter(p => !cachedNames.has(normalizeName(p.summonerName)))
@@ -72,7 +75,7 @@ export default function RankingPage() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold">Ranking de jugadores</h1>
-        <RefreshStatsButton lastUpdated={cache.lastUpdated} />
+        <RefreshStatsButton lastUpdated={cache.lastUpdated} isAdmin={isAdmin} />
       </div>
 
       {rows.length === 0 && (

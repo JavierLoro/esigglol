@@ -14,6 +14,7 @@ interface Props {
   matches: Match[]
   lastUpdated: string | null
   champData: Record<string, PlayerChampionData>
+  isAdmin: boolean
 }
 
 const TIER_ORDER: Record<string, number> = {
@@ -248,7 +249,7 @@ function PlayerCard({
   )
 }
 
-export default function CompareClient({ teams, allStats, matches, lastUpdated, champData }: Props) {
+export default function CompareClient({ teams, allStats, matches, lastUpdated, champData, isAdmin }: Props) {
   const [team1Id, setTeam1Id] = useState(teams[0]?.id ?? '')
   const [team2Id, setTeam2Id] = useState(teams[1]?.id ?? '')
   const [champFilter, setChampFilter] = useState<ChampFilter>('mastery')
@@ -352,7 +353,7 @@ export default function CompareClient({ teams, allStats, matches, lastUpdated, c
             </div>
           ))}
         </div>
-        <RefreshStatsButton lastUpdated={lastUpdated} teamIds={[team1Id, team2Id]} />
+        <RefreshStatsButton lastUpdated={lastUpdated} isAdmin={isAdmin} teamIds={[team1Id, team2Id]} />
       </div>
 
       {team1 && team2 && team1Id !== team2Id && (

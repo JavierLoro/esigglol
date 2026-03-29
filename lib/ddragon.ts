@@ -107,8 +107,16 @@ export async function ensureProfileIcon(iconId: number): Promise<void> {
   const dest = path.join(PROFILE_ICONS_DIR, `${iconId}.png`)
   if (fs.existsSync(dest)) return
 
-  const version = getVersion()
-  if (!version) return
+  let version = getVersion()
+  if (!version) {
+    try {
+      version = await fetchLatestVersion()
+      saveVersion(version)
+    } catch (err) {
+      log.warn({ err }, 'No se pudo obtener la versión de DDragon para el icono de perfil')
+      return
+    }
+  }
 
   const url = `${DDRAGON_CDN}/${version}/img/profileicon/${iconId}.png`
   await downloadFile(url, dest)
