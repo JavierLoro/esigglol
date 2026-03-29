@@ -23,18 +23,6 @@ export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Pr
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  useEffect(() => {
-    fetch('/api/riot/refresh-stats')
-      .then(r => r.json())
-      .then((data: { running: boolean; lastUpdated: string | null; keyExpired: boolean }) => {
-        if (data.running) {
-          setLoading(true)
-          pollUntilDone(lastUpdated)
-        }
-      })
-      .catch(() => {})
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
   async function pollUntilDone(previousLastUpdated: string | null) {
     const check = async (): Promise<void> => {
       try {
@@ -67,6 +55,18 @@ export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Pr
 
     setTimeout(check, POLL_INTERVAL)
   }
+
+  useEffect(() => {
+    fetch('/api/riot/refresh-stats')
+      .then(r => r.json())
+      .then((data: { running: boolean; lastUpdated: string | null; keyExpired: boolean }) => {
+        if (data.running) {
+          setLoading(true)
+          pollUntilDone(lastUpdated)
+        }
+      })
+      .catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleRefresh() {
     setLoading(true)
