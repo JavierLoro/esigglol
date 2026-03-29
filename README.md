@@ -55,28 +55,36 @@ ESIgg.lol is a private League of Legends tournament platform for ESIUCLM. It pro
 
 ## Local Setup
 
-**Requirements:** Node.js 22+, npm
+### Docker (recommended — identical to production)
+
+**Requirements:** Docker Desktop
 
 ```bash
-# Install dependencies
-npm install
-
 # Copy and fill in environment variables
 cp .env.example .env.local
+# Edit .env.local: set SESSION_SECRET and ADMIN_PASSWORD_HASH
 
 # Generate admin password hash
 npx tsx scripts/gen-password-hash.ts <your-password>
-# Paste the result into ADMIN_PASSWORD_HASH in .env.local (single quotes required)
 
 # Generate SESSION_SECRET
-openssl rand -hex 32
-# Paste the result into SESSION_SECRET in .env.local
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
-# Start dev server
-npm run dev
+# Build and start (same image as production)
+docker compose -f docker-compose.dev.yml up --build
 ```
 
-App available at `http://localhost:3000`.
+App available at `http://localhost:3000`. After code changes, re-run `up --build`.
+
+### Without Docker (fast iteration with HMR)
+
+**Requirements:** Node.js 22+, npm
+
+```bash
+npm install
+cp .env.example .env.local
+npm run dev
+```
 
 ---
 
@@ -103,10 +111,16 @@ App available at `http://localhost:3000`.
 
 ## Docker
 
-`docker-compose.yml` includes the app and Watchtower for automatic updates.
+| File | Purpose |
+|---|---|
+| `docker-compose.yml` | Production — pulls image from GHCR + Watchtower auto-updates |
+| `docker-compose.dev.yml` | Dev — builds image locally, no Watchtower |
 
 ```bash
-# Start in production
+# Dev (local machine)
+docker compose -f docker-compose.dev.yml up --build
+
+# Production
 docker compose up -d
 
 # View logs
@@ -214,28 +228,36 @@ ESIgg.lol es una plataforma privada de torneos de League of Legends para ESIUCLM
 
 ## Setup local
 
-**Requisitos:** Node.js 22+, npm
+### Docker (recomendado — identico a produccion)
+
+**Requisitos:** Docker Desktop
 
 ```bash
-# Instalar dependencias
-npm install
-
 # Copiar variables de entorno y rellenar valores
 cp .env.example .env.local
+# Editar .env.local: rellenar SESSION_SECRET y ADMIN_PASSWORD_HASH
 
 # Generar hash de password para admin
 npx tsx scripts/gen-password-hash.ts <tu-password>
-# Copiar el hash a ADMIN_PASSWORD_HASH en .env.local (entre comillas simples)
 
 # Generar SESSION_SECRET
-openssl rand -hex 32
-# Copiar el resultado a SESSION_SECRET en .env.local
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
-# Iniciar servidor de desarrollo
-npm run dev
+# Construir y arrancar (misma imagen que produccion)
+docker compose -f docker-compose.dev.yml up --build
 ```
 
-La app estara disponible en `http://localhost:3000`.
+La app estara disponible en `http://localhost:3000`. Tras cambios de codigo, volver a ejecutar `up --build`.
+
+### Sin Docker (iteracion rapida con HMR)
+
+**Requisitos:** Node.js 22+, npm
+
+```bash
+npm install
+cp .env.example .env.local
+npm run dev
+```
 
 ---
 
@@ -262,10 +284,16 @@ La app estara disponible en `http://localhost:3000`.
 
 ## Docker
 
-El `docker-compose.yml` incluye la app y Watchtower (auto-actualizacion).
+| Archivo | Uso |
+|---|---|
+| `docker-compose.yml` | Produccion — tira imagen de GHCR + Watchtower auto-actualizacion |
+| `docker-compose.dev.yml` | Dev — construye imagen local, sin Watchtower |
 
 ```bash
-# Arrancar en produccion
+# Dev (maquina local)
+docker compose -f docker-compose.dev.yml up --build
+
+# Produccion
 docker compose up -d
 
 # Ver logs
