@@ -2,15 +2,13 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { getTeams, getPlayerStatsCache, savePlayerStatsCache } from '@/lib/data'
 import { getPlayerStats, getChampionMastery, getMatchIds, getMatchDetails, RiotApiKeyError } from '@/lib/riot'
-import { savePlayerMastery, savePlayerMatches, getStoredMatchIds, getPlayerLastUpdated } from '@/lib/data-riot'
+import { savePlayerMastery, savePlayerMatches, getStoredMatchIds } from '@/lib/data-riot'
 import { ensureProfileIcon } from '@/lib/ddragon'
 import type { Player, Team, PlayerRow } from '@/lib/types'
 import logger from '@/lib/logger'
 
 const log = logger.child({ module: 'refresh' })
 
-export const COOLDOWN_MS = 5 * 60 * 1000 // 5 minutos entre actualizaciones
-const PLAYER_COOLDOWN_MS = 2 * 60 * 60 * 1000 // 2 horas entre actualizaciones por jugador
 const AUTO_REFRESH_INTERVAL = 6 * 60 * 60 * 1000 // 6 horas para auto-refresh
 const BATCH = 3
 const BATCH_DELAY_MS = 30_000
@@ -116,25 +114,6 @@ export async function runRefresh(teamIds?: string[]) {
       const batch = players.slice(i, i + BATCH)
       await Promise.all(batch.map(async ({ p, team }: { p: Player; team: Team }) => {
         if (aborted) return
-
-        const playerLastUpdated = getPlayerLastUpdated(p.summonerName)
-        if (playerLastUpdated && (Date.now() - new Date(playerLastUpdated).getTime()) < PLAYER_COOLDOWN_MS) {
-          log.info({ summonerName: p.summonerName, lastUpdated: playerLastUpdated }, 'Skip: recently updated')
-          const prev = previousCache.players.find(cp => cp.summonerName === p.summonerName)
-          if (prev) {
-            rows.push(prev)
-          } else {
-            rows.push({
-              summonerName: p.summonerName, puuid: '', profileIconId: 0,
-              level: 0, tier: 'UNRANKED', rank: 'IV', lp: 0,
-              wins: 0, losses: 0, winrate: 0,
-              teamId: team.id, teamName: team.name, teamLogo: team.logo,
-              primaryRole: p.primaryRole, secondaryRole: p.secondaryRole,
-              apiError: true,
-            })
-          }
-          return
-        }
 
         try {
           const stats = await getPlayerStats(p.summonerName)

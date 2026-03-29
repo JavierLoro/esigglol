@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface Props {
@@ -22,6 +22,18 @@ export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Pr
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    fetch('/api/riot/refresh-stats')
+      .then(r => r.json())
+      .then((data: { running: boolean; lastUpdated: string | null; keyExpired: boolean }) => {
+        if (data.running) {
+          setLoading(true)
+          pollUntilDone(lastUpdated)
+        }
+      })
+      .catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function pollUntilDone(previousLastUpdated: string | null) {
     const check = async (): Promise<void> => {
