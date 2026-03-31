@@ -73,6 +73,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <LogOut size={16} />
             Cerrar sesión
           </button>
+          <p className="px-3 pt-2 text-[11px] text-white/20 font-mono">
+            v{process.env.NEXT_PUBLIC_APP_VERSION}
+            {process.env.NEXT_PUBLIC_GIT_SHA && (
+              <span className="ml-1">{process.env.NEXT_PUBLIC_GIT_SHA.slice(0, 7)}</span>
+            )}
+          </p>
         </div>
       </aside>
 

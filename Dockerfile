@@ -14,6 +14,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+ARG COMMIT_SHA
+ENV COMMIT_SHA=$COMMIT_SHA
+
 # Dummy env vars so lib/env.ts validation passes during build.
 # Real values are provided at runtime.
 ENV SESSION_SECRET=build-placeholder

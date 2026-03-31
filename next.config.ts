@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import os from "os";
+import pkg from "./package.json";
 
 function getLocalIPs(): string[] {
   const interfaces = os.networkInterfaces();
@@ -16,6 +17,10 @@ function getLocalIPs(): string[] {
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  env: {
+    NEXT_PUBLIC_APP_VERSION: pkg.version,
+    NEXT_PUBLIC_GIT_SHA: process.env.COMMIT_SHA ?? '',
+  },
   allowedDevOrigins: getLocalIPs(),
   images: {
     remotePatterns: [
