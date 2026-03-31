@@ -80,11 +80,11 @@ async function syncChampionData(version: string): Promise<void> {
 // ── Main sync ───────────────────────────────────────────────────────────────
 
 export async function checkAndUpdate(): Promise<void> {
-  const latest = await fetchLatestVersion()
-  const local = getVersion()
-
   // Emblemas de rango: independientes de versión, siempre verificar existencia
   await syncRankedEmblems()
+
+  const latest = await fetchLatestVersion()
+  const local = getVersion()
 
   const championDataExists = fs.existsSync(path.join(ASSETS_DIR, 'champion.json'))
   if (local === latest && championDataExists) {
