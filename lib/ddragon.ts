@@ -80,10 +80,14 @@ async function syncChampionData(version: string): Promise<void> {
 // ── Main sync ───────────────────────────────────────────────────────────────
 
 export async function checkAndUpdate(): Promise<void> {
+  // Emblemas de rango: independientes de versión, siempre verificar existencia
+  await syncRankedEmblems()
+
   const latest = await fetchLatestVersion()
   const local = getVersion()
 
-  if (local === latest) {
+  const championDataExists = fs.existsSync(path.join(ASSETS_DIR, 'champion.json'))
+  if (local === latest && championDataExists) {
     log.info({ version: latest }, 'Assets up to date')
     return
   }
@@ -92,10 +96,7 @@ export async function checkAndUpdate(): Promise<void> {
 
   if (!fs.existsSync(ASSETS_DIR)) fs.mkdirSync(ASSETS_DIR, { recursive: true })
 
-  await Promise.all([
-    syncRankedEmblems(),
-    syncChampionData(latest),
-  ])
+  await syncChampionData(latest)
 
   saveVersion(latest)
   log.info({ version: latest }, 'Sync complete')
