@@ -1,6 +1,6 @@
 {
   "name": "esigglol",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "sync-ddragon": "tsx scripts/sync-ddragon.ts",

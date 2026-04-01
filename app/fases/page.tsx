@@ -41,7 +41,9 @@ export default function FasesPage() {
               <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-full', statusColor[phase.status])}>
                 {statusLabel[phase.status]}
               </span>
-              <span className="text-xs text-white/30 ml-auto">BO{phase.config.bo}</span>
+              {phase.type !== 'swiss' && (
+                <span className="text-xs text-white/30 ml-auto">BO{phase.config.bo}</span>
+              )}
             </div>
 
             {phase.type === 'groups' && (
