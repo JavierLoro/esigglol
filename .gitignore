@@ -41,6 +41,7 @@ yarn-error.log*
 .claude/
 .agents/
 skills-lock.json
+/docs/superpowers/
 
 # app assets (generated)
 /assetsApp/

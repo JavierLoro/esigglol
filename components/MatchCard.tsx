@@ -30,7 +30,7 @@ export default function MatchCard({ match, teams, phase }: Props) {
       <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
         {phase ? (
           <span className="text-xs text-white/40 font-medium uppercase tracking-wider">
-            {phase.name} &middot; R{match.round} &middot; BO{phase.config.bo}
+            {phase.name} &middot; R{match.round} &middot; BO{phase.config.roundBo?.[String(match.round)] ?? phase.config.bo}
           </span>
         ) : <span />}
         {!played && (

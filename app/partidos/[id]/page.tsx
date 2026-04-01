@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft } from 'lucide-react'
@@ -305,6 +305,12 @@ export default async function PartidoPage({
   const { id } = await params
   const match = getMatchById(id)
   if (!match) notFound()
+
+  if (match.result === null) {
+    const t1 = match.team1Id !== 'TBD' ? `?t1=${match.team1Id}` : ''
+    const t2 = match.team2Id !== 'TBD' ? `${t1 ? '&' : '?'}t2=${match.team2Id}` : ''
+    redirect(`/comparar${t1}${t2}`)
+  }
 
   const phase = getPhaseById(match.phaseId)
   const team1 = match.team1Id !== 'TBD' ? getTeamById(match.team1Id) : undefined

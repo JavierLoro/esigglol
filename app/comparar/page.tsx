@@ -10,7 +10,12 @@ export const dynamic = 'force-dynamic'
 
 function currentTimestamp() { return Date.now() }
 
-export default async function CompararPage() {
+export default async function CompararPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ t1?: string; t2?: string }>
+}) {
+  const { t1, t2 } = await searchParams
   const isAdmin = await getSessionFromCookies()
   const teams = getTeams()
   const matches = getMatches()
@@ -48,7 +53,7 @@ export default async function CompararPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Comparar equipos</h1>
-      <CompareClient teams={teams} allStats={allStats} matches={matches} lastUpdated={cache.lastUpdated} champData={champData} isAdmin={isAdmin} />
+      <CompareClient teams={teams} allStats={allStats} matches={matches} lastUpdated={cache.lastUpdated} champData={champData} isAdmin={isAdmin} initialTeam1Id={t1} initialTeam2Id={t2} />
     </div>
   )
 }

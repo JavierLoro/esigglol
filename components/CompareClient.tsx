@@ -15,6 +15,8 @@ interface Props {
   lastUpdated: string | null
   champData: Record<string, PlayerChampionData>
   isAdmin: boolean
+  initialTeam1Id?: string
+  initialTeam2Id?: string
 }
 
 const TIER_ORDER: Record<string, number> = {
@@ -249,9 +251,9 @@ function PlayerCard({
   )
 }
 
-export default function CompareClient({ teams, allStats, matches, lastUpdated, champData, isAdmin }: Props) {
-  const [team1Id, setTeam1Id] = useState(teams[0]?.id ?? '')
-  const [team2Id, setTeam2Id] = useState(teams[1]?.id ?? '')
+export default function CompareClient({ teams, allStats, matches, lastUpdated, champData, isAdmin, initialTeam1Id, initialTeam2Id }: Props) {
+  const [team1Id, setTeam1Id] = useState(teams.find(t => t.id === initialTeam1Id)?.id ?? teams[0]?.id ?? '')
+  const [team2Id, setTeam2Id] = useState(teams.find(t => t.id === initialTeam2Id)?.id ?? teams[1]?.id ?? '')
   const [champFilter, setChampFilter] = useState<ChampFilter>('mastery')
 
   const team1 = teams.find(t => t.id === team1Id)
