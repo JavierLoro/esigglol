@@ -274,13 +274,13 @@ function findItemIdx(items: ColumnItem[], wins: number, losses: number): number 
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-function SwissMatchCard({ match, teams }: { match: Match; teams: Team[] }) {
+function SwissMatchCard({ match, teamById }: { match: Match; teamById: Map<string, Team> }) {
   const isPlayed = match.result !== null
   const winner = isPlayed
     ? match.result!.team1Score > match.result!.team2Score ? 'team1' : 'team2'
     : null
-  const t1 = teams.find(t => t.id === match.team1Id)
-  const t2 = teams.find(t => t.id === match.team2Id)
+  const t1 = teamById.get(match.team1Id)
+  const t2 = teamById.get(match.team2Id)
   const t1Wins = winner === 'team1'
   const t2Wins = winner === 'team2'
 
@@ -339,7 +339,7 @@ function SwissMatchCard({ match, teams }: { match: Match; teams: Team[] }) {
   )
 }
 
-function PoolBlock({ pool, bo, confirmed, teams }: { pool: Pool; bo: number; confirmed: boolean; teams: Team[] }) {
+function PoolBlock({ pool, bo, confirmed, teamById }: { pool: Pool; bo: number; confirmed: boolean; teamById: Map<string, Team> }) {
   const h = poolHeight(pool, confirmed)
 
   return (
@@ -358,7 +358,7 @@ function PoolBlock({ pool, bo, confirmed, teams }: { pool: Pool; bo: number; con
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: MATCH_GAP }}>
-            {pool.matches.map(m => <SwissMatchCard key={m.id} match={m} teams={teams} />)}
+            {pool.matches.map(m => <SwissMatchCard key={m.id} match={m} teamById={teamById} />)}
           </div>
         )
       ) : (
@@ -368,7 +368,7 @@ function PoolBlock({ pool, bo, confirmed, teams }: { pool: Pool; bo: number; con
           </div>
           {Array.from({ length: Math.max(pool.teamIds.length, pool.expectedCount) }, (_, i) => {
             const id = pool.teamIds[i]
-            const team = id ? teams.find(t => t.id === id) : undefined
+            const team = id ? teamById.get(id) : undefined
             return (
               <div key={id ?? `placeholder-${i}`} className="flex items-center gap-1.5 px-2.5" style={{ height: TEAM_ROW_H }}>
                 {team?.logo ? (
@@ -386,7 +386,7 @@ function PoolBlock({ pool, bo, confirmed, teams }: { pool: Pool; bo: number; con
   )
 }
 
-function ExitGroupBlock({ group, teams }: { group: ExitGroup; teams: Team[] }) {
+function ExitGroupBlock({ group, teamById }: { group: ExitGroup; teamById: Map<string, Team> }) {
   const isAdv = group.type === 'advance'
   const count = Math.max(group.teams.length, group.expectedCount)
   return (
@@ -407,7 +407,7 @@ function ExitGroupBlock({ group, teams }: { group: ExitGroup; teams: Team[] }) {
       </div>
       {Array.from({ length: count }, (_, i) => {
         const teamId = group.teams[i]
-        const team = teamId ? teams.find(t => t.id === teamId) : undefined
+        const team = teamId ? teamById.get(teamId) : undefined
         return (
           <div
             key={teamId ?? `placeholder-${i}`}
@@ -448,31 +448,11 @@ function SwissConnector({
     const pool = item.pool
     const srcY = itemCenterY(i, curItems, curCol) + curOffset
 
-    if (pool.type === 'decisive') {
-      const wIdx = findItemIdx(nextItems, pool.wins + 1, pool.losses)
-      const lIdx = findItemIdx(nextItems, pool.wins, pool.losses + 1)
-      const t1Y = wIdx >= 0 ? itemCenterY(wIdx, nextItems, nextCol) + nextOffset : null
-      const t2Y = lIdx >= 0 ? itemCenterY(lIdx, nextItems, nextCol) + nextOffset : null
-      pushConnectorLines(lines, srcY, t1Y, t2Y, mx)
-    } else if (pool.type === 'advance') {
-      const wIdx = findItemIdx(nextItems, pool.wins + 1, pool.losses)
-      const lIdx = findItemIdx(nextItems, pool.wins, pool.losses + 1)
-      const t1Y = wIdx >= 0 ? itemCenterY(wIdx, nextItems, nextCol) + nextOffset : null
-      const t2Y = lIdx >= 0 ? itemCenterY(lIdx, nextItems, nextCol) + nextOffset : null
-      pushConnectorLines(lines, srcY, t1Y, t2Y, mx)
-    } else if (pool.type === 'eliminate') {
-      const wIdx = findItemIdx(nextItems, pool.wins + 1, pool.losses)
-      const lIdx = findItemIdx(nextItems, pool.wins, pool.losses + 1)
-      const t1Y = wIdx >= 0 ? itemCenterY(wIdx, nextItems, nextCol) + nextOffset : null
-      const t2Y = lIdx >= 0 ? itemCenterY(lIdx, nextItems, nextCol) + nextOffset : null
-      pushConnectorLines(lines, srcY, t1Y, t2Y, mx)
-    } else {
-      const wIdx = findItemIdx(nextItems, pool.wins + 1, pool.losses)
-      const lIdx = findItemIdx(nextItems, pool.wins, pool.losses + 1)
-      const t1Y = wIdx >= 0 ? itemCenterY(wIdx, nextItems, nextCol) + nextOffset : null
-      const t2Y = lIdx >= 0 ? itemCenterY(lIdx, nextItems, nextCol) + nextOffset : null
-      pushConnectorLines(lines, srcY, t1Y, t2Y, mx)
-    }
+    const wIdx = findItemIdx(nextItems, pool.wins + 1, pool.losses)
+    const lIdx = findItemIdx(nextItems, pool.wins, pool.losses + 1)
+    const t1Y = wIdx >= 0 ? itemCenterY(wIdx, nextItems, nextCol) + nextOffset : null
+    const t2Y = lIdx >= 0 ? itemCenterY(lIdx, nextItems, nextCol) + nextOffset : null
+    pushConnectorLines(lines, srcY, t1Y, t2Y, mx)
   }
 
   return (
@@ -548,6 +528,7 @@ export default function SwissView({ phase, matches, teams }: Props) {
     )
   }
 
+  const teamById = new Map(teams.map(t => [t.id, t]))
   const globalMaxH = Math.max(...columns.map(colTotalHeight), HEADER_H)
   const colOffset = (col: RoundColumn) => Math.round((globalMaxH - colTotalHeight(col)) / 2)
 
@@ -583,13 +564,13 @@ export default function SwissView({ phase, matches, teams }: Props) {
                       pool={item.pool}
                       bo={col.bo}
                       confirmed={col.confirmed}
-                      teams={teams}
+                      teamById={teamById}
                     />
                   ) : (
                     <ExitGroupBlock
                       key={`exit-${item.group.wins}-${item.group.losses}`}
                       group={item.group}
-                      teams={teams}
+                      teamById={teamById}
                     />
                   )
                 )}
