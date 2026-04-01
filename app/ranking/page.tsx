@@ -25,6 +25,12 @@ export default async function RankingPage() {
 
   const normalizeName = (name: string) => name.trim().replace(/\s*#\s*/g, '#').toLowerCase()
 
+  const roleLookup = new Map(
+    teams.flatMap(t =>
+      (t.players ?? []).map(p => [normalizeName(p.summonerName), { primaryRole: p.primaryRole, secondaryRole: p.secondaryRole }])
+    )
+  )
+
   const seenInCache = new Map<string, PlayerRow>()
   for (const r of cache.players) {
     const key = normalizeName(r.summonerName)
@@ -34,6 +40,8 @@ export default async function RankingPage() {
   const cachedRows = Array.from(seenInCache.values()).map(r => {
     const t = teamLookup.get(r.teamId)
     if (t) { r.teamLogo = t.logo ?? ''; r.teamName = t.name }
+    const roles = roleLookup.get(normalizeName(r.summonerName))
+    if (roles) { r.primaryRole = roles.primaryRole; r.secondaryRole = roles.secondaryRole }
     return r
   })
 

@@ -17,11 +17,6 @@ export default async function OverlayFasePage({ params }: { params: Promise<{ id
 
   return (
     <div className="p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-2xl font-bold">{phase.name}</h1>
-        <span className="text-xs text-white/30">BO{phase.config.bo}</span>
-      </div>
-
       {phase.type === 'groups' && (
         <GroupsView phase={phase} matches={matches} teams={teams} />
       )}

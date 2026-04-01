@@ -16,6 +16,8 @@ export default function Navbar() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
+  if (pathname.startsWith('/overlay')) return null
+
   return (
     <header className="bg-[#0d1321]/95 backdrop-blur sticky top-0 z-50 border-b border-white/8">
       <div className="h-0.5 bg-gradient-to-r from-[#0097D7] via-[#33b3e8] to-[#B30133]" />
