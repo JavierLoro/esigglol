@@ -52,13 +52,17 @@ External integrations: Riot Games API (player stats, Tournament API), Twitch (st
 │   ├── comparar/                   # Public team comparison tool
 │   ├── equipos/[id]/               # Public team detail page
 │   ├── partidos/[id]/              # Public match detail page
+│   ├── overlay/                    # Páginas de overlay para OBS/streaming (sin navbar, fondo transparente)
+│   │   ├── layout.tsx              # Layout transparente + AutoRefresh component
+│   │   ├── partidos/[id]/          # Overlay de partido (stats de equipos)
+│   │   └── fases/[id]/             # Overlay de fase (brackets)
 │   ├── admin/                      # Admin panel (JWT-protected)
 │   │   ├── layout.tsx              # Admin layout: sidebar (desktop) + bottom nav (mobile)
 │   │   ├── page.tsx                # Dashboard with stats + API key settings + tournament setup
 │   │   ├── login/                  # Login page (unprotected)
 │   │   ├── equipos/                # Team management
 │   │   ├── fases/                  # Phase management
-│   │   └── partidos/               # Match management (scores, screenshots, codes)
+│   │   └── partidos/               # Match management (scores, codes, GameDataModal: parseo IA de captura + subida JSON)
 │   ├── api/
 │   │   ├── admin/                  # Protected CRUD routes
 │   │   │   ├── login/              # Session create/destroy
@@ -69,6 +73,7 @@ External integrations: Riot Games API (player stats, Tournament API), Twitch (st
 │   │   │   └── tournament/         # Tournament API setup
 │   │   ├── data/                   # Public read-only routes (equipos, fases)
 │   │   ├── riot/                   # Riot API proxy (summoner, matches, refresh-stats)
+│   │   ├── ddragon/profileicon/[id]/ # Sirve iconos de perfil DDragon (descarga bajo demanda)
 │   │   ├── uploads/[filename]/     # Public file serving for uploaded assets (logos)
 │   │   ├── tournament/callback/    # Tournament API webhook receiver
 │   │   ├── health/                 # Health check endpoint
@@ -78,11 +83,14 @@ External integrations: Riot Games API (player stats, Tournament API), Twitch (st
 ├── components/
 │   ├── Navbar.tsx
 │   ├── MatchCard.tsx
-│   ├── TwitchEmbed.tsx
+│   ├── TwitchEmbed.tsx             # Embed de Twitch via iframe nativo (sin SDK), auto-detecta dominio parent
+│   ├── LiveSection.tsx             # Hero de portada: cabecera del torneo + embed Twitch + indicador en directo
 │   ├── RefreshStatsButton.tsx
 │   ├── PlayerRankingTable.tsx
 │   ├── CompareClient.tsx
 │   ├── ChampionBubbles.tsx         # Champion stat bubbles with tooltips
+│   ├── overlay/
+│   │   └── AutoRefresh.tsx         # Auto-recarga la página cada N segundos (usado en overlay layout)
 │   ├── admin/
 │   │   ├── LogoutButton.tsx
 │   │   ├── DateTimePicker.tsx       # Calendar + time input (react-day-picker)
@@ -107,6 +115,8 @@ External integrations: Riot Games API (player stats, Tournament API), Twitch (st
 │   ├── riot.ts                     # Riot API client with in-memory cache
 │   ├── tournament.ts               # Riot Tournament API v5 wrapper
 │   ├── screenshot-parser.ts        # Claude Vision integration for match screenshots
+│   ├── screenshot-prompt.ts        # Prompt IA para parsear capturas (DEFAULT_SCREENSHOT_PROMPT)
+│   ├── refresh.ts                  # Lógica de refresh de stats: runRefresh(), getRefreshState(), triggerAutoRefresh()
 │   ├── logger.ts                   # Pino structured logger
 │   ├── metrics.ts                  # Prometheus metrics (request duration, count)
 │   └── __tests__/
@@ -203,6 +213,7 @@ All route handlers are in `app/api/` using the App Router convention (`route.ts`
 | `GET/PUT /api/admin/settings` | Yes | Get/update Riot API key (masked in GET) |
 | `POST /api/admin/equipos/upload-logo` | Yes | Upload team logo image |
 | `GET /api/uploads/[filename]` | No | Serve uploaded files (logos) |
+| `GET /api/ddragon/profileicon/[id]` | No | Servir icono de perfil DDragon, descarga bajo demanda si no existe en caché |
 | `GET /api/data/equipos` | No | Public team list |
 | `GET /api/data/fases` | No | Public phases + matches |
 | `GET /api/riot/summoner?name=Nick%23TAG` | No | Summoner stats |
@@ -384,6 +395,6 @@ npm run collect-stats-prod # Batch collect player stats (prod rate limits)
 - Use `clsx` for conditional `className` strings
 - Player names use Riot's `Name#TAG` format; the `#` is always included
 - The Riot API client (`lib/riot.ts`) reads the API key per-request via `getRiotApiKey()` (DB with env fallback), uses an in-memory cache with 10-minute TTL
-- Batch refresh of player stats (5 players per batch, 20s delay) to respect Riot dev API rate limits
+- Batch refresh of player stats: 3 jugadores por batch, 30s de delay entre batches (`lib/refresh.ts`). Auto-refresh cada 6h si los datos están desactualizados.
 - All env vars must go through `lib/env.ts` — never access `process.env` directly in other modules
 - Use `logger.child({ module: 'name' })` for structured logging in new modules

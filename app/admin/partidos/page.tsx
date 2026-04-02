@@ -520,7 +520,6 @@ export default function AdminPartidos() {
                     { length: phase?.config.roundBo?.[String(match.round)] ?? phase?.config.bo ?? 1 },
                     (_, i) => {
                       const gameData = match.games?.[i]
-                      const isParsing = parsing === `${match.id}-${i}`
                       return (
                         <div key={i} className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
@@ -557,6 +556,24 @@ export default function AdminPartidos() {
                                 <X size={12} />
                               </button>
                             )}
+                            {/* Riot match ID — fallback para datos de Riot en página pública */}
+                            <input
+                              type="text"
+                              className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-[11px] text-white/80 placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-[#0097D7]"
+                              placeholder="EUW1_..."
+                              value={match.riotMatchIds?.[i] ?? ''}
+                              onChange={(e) => {
+                                const value = e.target.value.trim()
+                                const riotMatchIds = [...(match.riotMatchIds ?? [])]
+                                riotMatchIds[i] = value || (undefined as unknown as string)
+                                while (riotMatchIds.length > 0 && !riotMatchIds[riotMatchIds.length - 1]) {
+                                  riotMatchIds.pop()
+                                }
+                                update(match.id, {
+                                  riotMatchIds: riotMatchIds.length > 0 ? riotMatchIds : undefined,
+                                })
+                              }}
+                            />
                           </div>
                         </div>
                       )

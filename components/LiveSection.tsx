@@ -1,5 +1,4 @@
 'use client'
-import { useState } from 'react'
 import Image from 'next/image'
 import TwitchEmbed from './TwitchEmbed'
 
@@ -8,9 +7,6 @@ interface Props {
 }
 
 export default function LiveSection({ channel }: Props) {
-  // Default true: show embed immediately; TwitchEmbed fires OFFLINE if not live.
-  const [isLive, setIsLive] = useState<boolean | null>(true)
-
   return (
     <>
       {/* Hero épico */}
@@ -50,7 +46,7 @@ export default function LiveSection({ channel }: Props) {
           </div>
           <div className="mt-5 h-px w-40 mx-auto bg-gradient-to-r from-transparent via-[#0097D7]/50 to-transparent" />
 
-          {isLive && (
+          {channel && (
             <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#B30133]/15 border border-[#B30133]/30">
               <span className="h-2 w-2 rounded-full bg-[#B30133] animate-pulse" />
               <span className="text-xs font-bold text-[#B30133]/90 uppercase tracking-[0.2em]">En directo</span>
@@ -59,10 +55,9 @@ export default function LiveSection({ channel }: Props) {
         </div>
       </div>
 
-      {/* Embed — el propio TwitchEmbed se oculta cuando el canal está offline */}
       {channel && (
-        <section className={isLive ? 'max-w-7xl mx-auto px-4 pt-8 w-full' : 'h-0 overflow-hidden'}>
-          <TwitchEmbed channel={channel} onLiveChange={setIsLive} />
+        <section className="max-w-7xl mx-auto px-4 pt-8 w-full">
+          <TwitchEmbed channel={channel} />
         </section>
       )}
     </>

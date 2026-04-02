@@ -22,12 +22,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Tipo de imagen no soportado' }, { status: 400 })
     }
 
-    const customPrompt = formData.get('prompt') as string | null
+    const rawPrompt = formData.get('prompt')
+    const customPrompt = typeof rawPrompt === 'string' && rawPrompt.trim().length > 0
+      ? rawPrompt.trim().slice(0, 5000)
+      : undefined
 
     const buffer = Buffer.from(await file.arrayBuffer())
     const base64 = buffer.toString('base64')
 
-    const gameData = await parseScreenshot(base64, file.type, customPrompt ?? undefined)
+    const gameData = await parseScreenshot(base64, file.type, customPrompt)
     return NextResponse.json(gameData)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error desconocido'

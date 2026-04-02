@@ -25,7 +25,7 @@ Return ONLY valid JSON matching this exact schema (no markdown, no backticks, no
 
 Rules:
 - "winner": If the header says "DEFEAT", the screenshot is from team1's perspective → team2 won. If "VICTORY" → team1 won.
-- "championName": Use the official English DDragon champion key (PascalCase). Examples: "Yone", "MonkeyKing" (for Wukong), "Ahri", "FiddleSticks", "KSante", "Renata". If the champion is only shown as a portrait with no readable text name (e.g. Spanish client), use "" — do NOT guess from the portrait alone.
+- "championName": Use the official English DDragon champion key (PascalCase). Examples: "Yone", "MonkeyKing" (for Wukong), "Ahri", "Fiddlesticks", "KSante", "Renata". If the champion is only shown as a portrait with no readable text name (e.g. Spanish client), use "" — do NOT guess from the portrait alone.
 - "items": If item icons are clearly readable, list them by their official English name (include trinket/ward, skip empty slots, max 8). If the icons are too small or unclear to identify reliably, use an empty array [] — do NOT guess item names.
 - "keystone": The primary keystone rune name in English (e.g. "Conqueror", "Electrocute", "FleetFootwork", "Grasp of the Undying"). If the keystone icon cannot be reliably identified, use "" — do NOT guess.
 - "gold": Individual player gold, not team total.
