@@ -26,6 +26,8 @@ const TIER_ORDER: Record<string, number> = {
 }
 const RANK_ORDER: Record<string, number> = { I: 4, II: 3, III: 2, IV: 1 }
 
+const ROLE_ORDER: Record<string, number> = { Top: 0, Jungle: 1, Mid: 2, Bot: 3, Support: 4, Fill: 5 }
+
 const TIER_COLORS: Record<string, string> = {
   CHALLENGER: 'text-yellow-300',
   GRANDMASTER: 'text-red-400',
@@ -261,8 +263,15 @@ export default function CompareClient({ teams, allStats, matches, lastUpdated, c
   const stats1 = allStats[team1Id] ?? []
   const stats2 = allStats[team2Id] ?? []
 
-  const starters1 = stats1.filter(p => p.primaryRole !== 'Suplente')
-  const starters2 = stats2.filter(p => p.primaryRole !== 'Suplente')
+  const starters1 = stats1
+    .filter(p => p.primaryRole !== 'Suplente')
+    .sort((a, b) => (ROLE_ORDER[a.primaryRole] ?? 99) - (ROLE_ORDER[b.primaryRole] ?? 99))
+  const starters2 = stats2
+    .filter(p => p.primaryRole !== 'Suplente')
+    .sort((a, b) => (ROLE_ORDER[a.primaryRole] ?? 99) - (ROLE_ORDER[b.primaryRole] ?? 99))
+
+  const subs1 = stats1.filter(p => p.primaryRole === 'Suplente')
+  const subs2 = stats2.filter(p => p.primaryRole === 'Suplente')
 
   // Order state: indices into starters arrays
   const [order1, setOrder1] = useState<number[]>([])
@@ -482,6 +491,46 @@ export default function CompareClient({ teams, allStats, matches, lastUpdated, c
                   />
                 </div>
               ))}
+
+              {/* Suplentes */}
+              {(subs1.length > 0 || subs2.length > 0) && (
+                <>
+                  <div className="grid grid-cols-2 divide-x divide-white/5 bg-white/[0.02]">
+                    <div className="px-4 py-1.5 text-[10px] font-bold text-white/30 uppercase tracking-wider">Suplentes</div>
+                    <div className="px-4 py-1.5 text-[10px] font-bold text-white/30 uppercase tracking-wider text-right">Suplentes</div>
+                  </div>
+                  {Array.from({ length: Math.max(subs1.length, subs2.length) }).map((_, i) => (
+                    <div key={`sub-${i}`} className="grid grid-cols-2 divide-x divide-white/5 opacity-70">
+                      {subs1[i] ? (
+                        <PlayerCard
+                          player={subs1[i]}
+                          champFilter={champFilter}
+                          champDataMap={champData}
+                          mirrored={false}
+                          selected={false}
+                          onSelect={() => {}}
+                          dragHandlers={{ draggable: false, onDragStart: () => {}, onDragOver: () => {}, onDrop: () => {}, onDragEnd: () => {} }}
+                        />
+                      ) : (
+                        <div className="px-4 py-3 text-white/20 text-sm">-</div>
+                      )}
+                      {subs2[i] ? (
+                        <PlayerCard
+                          player={subs2[i]}
+                          champFilter={champFilter}
+                          champDataMap={champData}
+                          mirrored={true}
+                          selected={false}
+                          onSelect={() => {}}
+                          dragHandlers={{ draggable: false, onDragStart: () => {}, onDragOver: () => {}, onDrop: () => {}, onDragEnd: () => {} }}
+                        />
+                      ) : (
+                        <div className="px-4 py-3 text-white/20 text-sm">-</div>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           </div>
         </>

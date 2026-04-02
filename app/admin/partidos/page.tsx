@@ -1,8 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { Match, Team, Phase } from '@/lib/types'
-import { Plus, Trash2, Save, Trophy, Upload, Check, Loader2, X, Copy, Ticket, Users } from 'lucide-react'
+import { Plus, Trash2, Save, Trophy, Check, Loader2, X, Copy, Ticket, Users, FileJson2, ImageUp } from 'lucide-react'
 import type { GameData } from '@/lib/types'
+import { GameDataSchema } from '@/lib/schemas'
+import { DEFAULT_SCREENSHOT_PROMPT } from '@/lib/screenshot-prompt'
 import DateTimePicker from '@/components/admin/DateTimePicker'
 import clsx from 'clsx'
 
@@ -20,6 +22,7 @@ export default function AdminPartidos() {
   const [hasTournamentConfig, setHasTournamentConfig] = useState(false)
   const [generatingCodes, setGeneratingCodes] = useState<string | null>(null)
   const [lobbyData, setLobbyData] = useState<Record<string, { summonerName: string; eventType: string }[]>>({})
+  const [gameModal, setGameModal] = useState<{ matchId: string; gameIndex: number } | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -137,13 +140,25 @@ export default function AdminPartidos() {
     }
   }
 
-  async function uploadScreenshot(matchId: string, gameIndex: number, file: File) {
+  function applyGameData(matchId: string, gameIndex: number, gameData: GameData) {
+    setMatches(prev => prev.map(m => {
+      if (m.id !== matchId) return m
+      const games = [...(m.games ?? [])]
+      while (games.length <= gameIndex) games.push(undefined as unknown as GameData)
+      games[gameIndex] = gameData
+      return { ...m, games }
+    }))
+    notify(`Partida ${gameIndex + 1} cargada: ${gameData.duration}`)
+  }
+
+  async function uploadScreenshot(matchId: string, gameIndex: number, file: File, customPrompt?: string): Promise<GameData | null> {
     const key = `${matchId}-${gameIndex}`
     setParsing(key)
     setParseError(null)
     try {
       const formData = new FormData()
       formData.append('file', file)
+      if (customPrompt) formData.append('prompt', customPrompt)
       const res = await fetch('/api/admin/partidos/parse-screenshot', {
         method: 'POST',
         body: formData,
@@ -151,19 +166,12 @@ export default function AdminPartidos() {
       const data = await res.json()
       if (!res.ok) {
         setParseError(data.error ?? 'Error al parsear')
-        return
+        return null
       }
-      const gameData = data as GameData
-      setMatches(prev => prev.map(m => {
-        if (m.id !== matchId) return m
-        const games = [...(m.games ?? [])]
-        while (games.length <= gameIndex) games.push(undefined as unknown as GameData)
-        games[gameIndex] = gameData
-        return { ...m, games }
-      }))
-      notify(`Partida ${gameIndex + 1} parseada: ${gameData.duration}`)
+      return data as GameData
     } catch {
       setParseError('Error de red al enviar la captura')
+      return null
     } finally {
       setParsing(null)
     }
@@ -221,6 +229,28 @@ export default function AdminPartidos() {
   const allSelected = filtered.length > 0 && selected.size === filtered.length
 
   return (
+    <>
+    {/* Modal de datos de partida */}
+    {gameModal && (() => {
+      const modalMatch = matches.find(m => m.id === gameModal.matchId)
+      const t1 = teams.find(t => t.id === modalMatch?.team1Id)
+      const t2 = teams.find(t => t.id === modalMatch?.team2Id)
+      return (
+        <GameDataModal
+          title={`Partida ${gameModal.gameIndex + 1}${t1 && t2 ? ` — ${t1.name} vs ${t2.name}` : ''}`}
+          parsing={parsing === `${gameModal.matchId}-${gameModal.gameIndex}`}
+          onParse={async (file, prompt) => {
+            const result = await uploadScreenshot(gameModal.matchId, gameModal.gameIndex, file, prompt)
+            return result
+          }}
+          onApply={(gameData) => {
+            applyGameData(gameModal.matchId, gameModal.gameIndex, gameData)
+            setGameModal(null)
+          }}
+          onClose={() => setGameModal(null)}
+        />
+      )
+    })()}
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold">Partidos</h1>
@@ -490,38 +520,27 @@ export default function AdminPartidos() {
                     { length: phase?.config.roundBo?.[String(match.round)] ?? phase?.config.bo ?? 1 },
                     (_, i) => {
                       const gameData = match.games?.[i]
-                      const isParsing = parsing === `${match.id}-${i}`
                       return (
                         <div key={i} className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <span className="text-[11px] text-white/30 w-16 shrink-0">Partida {i + 1}</span>
-                            {/* Upload screenshot button */}
-                            <label className={clsx(
-                              'flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium cursor-pointer transition-colors shrink-0',
-                              gameData
-                                ? 'bg-green-500/20 border border-green-500/40 text-green-400'
-                                : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/70',
-                              isParsing && 'opacity-50 pointer-events-none',
-                            )}>
-                              {isParsing ? (
-                                <><Loader2 size={11} className="animate-spin" /> Parseando...</>
-                              ) : gameData ? (
+                            {/* Botón de datos — abre modal */}
+                            <button
+                              type="button"
+                              onClick={() => setGameModal({ matchId: match.id, gameIndex: i })}
+                              className={clsx(
+                                'flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors shrink-0',
+                                gameData
+                                  ? 'bg-green-500/20 border border-green-500/40 text-green-400'
+                                  : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/70',
+                              )}
+                            >
+                              {gameData ? (
                                 <><Check size={11} /> {gameData.duration}</>
                               ) : (
-                                <><Upload size={11} /> Captura</>
+                                <><FileJson2 size={11} /> Datos</>
                               )}
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={e => {
-                                  const file = e.target.files?.[0]
-                                  if (file) uploadScreenshot(match.id, i, file)
-                                  e.target.value = ''
-                                }}
-                                disabled={isParsing}
-                              />
-                            </label>
+                            </button>
                             {/* Clear game data */}
                             {gameData && (
                               <button
@@ -529,7 +548,6 @@ export default function AdminPartidos() {
                                 onClick={() => {
                                   const games = [...(match.games ?? [])]
                                   games.splice(i, 1, undefined as unknown as GameData)
-                                  // Trim trailing undefineds
                                   while (games.length > 0 && !games[games.length - 1]) games.pop()
                                   update(match.id, { games: games.length > 0 ? games : undefined })
                                 }}
@@ -538,20 +556,23 @@ export default function AdminPartidos() {
                                 <X size={12} />
                               </button>
                             )}
-                            {/* Riot match ID input */}
+                            {/* Riot match ID — fallback para datos de Riot en página pública */}
                             <input
-                              value={match.riotMatchIds[i] ?? ''}
-                              onChange={e => {
-                                const ids = Array.from(
-                                  { length: Math.max(match.riotMatchIds.length, i + 1) },
-                                  (_, j) => match.riotMatchIds[j] ?? ''
-                                )
-                                ids[i] = e.target.value.trim()
-                                while (ids.length > 0 && ids[ids.length - 1] === '') ids.pop()
-                                update(match.id, { riotMatchIds: ids })
+                              type="text"
+                              className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-[11px] text-white/80 placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-[#0097D7]"
+                              placeholder="EUW1_..."
+                              value={match.riotMatchIds?.[i] ?? ''}
+                              onChange={(e) => {
+                                const value = e.target.value.trim()
+                                const riotMatchIds = [...(match.riotMatchIds ?? [])]
+                                riotMatchIds[i] = value || (undefined as unknown as string)
+                                while (riotMatchIds.length > 0 && !riotMatchIds[riotMatchIds.length - 1]) {
+                                  riotMatchIds.pop()
+                                }
+                                update(match.id, {
+                                  riotMatchIds: riotMatchIds.length > 0 ? riotMatchIds : undefined,
+                                })
                               }}
-                              placeholder="o Riot ID: EUW1_..."
-                              className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white font-mono focus:outline-none"
                             />
                           </div>
                         </div>
@@ -586,6 +607,172 @@ export default function AdminPartidos() {
             </div>
           )
         })}
+      </div>
+    </div>
+    </>
+  )
+}
+
+// ─── Modal de datos de partida ────────────────────────────────────────────────
+
+function GameDataModal({
+  title,
+  parsing,
+  onParse,
+  onApply,
+  onClose,
+}: {
+  title: string
+  parsing: boolean
+  onParse: (file: File, prompt: string) => Promise<GameData | null>
+  onApply: (data: GameData) => void
+  onClose: () => void
+}) {
+  const [image, setImage] = useState<File | null>(null)
+  const [prompt, setPrompt] = useState(DEFAULT_SCREENSHOT_PROMPT)
+  const [result, setResult] = useState<GameData | null>(null)
+  const [resultJson, setResultJson] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [jsonFile, setJsonFile] = useState<File | null>(null)
+
+  async function handleParse() {
+    if (!image) return
+    setError(null)
+    setResult(null)
+    setResultJson('')
+    const data = await onParse(image, prompt)
+    if (data) {
+      setResult(data)
+      setResultJson(JSON.stringify(data, null, 2))
+    } else {
+      setError('No se pudo parsear la imagen')
+    }
+  }
+
+  function handleJsonUpload() {
+    if (!jsonFile) return
+    setError(null)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target?.result as string)
+        const validation = GameDataSchema.safeParse(parsed)
+        if (!validation.success) {
+          setError(`JSON inválido: ${validation.error.issues[0]?.message ?? 'formato incorrecto'}`)
+          return
+        }
+        onApply(validation.data)
+      } catch {
+        setError('No se pudo leer el archivo JSON')
+      }
+    }
+    reader.readAsText(jsonFile)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+      <div className="w-full max-w-2xl bg-[#0d1321] border border-white/15 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
+          <h2 className="font-bold text-sm">{title}</h2>
+          <button type="button" onClick={onClose} className="text-white/30 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex flex-col gap-5 p-5">
+          {/* ── Sección IA ── */}
+          <div className="flex flex-col gap-3">
+            <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Parsear con IA</p>
+
+            {/* Selector de imagen */}
+            <label className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/25 transition-colors cursor-pointer w-fit">
+              <ImageUp size={13} />
+              {image ? image.name : 'Seleccionar imagen...'}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) setImage(f); e.target.value = '' }}
+              />
+            </label>
+
+            {/* Prompt editable */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-white/30">Prompt</label>
+              <textarea
+                value={prompt}
+                onChange={e => setPrompt(e.target.value)}
+                rows={6}
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[11px] text-white/70 font-mono focus:outline-none focus:border-[#0097D7]/40 resize-y"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleParse}
+              disabled={!image || parsing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-xs font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-40 w-fit"
+            >
+              {parsing ? <><Loader2 size={12} className="animate-spin" /> Parseando...</> : <>Parsear con IA</>}
+            </button>
+
+            {/* Preview JSON */}
+            {resultJson && (
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-white/30">Resultado</label>
+                <textarea
+                  readOnly
+                  value={resultJson}
+                  rows={8}
+                  className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-[11px] text-green-300 font-mono focus:outline-none resize-y"
+                />
+                <button
+                  type="button"
+                  onClick={() => result && onApply(result)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600/30 border border-green-500/40 text-green-400 text-xs font-bold hover:bg-green-600/40 transition-colors w-fit"
+                >
+                  <Check size={12} /> Aplicar resultado
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Divisor ── */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-[10px] text-white/25">o sube el JSON directamente</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+
+          {/* ── Sección JSON ── */}
+          <div className="flex flex-col gap-3">
+            <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Subir JSON</p>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/25 transition-colors cursor-pointer">
+                <FileJson2 size={13} />
+                {jsonFile ? jsonFile.name : 'Seleccionar .json...'}
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) { setJsonFile(f); setError(null) }; e.target.value = '' }}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={handleJsonUpload}
+                disabled={!jsonFile}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 border border-white/15 text-white text-xs font-bold hover:bg-white/15 transition-colors disabled:opacity-40"
+              >
+                Subir JSON
+              </button>
+            </div>
+          </div>
+
+          {/* Error */}
+          {error && <p className="text-xs text-red-400">{error}</p>}
+        </div>
       </div>
     </div>
   )

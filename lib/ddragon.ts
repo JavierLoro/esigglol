@@ -133,3 +133,27 @@ export function profileIconUrl(iconId: number | undefined): string {
 export function rankedEmblemUrl(tier: string): string {
   return `/ddragon/ranked/${tier.toLowerCase()}.svg`
 }
+
+// ── Champion name normalization ──────────────────────────────────────────────
+// Riot API participant.championName can differ from the DDragon image key
+// (e.g. "KaiSa" vs "Kaisa"). Build a lowercase → DDragon key map from the
+// local champion.json so any variant resolves to the correct image file.
+
+let _championNameMapCache: Map<string, string> | null = null
+
+export function buildChampionNameMap(): Map<string, string> {
+  if (_championNameMapCache) return _championNameMapCache
+  try {
+    const raw = fs.readFileSync(path.join(ASSETS_DIR, 'champion.json'), 'utf-8')
+    const json = JSON.parse(raw) as { data: Record<string, unknown> }
+    const map = new Map<string, string>()
+    for (const key of Object.keys(json.data ?? {})) {
+      map.set(key.toLowerCase(), key)
+    }
+    _championNameMapCache = map
+    return map
+  } catch (err) {
+    log.warn({ err }, 'Failed to load champion.json for name map')
+    return new Map()
+  }
+}

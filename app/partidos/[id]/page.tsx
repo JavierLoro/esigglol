@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react'
 import { clsx } from 'clsx'
 import { getMatchById, getPhaseById, getTeamById } from '@/lib/data'
 import { getMatchDetails } from '@/lib/riot'
-import { getVersion } from '@/lib/ddragon'
+import { getVersion, buildChampionNameMap } from '@/lib/ddragon'
 import type { Team, GameData, GamePlayerData } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -139,7 +139,9 @@ function RiotTeamTable({
           )}
         >
           <div className="w-8 h-8 rounded overflow-hidden bg-white/5 shrink-0">
-            <Image src={championIconUrl(p.championName, ddragonVersion)} alt={p.championName} width={32} height={32} className="object-cover" unoptimized />
+            {p.championName
+              ? <Image src={championIconUrl(p.championName, ddragonVersion)} alt={p.championName} width={32} height={32} className="object-cover" unoptimized />
+              : null}
           </div>
           <span className="truncate text-white/80 font-medium">
             {p.riotIdGameName}<span className="text-white/30 text-[10px]">#{p.riotIdTagline}</span>
@@ -217,7 +219,9 @@ function StoredTeamTable({
           )}
         >
           <div className="w-8 h-8 rounded overflow-hidden bg-white/5 shrink-0">
-            <Image src={championIconUrl(p.championName, ddragonVersion)} alt={p.championName} width={32} height={32} className="object-cover" unoptimized />
+            {p.championName
+              ? <Image src={championIconUrl(p.championName, ddragonVersion)} alt={p.championName} width={32} height={32} className="object-cover" unoptimized />
+              : null}
           </div>
           <span className="truncate text-white/80 font-medium">{p.summonerName}</span>
           <span className="text-center tabular-nums">
@@ -321,6 +325,10 @@ export default async function PartidoPage({
     : 1
 
   const ddragonVersion = getVersion()
+  const championNameMap = buildChampionNameMap()
+  function toImageKey(name: string): string {
+    return championNameMap.get(name.toLowerCase()) ?? name
+  }
 
   // Fetch Riot data only for games without stored data
   const riotResults = await Promise.allSettled(
@@ -335,8 +343,24 @@ export default async function PartidoPage({
   const riotGames: (RiotMatchData | null)[] = riotResults.map(r => {
     if (r.status === 'rejected') return null
     if (r.value === null) return null
-    return isRiotMatchData(r.value) ? r.value : null
+    const data = isRiotMatchData(r.value) ? r.value : null
+    if (!data) return null
+    return {
+      ...data,
+      info: {
+        ...data.info,
+        participants: data.info.participants.map(p => ({ ...p, championName: toImageKey(p.championName) })),
+      },
+    }
   })
+
+  const normalizedGames = match.games?.map(game =>
+    game ? {
+      ...game,
+      team1Players: game.team1Players.map(p => ({ ...p, championName: toImageKey(p.championName) })),
+      team2Players: game.team2Players.map(p => ({ ...p, championName: toImageKey(p.championName) })),
+    } : game
+  )
 
   const played = match.result !== null
   const winner =
@@ -424,7 +448,7 @@ export default async function PartidoPage({
           <GameCard
             key={i}
             index={i}
-            storedData={match.games?.[i] ?? null}
+            storedData={normalizedGames?.[i] ?? null}
             riotData={riotGames[i]}
             ddragonVersion={ddragonVersion}
           />

@@ -23,12 +23,32 @@ export default async function CompararPage({
   const cache = getPlayerStatsCache()
   const allPlayers = cache.players
 
+  const normalizeName = (name: string) => name.trim().replace(/\s*#\s*/g, '#').toLowerCase()
+  const playerMap = new Map(allPlayers.map(p => [normalizeName(p.summonerName), p]))
+
   const allStats: Record<string, PlayerRow[]> = {}
-  const playerMap = new Map(allPlayers.map(p => [p.summonerName, p]))
   for (const team of teams) {
-    allStats[team.id] = team.players
-      .map(p => playerMap.get(p.summonerName))
-      .filter((p): p is PlayerRow => p != null)
+    allStats[team.id] = (team.players ?? []).map(p => {
+      const cached = playerMap.get(normalizeName(p.summonerName))
+      if (cached) return { ...cached, primaryRole: p.primaryRole, secondaryRole: p.secondaryRole }
+      return {
+        summonerName: p.summonerName,
+        puuid: '',
+        profileIconId: 0,
+        level: 0,
+        tier: 'UNRANKED' as const,
+        rank: 'IV' as const,
+        lp: 0,
+        wins: 0,
+        losses: 0,
+        winrate: 0,
+        teamId: team.id,
+        teamName: team.name,
+        teamLogo: team.logo ?? '',
+        primaryRole: p.primaryRole,
+        secondaryRole: p.secondaryRole,
+      }
+    })
   }
 
   // Build champion data for all players
