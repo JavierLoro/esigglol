@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 
 interface Props {
   lastUpdated: string | null
-  isAdmin?: boolean
+  isAdmin: boolean
   teamIds?: string[]
 }
 
@@ -20,7 +20,6 @@ const POLL_INTERVAL = 15_000 // cada 15s
 
 export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Props) {
   const [loading, setLoading] = useState(false)
-  const [canRefresh, setCanRefresh] = useState(isAdmin ?? false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const cancelledRef = useRef(false)
@@ -61,18 +60,6 @@ export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Pr
 
     setTimeout(check, POLL_INTERVAL)
   }
-
-  useEffect(() => {
-    if (isAdmin !== undefined) return
-    let cancelled = false
-    fetch('/api/admin/settings', { cache: 'no-store' })
-      .then(r => { if (!cancelled) setCanRefresh(r.ok) })
-      .catch((err: unknown) => {
-        console.error('Error checking admin session for refresh button', err)
-        if (!cancelled) setCanRefresh(false)
-      })
-    return () => { cancelled = true }
-  }, [isAdmin])
 
   useEffect(() => {
     cancelledRef.current = false
@@ -119,7 +106,7 @@ export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Pr
 
   return (
     <div className="flex flex-col sm:items-end gap-1">
-      {canRefresh && (
+      {isAdmin && (
         <button
           onClick={handleRefresh}
           disabled={loading}
