@@ -163,10 +163,13 @@ docker compose restart app
 | `npm run lint` | Run ESLint |
 | `npm run test` | Run Vitest tests |
 | `npm run test:watch` | Run Vitest in watch mode |
+| `npm run prepare` | Install Git hooks (Husky) |
 | `npm run sync-ddragon` | Manually sync Data Dragon assets |
 | `npm run collect-stats-dev` | Collect player stats (dev key, rate-limited) |
 | `npm run collect-stats-prod` | Collect player stats (production key) |
 | `npx tsx scripts/seed-data.ts` | Seed placeholder teams and players into the database |
+
+> Pre-commit runs `lint-staged`, which executes ESLint with `--fix` only on staged JS/TS files.
 
 ### Seeding placeholder data
 
@@ -350,10 +353,13 @@ docker compose restart app
 | `npm run lint` | Ejecutar ESLint |
 | `npm run test` | Ejecutar tests (Vitest) |
 | `npm run test:watch` | Tests en modo watch |
+| `npm run prepare` | Instalar hooks de Git (Husky) |
 | `npm run sync-ddragon` | Sincronizar assets de Data Dragon manualmente |
 | `npm run collect-stats-dev` | Recolectar stats de jugadores (dev key, con delays) |
 | `npm run collect-stats-prod` | Recolectar stats de jugadores (prod key) |
 | `npx tsx scripts/seed-data.ts` | Poblar la BD con equipos y jugadores placeholder |
+
+> El pre-commit ejecuta `lint-staged`, que lanza ESLint con `--fix` solo sobre archivos JS/TS staged.
 
 ### Generar datos de prueba (seed)
 
