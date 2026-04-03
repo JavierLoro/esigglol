@@ -1,6 +1,27 @@
 import db from './db'
 import type { Team, Phase, Match, PlayerRow } from './types'
 
+const CACHE_TTL_MS = 5_000
+
+interface TimedCache<T> {
+  value: T
+  expiresAt: number
+}
+
+let teamsCache: TimedCache<Team[]> | null = null
+let phasesCache: TimedCache<Phase[]> | null = null
+
+function isCacheValid<T>(cache: TimedCache<T> | null): cache is TimedCache<T> {
+  return cache !== null && cache.expiresAt > Date.now()
+}
+
+function setCache<T>(value: T): TimedCache<T> {
+  return {
+    value,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  }
+}
+
 // ── Teams ────────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -19,13 +40,18 @@ function migratePlayer(p: any): any {
 }
 
 export function getTeams(): Team[] {
-  return (db.prepare('SELECT data FROM teams').all() as { data: string }[])
+  if (isCacheValid(teamsCache)) return teamsCache.value
+
+  const teams = (db.prepare('SELECT data FROM teams').all() as { data: string }[])
     .map(r => {
       const team = JSON.parse(r.data) as Team
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       team.players = (team.players as any[]).map(migratePlayer)
       return team
     })
+
+  teamsCache = setCache(teams)
+  return teams
 }
 
 export function saveTeams(teams: Team[]): void {
@@ -34,6 +60,7 @@ export function saveTeams(teams: Team[]): void {
     const stmt = db.prepare('INSERT INTO teams (id, data) VALUES (?, ?)')
     for (const t of teams) stmt.run(t.id, JSON.stringify(t))
   })()
+  teamsCache = null
 }
 
 export function getTeamById(id: string): Team | undefined {
@@ -48,8 +75,13 @@ export function getTeamById(id: string): Team | undefined {
 // ── Phases ───────────────────────────────────────────────────────────────────
 
 export function getPhases(): Phase[] {
-  return (db.prepare('SELECT data FROM phases ORDER BY order_ ASC').all() as { data: string }[])
+  if (isCacheValid(phasesCache)) return phasesCache.value
+
+  const phases = (db.prepare('SELECT data FROM phases ORDER BY order_ ASC').all() as { data: string }[])
     .map(r => JSON.parse(r.data) as Phase)
+
+  phasesCache = setCache(phases)
+  return phases
 }
 
 export function savePhases(phases: Phase[]): void {
@@ -58,11 +90,13 @@ export function savePhases(phases: Phase[]): void {
     const stmt = db.prepare('INSERT INTO phases (id, order_, data) VALUES (?, ?, ?)')
     for (const p of phases) stmt.run(p.id, p.order, JSON.stringify(p))
   })()
+  phasesCache = null
 }
 
 export function savePhase(phase: Phase): void {
   db.prepare('INSERT OR REPLACE INTO phases (id, order_, data) VALUES (?, ?, ?)')
     .run(phase.id, phase.order, JSON.stringify(phase))
+  phasesCache = null
 }
 
 export function getPhaseById(id: string): Phase | undefined {
