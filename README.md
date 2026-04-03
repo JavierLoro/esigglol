@@ -99,6 +99,9 @@ npm run dev
 | `TWITCH_CHANNEL` | No | Twitch channel name for embed |
 | `ANTHROPIC_API_KEY` | No | Anthropic API key (enables screenshot parsing) |
 | `DB_PATH` | No | SQLite database path (default: `./data/esigglol.db`) |
+| `REFRESH_AUTO_INTERVAL_MS` | No | Min age for auto refresh in ms (default: `21600000`) |
+| `REFRESH_BATCH_SIZE` | No | Players processed per refresh batch (default: `3`) |
+| `REFRESH_BATCH_DELAY_MS` | No | Delay between refresh batches in ms (default: `30000`) |
 
 > **Note:** The Riot API key can be configured at runtime from the admin dashboard — no server restart needed when the dev key expires.
 
@@ -283,6 +286,9 @@ npm run dev
 | `TWITCH_CHANNEL` | No | Canal de Twitch para el embed |
 | `ANTHROPIC_API_KEY` | No | API key de Anthropic (habilita parseo de screenshots) |
 | `DB_PATH` | No | Ruta de la BD SQLite (default: `./data/esigglol.db`) |
+| `REFRESH_AUTO_INTERVAL_MS` | No | Edad mínima (ms) para auto refresh (default: `21600000`) |
+| `REFRESH_BATCH_SIZE` | No | Jugadores procesados por batch de refresh (default: `3`) |
+| `REFRESH_BATCH_DELAY_MS` | No | Delay entre batches de refresh en ms (default: `30000`) |
 
 > **Nota:** La API key de Riot se puede configurar en tiempo real desde el panel admin — no requiere reiniciar el servidor cuando la dev key expira.
 
