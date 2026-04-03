@@ -4,14 +4,11 @@ import { getTeams, getPlayerStatsCache, savePlayerStatsCache } from '@/lib/data'
 import { getPlayerStats, getChampionMastery, getMatchIds, getMatchDetails, RiotApiKeyError } from '@/lib/riot'
 import { savePlayerMastery, savePlayerMatches, getStoredMatchIds } from '@/lib/data-riot'
 import { ensureProfileIcon } from '@/lib/ddragon'
+import { REFRESH_AUTO_INTERVAL_MS, REFRESH_BATCH_DELAY_MS, REFRESH_BATCH_SIZE } from '@/lib/env'
 import type { Player, Team, PlayerRow } from '@/lib/types'
 import logger from '@/lib/logger'
 
 const log = logger.child({ module: 'refresh' })
-
-const AUTO_REFRESH_INTERVAL = 6 * 60 * 60 * 1000 // 6 horas para auto-refresh
-const BATCH = 3
-const BATCH_DELAY_MS = 30_000
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
 
@@ -108,10 +105,10 @@ export async function runRefresh(teamIds?: string[]) {
     const rows: PlayerRow[] = []
     let aborted = false
 
-    for (let i = 0; i < players.length; i += BATCH) {
+    for (let i = 0; i < players.length; i += REFRESH_BATCH_SIZE) {
       if (aborted) break
 
-      const batch = players.slice(i, i + BATCH)
+      const batch = players.slice(i, i + REFRESH_BATCH_SIZE)
       await Promise.all(batch.map(async ({ p, team }: { p: Player; team: Team }) => {
         if (aborted) return
 
@@ -172,7 +169,7 @@ export async function runRefresh(teamIds?: string[]) {
         savePlayerStatsCache({ lastUpdated: new Date().toISOString(), players: [...kept, ...uniqueRows] })
       }
 
-      if (i + BATCH < players.length && !aborted) await delay(BATCH_DELAY_MS)
+      if (i + REFRESH_BATCH_SIZE < players.length && !aborted) await delay(REFRESH_BATCH_DELAY_MS)
     }
   } finally {
     isRunning = false
@@ -185,7 +182,7 @@ export async function triggerAutoRefresh() {
   const cache = getPlayerStatsCache()
   if (cache.lastUpdated) {
     const age = Date.now() - new Date(cache.lastUpdated).getTime()
-    if (age < AUTO_REFRESH_INTERVAL) return
+    if (age < REFRESH_AUTO_INTERVAL_MS) return
   }
   log.info('Auto-refresh triggered (data older than 6h)')
   await runRefresh()

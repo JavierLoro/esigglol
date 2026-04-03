@@ -11,6 +11,22 @@ function required(name: string): string {
   return value
 }
 
+// Returns default when missing/invalid, accepts values >= 0.
+function optionalNonNegativeInt(name: string, defaultValue: number): number {
+  const value = process.env[name]
+  if (!value) return defaultValue
+  const parsed = Number.parseInt(value, 10)
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : defaultValue
+}
+
+// Returns default when missing/invalid, accepts values > 0.
+function optionalPositiveInt(name: string, defaultValue: number): number {
+  const value = process.env[name]
+  if (!value) return defaultValue
+  const parsed = Number.parseInt(value, 10)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : defaultValue
+}
+
 // ── Required ─────────────────────────────────────────────────────────────────
 
 export const SESSION_SECRET = required('SESSION_SECRET')
@@ -37,6 +53,9 @@ export const RIOT_API_KEY = process.env.RIOT_API_KEY ?? ''
 export const RIOT_REGION = process.env.RIOT_REGION || 'euw1'
 export const TWITCH_CHANNEL = process.env.TWITCH_CHANNEL ?? ''
 export const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+export const REFRESH_AUTO_INTERVAL_MS = optionalNonNegativeInt('REFRESH_AUTO_INTERVAL_MS', 6 * 60 * 60 * 1000)
+export const REFRESH_BATCH_SIZE = optionalPositiveInt('REFRESH_BATCH_SIZE', 3)
+export const REFRESH_BATCH_DELAY_MS = optionalNonNegativeInt('REFRESH_BATCH_DELAY_MS', 30_000)
 
 // ── Paths ────────────────────────────────────────────────────────────────────
 
