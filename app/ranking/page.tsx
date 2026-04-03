@@ -1,12 +1,11 @@
 import { after } from 'next/server'
 import { getPlayerStatsCache, getTeams } from '@/lib/data'
-import { getSessionFromCookies } from '@/lib/auth'
 import { triggerAutoRefresh } from '@/lib/refresh'
 import RankingTable from '@/components/PlayerRankingTable'
 import RefreshStatsButton from '@/components/RefreshStatsButton'
 import type { PlayerRow } from '@/lib/types'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 60
 
 const TIER_ORDER: Record<string, number> = {
   CHALLENGER: 14, GRANDMASTER: 13, MASTER: 12,
@@ -16,7 +15,6 @@ const TIER_ORDER: Record<string, number> = {
 const RANK_ORDER: Record<string, number> = { I: 4, II: 3, III: 2, IV: 1 }
 
 export default async function RankingPage() {
-  const isAdmin = await getSessionFromCookies()
   after(triggerAutoRefresh)
 
   const cache = getPlayerStatsCache()
@@ -83,7 +81,7 @@ export default async function RankingPage() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold">Ranking de jugadores</h1>
-        <RefreshStatsButton lastUpdated={cache.lastUpdated} isAdmin={isAdmin} />
+        <RefreshStatsButton lastUpdated={cache.lastUpdated} />
       </div>
 
       {rows.length === 0 && (

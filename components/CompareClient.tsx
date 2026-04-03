@@ -14,7 +14,7 @@ interface Props {
   matches: Match[]
   lastUpdated: string | null
   champData: Record<string, PlayerChampionData>
-  isAdmin: boolean
+  isAdmin?: boolean
   initialTeam1Id?: string
   initialTeam2Id?: string
 }
