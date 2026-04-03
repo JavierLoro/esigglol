@@ -67,7 +67,10 @@ export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Pr
     let cancelled = false
     fetch('/api/admin/settings', { cache: 'no-store' })
       .then(r => { if (!cancelled) setCanRefresh(r.ok) })
-      .catch(() => { if (!cancelled) setCanRefresh(false) })
+      .catch((err: unknown) => {
+        console.error('Error checking admin session for refresh button', err)
+        if (!cancelled) setCanRefresh(false)
+      })
     return () => { cancelled = true }
   }, [isAdmin])
 

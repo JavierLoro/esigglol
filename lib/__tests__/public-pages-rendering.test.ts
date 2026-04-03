@@ -15,7 +15,7 @@ describe('public pages rendering strategy', () => {
 
   it.each(pages)('%s uses ISR with revalidate=60', (page) => {
     const source = read(page)
-    expect(source).toContain('export const revalidate = 60')
+    expect(source).toMatch(/^\s*export const revalidate = 60\b/m)
     expect(source).not.toContain("export const dynamic = 'force-dynamic'")
   })
 })
