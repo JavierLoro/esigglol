@@ -115,17 +115,31 @@ function getRoundName(ri: number, totalRounds: number) {
   return `Ronda ${ri + 1}`
 }
 
-function PlaceholderCard() {
+function PendingRow({ teamId, teams }: { teamId?: string; teams: Team[] }) {
+  const team = teamId ? teams.find(t => t.id === teamId) : undefined
+  return (
+    <div className="flex items-center gap-2.5 px-3 h-12">
+      {team?.logo ? (
+        <Image src={team.logo} alt={team.name} width={22} height={22} className="rounded shrink-0 opacity-50" />
+      ) : (
+        <div className="w-[22px] h-[22px] rounded bg-white/5 shrink-0" />
+      )}
+      {team ? (
+        <span className="flex-1 truncate text-sm text-white/45">{team.name}</span>
+      ) : (
+        <span className="flex-1 truncate text-sm text-white/15 italic">TBD</span>
+      )}
+    </div>
+  )
+}
+
+function PendingCard({ team1Id, team2Id, teams }: { team1Id?: string; team2Id?: string; teams: Team[] }) {
   return (
     <div className="rounded-lg border border-white/[0.06] bg-[#0e1117]/50">
-      <div className="flex items-center gap-2.5 px-3 h-12 border-b border-white/[0.04]">
-        <div className="w-[22px] h-[22px] rounded bg-white/5 shrink-0" />
-        <span className="text-sm text-white/15 italic">TBD</span>
+      <div className="border-b border-white/[0.04]">
+        <PendingRow teamId={team1Id} teams={teams} />
       </div>
-      <div className="flex items-center gap-2.5 px-3 h-12">
-        <div className="w-[22px] h-[22px] rounded bg-white/5 shrink-0" />
-        <span className="text-sm text-white/15 italic">TBD</span>
-      </div>
+      <PendingRow teamId={team2Id} teams={teams} />
     </div>
   )
 }
@@ -186,7 +200,7 @@ export default function EliminationBracket({ matches, teams, title, teamCount }:
                         key={i}
                         style={{ height: slotH, paddingTop: vPad, paddingBottom: vPad, paddingLeft: 6, paddingRight: 6, boxSizing: 'border-box' }}
                       >
-                        <PlaceholderCard />
+                        <PendingCard teams={teams} />
                       </div>
                     ))}
                   </div>
@@ -210,7 +224,9 @@ export default function EliminationBracket({ matches, teams, title, teamCount }:
     )
   }
 
-  const rounds = [...new Set(matches.map(m => m.round))].sort((a, b) => a - b)
+  const existingRounds = [...new Set(matches.map(m => m.round))].sort((a, b) => a - b)
+  const numExpected = teamCount && teamCount >= 2 ? Math.log2(teamCount) : existingRounds.length
+  const totalRounds = Math.max(existingRounds.length, numExpected)
 
   return (
     <div className="flex flex-col gap-3">
@@ -218,49 +234,65 @@ export default function EliminationBracket({ matches, teams, title, teamCount }:
         <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest">{title}</h3>
       )}
       <div className="flex overflow-x-auto pb-3">
-        {rounds.map((round, ri) => {
-          const roundMatches = matches.filter(m => m.round === round)
+        {Array.from({ length: totalRounds }, (_, ri) => {
+          const round = existingRounds[ri]
+          const roundMatches = round !== undefined ? matches.filter(m => m.round === round) : []
+          const isPlaceholder = round === undefined
           const slotH = SLOT * Math.pow(2, ri)
-          const isLast = ri === rounds.length - 1
+          const isLast = ri === totalRounds - 1
           const vPad = (slotH - CARD_H) / 2
+          const placeholderCount = teamCount ? Math.round(teamCount / Math.pow(2, ri + 1)) : 1
+
+          // Equipos avanzando: de la ronda anterior (si existe y tiene resultados)
+          const prevRound = ri > 0 ? existingRounds[ri - 1] : undefined
+          const prevRoundMatches = prevRound !== undefined
+            ? matches.filter(m => m.round === prevRound).sort((a, b) => a.id.localeCompare(b.id))
+            : []
 
           return (
-            <div key={round} style={{ display: 'flex', alignItems: 'flex-start' }}>
+            <div key={ri} style={{ display: 'flex', alignItems: 'flex-start' }}>
               {/* Round column */}
               <div style={{ width: COL_W, flexShrink: 0 }}>
                 {/* Header */}
-                <div
-                  style={{ height: HEADER_H }}
-                  className="flex items-center justify-center"
-                >
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-white/35">
-                    {getRoundName(ri, rounds.length)}
+                <div style={{ height: HEADER_H }} className="flex items-center justify-center">
+                  <span className={clsx(
+                    'text-[11px] font-bold uppercase tracking-widest',
+                    isPlaceholder ? 'text-white/20' : 'text-white/35',
+                  )}>
+                    {getRoundName(ri, totalRounds)}
                   </span>
                 </div>
 
                 {/* Match slots */}
-                {roundMatches.map(match => (
-                  <div
-                    key={match.id}
-                    style={{
-                      height: slotH,
-                      paddingTop: vPad,
-                      paddingBottom: vPad,
-                      paddingLeft: 6,
-                      paddingRight: 6,
-                      boxSizing: 'border-box',
-                    }}
-                  >
-                    <MatchCard match={match} teams={teams} />
-                  </div>
-                ))}
+                {isPlaceholder
+                  ? Array.from({ length: placeholderCount }, (_, i) => (
+                      <div
+                        key={i}
+                        style={{ height: slotH, paddingTop: vPad, paddingBottom: vPad, paddingLeft: 6, paddingRight: 6, boxSizing: 'border-box' }}
+                      >
+                        <PendingCard
+                          team1Id={prevRoundMatches[i * 2]?.winnerId}
+                          team2Id={prevRoundMatches[i * 2 + 1]?.winnerId}
+                          teams={teams}
+                        />
+                      </div>
+                    ))
+                  : roundMatches.map(match => (
+                      <div
+                        key={match.id}
+                        style={{ height: slotH, paddingTop: vPad, paddingBottom: vPad, paddingLeft: 6, paddingRight: 6, boxSizing: 'border-box' }}
+                      >
+                        <MatchCard match={match} teams={teams} />
+                      </div>
+                    ))
+                }
               </div>
 
               {/* SVG connector */}
               {!isLast && (
                 <div style={{ paddingTop: HEADER_H }}>
                   <ConnectorSVG
-                    numPairs={Math.floor(roundMatches.length / 2)}
+                    numPairs={Math.floor((isPlaceholder ? placeholderCount : roundMatches.length) / 2)}
                     slotH={slotH}
                   />
                 </div>

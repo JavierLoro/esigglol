@@ -99,6 +99,9 @@ npm run dev
 | `TWITCH_CHANNEL` | No | Twitch channel name for embed |
 | `ANTHROPIC_API_KEY` | No | Anthropic API key (enables screenshot parsing) |
 | `DB_PATH` | No | SQLite database path (default: `./data/esigglol.db`) |
+| `REFRESH_AUTO_INTERVAL_MS` | No | Min age for auto refresh in ms (default: `21600000`) |
+| `REFRESH_BATCH_SIZE` | No | Players processed per refresh batch (default: `3`) |
+| `REFRESH_BATCH_DELAY_MS` | No | Delay between refresh batches in ms (default: `30000`) |
 
 > **Note:** The Riot API key can be configured at runtime from the admin dashboard — no server restart needed when the dev key expires.
 
@@ -160,10 +163,13 @@ docker compose restart app
 | `npm run lint` | Run ESLint |
 | `npm run test` | Run Vitest tests |
 | `npm run test:watch` | Run Vitest in watch mode |
+| `npm run prepare` | Install Git hooks (Husky) |
 | `npm run sync-ddragon` | Manually sync Data Dragon assets |
 | `npm run collect-stats-dev` | Collect player stats (dev key, rate-limited) |
 | `npm run collect-stats-prod` | Collect player stats (production key) |
 | `npx tsx scripts/seed-data.ts` | Seed placeholder teams and players into the database |
+
+> Pre-commit runs `lint-staged`, which executes ESLint with `--fix` only on staged JS/TS files.
 
 ### Seeding placeholder data
 
@@ -283,6 +289,9 @@ npm run dev
 | `TWITCH_CHANNEL` | No | Canal de Twitch para el embed |
 | `ANTHROPIC_API_KEY` | No | API key de Anthropic (habilita parseo de screenshots) |
 | `DB_PATH` | No | Ruta de la BD SQLite (default: `./data/esigglol.db`) |
+| `REFRESH_AUTO_INTERVAL_MS` | No | Edad mínima (ms) para auto refresh (default: `21600000`) |
+| `REFRESH_BATCH_SIZE` | No | Jugadores procesados por batch de refresh (default: `3`) |
+| `REFRESH_BATCH_DELAY_MS` | No | Delay entre batches de refresh en ms (default: `30000`) |
 
 > **Nota:** La API key de Riot se puede configurar en tiempo real desde el panel admin — no requiere reiniciar el servidor cuando la dev key expira.
 
@@ -344,10 +353,13 @@ docker compose restart app
 | `npm run lint` | Ejecutar ESLint |
 | `npm run test` | Ejecutar tests (Vitest) |
 | `npm run test:watch` | Tests en modo watch |
+| `npm run prepare` | Instalar hooks de Git (Husky) |
 | `npm run sync-ddragon` | Sincronizar assets de Data Dragon manualmente |
 | `npm run collect-stats-dev` | Recolectar stats de jugadores (dev key, con delays) |
 | `npm run collect-stats-prod` | Recolectar stats de jugadores (prod key) |
 | `npx tsx scripts/seed-data.ts` | Poblar la BD con equipos y jugadores placeholder |
+
+> El pre-commit ejecuta `lint-staged`, que lanza ESLint con `--fix` solo sobre archivos JS/TS staged.
 
 ### Generar datos de prueba (seed)
 

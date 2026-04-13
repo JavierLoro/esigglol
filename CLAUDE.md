@@ -242,6 +242,13 @@ All route handlers are in `app/api/` using the App Router convention (`route.ts`
 ### Health check
 - `GET /api/health` — used by Docker healthcheck and load balancers
 
+### Content Security Policy (`proxy.ts`)
+The middleware sets a strict CSP on every response. If you add a new external resource (iframe, font, image host, fetch target), you **must** update the `csp` array in `proxy.ts`:
+- `script-src`: `self`, `unsafe-inline/eval`, `embed.twitch.tv`
+- `img-src`: `self`, `data:`, `ddragon.leagueoflegends.com`
+- `frame-src`: `player.twitch.tv`, `embed.twitch.tv`
+- `connect-src`: `self`, `ddragon.leagueoflegends.com`
+
 ---
 
 ## Deployment
@@ -336,7 +343,12 @@ TWITCH_CHANNEL=            # Twitch channel name for embed
 ANTHROPIC_API_KEY=         # Claude API key (enables screenshot parsing)
 DB_PATH=./data/esigglol.db # SQLite database path (default: ./data/esigglol.db)
 LOG_PRETTY=true            # Enables pino-pretty (colorized, human-readable logs). Optional in dev.
+COMMIT_SHA=                # Git commit SHA injected at build time → exposed as NEXT_PUBLIC_GIT_SHA
 ```
+
+**Build-time public vars** (auto-set in `next.config.ts`, do not set manually):
+- `NEXT_PUBLIC_APP_VERSION` — read from `package.json` version
+- `NEXT_PUBLIC_GIT_SHA` — read from `COMMIT_SHA` env var (empty string if not set)
 
 > **Riot API Key:** Can be configured via the admin panel at runtime (stored in `tournament_config` table). The DB value takes priority over the env var. This avoids server restarts when the dev key expires every 24h.
 
@@ -385,6 +397,7 @@ npm run collect-stats-prod # Batch collect player stats (prod rate limits)
 - ESLint config: `eslint.config.mjs` (flat config format, not `.eslintrc`)
 - `next.config.ts` auto-detects local network IPs via `os.networkInterfaces()` for `allowedDevOrigins`
 - `predev` and `prebuild` npm hooks automatically sync DDragon assets
+- **Pre-commit hook**: Husky + lint-staged runs `eslint --max-warnings=0 --fix` on all staged JS/TS files. Commits fail if ESLint reports any warning or error after auto-fix.
 
 ---
 

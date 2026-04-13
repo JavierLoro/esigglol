@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPhases, savePhases, generateId } from '@/lib/data'
+import { getPhases, savePhases, generateId, getMatches, saveMatches } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { PhaseSchema, PhaseUpdateSchema, DeleteIdSchema } from '@/lib/schemas'
 import type { Phase } from '@/lib/types'
@@ -60,5 +60,10 @@ export async function DELETE(req: NextRequest) {
 
   const phases = getPhases().filter(p => p.id !== parsed.data.id)
   try { savePhases(phases) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
+
+  // Cascade: borrar partidos de la fase eliminada
+  const remainingMatches = getMatches().filter(m => m.phaseId !== parsed.data.id)
+  try { saveMatches(remainingMatches) } catch (err) { log.error({ err }, 'DB write failed on match cascade') }
+
   return NextResponse.json({ ok: true })
 }
