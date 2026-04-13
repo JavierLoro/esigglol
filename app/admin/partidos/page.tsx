@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { Match, Team, Phase } from '@/lib/types'
-import { Plus, Trash2, Save, Trophy, Check, Loader2, X, Copy, Ticket, Users, FileJson2, ImageUp } from 'lucide-react'
+import { Plus, Trash2, Save, Trophy, Check, Loader2, X, Copy, Ticket, Users, FileJson2, ImageUp, ChevronDown, ChevronRight } from 'lucide-react'
 import type { GameData } from '@/lib/types'
 import { GameDataSchema } from '@/lib/schemas'
 import { DEFAULT_SCREENSHOT_PROMPT } from '@/lib/screenshot-prompt'
@@ -12,7 +12,7 @@ export default function AdminPartidos() {
   const [matches, setMatches] = useState<Match[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [phases, setPhases] = useState<Phase[]>([])
-  const [selectedPhase, setSelectedPhase] = useState<string>('all')
+  const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -37,8 +37,7 @@ export default function AdminPartidos() {
 
   function notify(text: string) { setMsg(text); setTimeout(() => setMsg(''), 3000) }
 
-  async function addMatch() {
-    const phaseId = selectedPhase !== 'all' ? selectedPhase : phases[0]?.id ?? ''
+  async function addMatch(phaseId: string) {
     const res = await fetch('/api/admin/partidos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -46,6 +45,15 @@ export default function AdminPartidos() {
     })
     const [match] = await res.json()
     setMatches(prev => [...prev, match])
+    setCollapsedPhases(prev => { const next = new Set(prev); next.delete(phaseId); return next })
+  }
+
+  function togglePhaseCollapse(phaseId: string) {
+    setCollapsedPhases(prev => {
+      const next = new Set(prev)
+      if (next.has(phaseId)) next.delete(phaseId); else next.add(phaseId)
+      return next
+    })
   }
 
   async function saveMatch(match: Match) {
@@ -133,10 +141,10 @@ export default function AdminPartidos() {
   }
 
   function toggleSelectAll() {
-    if (selected.size === filtered.length) {
+    if (selected.size === matches.length) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(filtered.map(m => m.id)))
+      setSelected(new Set(matches.map(m => m.id)))
     }
   }
 
@@ -225,8 +233,7 @@ export default function AdminPartidos() {
     }
   }
 
-  const filtered = selectedPhase === 'all' ? matches : matches.filter(m => m.phaseId === selectedPhase)
-  const allSelected = filtered.length > 0 && selected.size === filtered.length
+  const allSelected = matches.length > 0 && selected.size === matches.length
 
   return (
     <>
@@ -256,8 +263,6 @@ export default function AdminPartidos() {
         <h1 className="text-xl font-bold">Partidos</h1>
         <div className="flex items-center gap-3 flex-wrap">
           {msg && <span className="text-green-400 text-sm">{msg}</span>}
-
-          {/* Borrar seleccionados */}
           {selected.size > 0 && (
             <button
               onClick={deleteSelected}
@@ -268,24 +273,10 @@ export default function AdminPartidos() {
               Eliminar ({selected.size})
             </button>
           )}
-
-          <select
-            value={selectedPhase}
-            onChange={e => { setSelectedPhase(e.target.value); setSelected(new Set()) }}
-            className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
-          >
-            <option value="all">Todas las fases</option>
-            {phases.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-
-          <button onClick={addMatch} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors">
-            <Plus size={15} /> Añadir partido
-          </button>
         </div>
       </div>
 
-      {/* Seleccionar todo */}
-      {filtered.length > 0 && (
+      {matches.length > 0 && (
         <label className="flex items-center gap-2 text-xs text-white/40 cursor-pointer w-fit">
           <input
             type="checkbox"
@@ -297,52 +288,78 @@ export default function AdminPartidos() {
         </label>
       )}
 
-      {filtered.length === 0 && <p className="text-white/40 text-sm">No hay partidos. Añade el primero.</p>}
+      {matches.length === 0 && <p className="text-white/40 text-sm">No hay partidos. Añade el primero desde una fase.</p>}
 
-      <div className="flex flex-col gap-3">
-        {filtered.map(match => {
-          const phase = phases.find(p => p.id === match.phaseId)
-          const team1 = teams.find(t => t.id === match.team1Id)
-          const team2 = teams.find(t => t.id === match.team2Id)
-          const isSelected = selected.has(match.id)
+      <div className="flex flex-col gap-4">
+        {phases.map(phase => {
+          const phaseMatches = matches.filter(m => m.phaseId === phase.id)
+          const isCollapsed = collapsedPhases.has(phase.id)
+          const completedCount = phaseMatches.filter(m => m.result !== null).length
 
           return (
-            <div
-              key={match.id}
-              className={clsx(
-                'rounded-xl border bg-[#0d1321] p-4 flex flex-col gap-3 transition-colors',
-                isSelected ? 'border-[#0097D7]/50 bg-[#0097D7]/5' : 'border-white/10',
-              )}
-            >
-              {/* Cabecera: checkbox + fase + ronda + delete */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggleSelect(match.id)}
-                  className="accent-[#0097D7] shrink-0"
-                />
-                <select
-                  value={match.phaseId}
-                  onChange={e => update(match.id, { phaseId: e.target.value })}
-                  className="flex-1 min-w-0 px-2 py-1 rounded bg-white/5 border border-white/10 text-xs text-white/70 focus:outline-none"
+            <div key={phase.id} className="flex flex-col gap-0">
+              {/* ── Cabecera de fase ── */}
+              <button
+                type="button"
+                onClick={() => togglePhaseCollapse(phase.id)}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-[#0d1321] hover:bg-white/[0.04] transition-colors w-full text-left"
+              >
+                {isCollapsed
+                  ? <ChevronRight size={15} className="text-white/30 shrink-0" />
+                  : <ChevronDown  size={15} className="text-white/30 shrink-0" />
+                }
+                <span className="font-semibold text-sm flex-1 truncate">{phase.name}</span>
+                <span className="text-xs text-white/30 shrink-0">
+                  {completedCount}/{phaseMatches.length} completados
+                </span>
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); addMatch(phase.id) }}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#0097D7]/20 border border-[#0097D7]/30 text-[#0097D7] text-xs font-bold hover:bg-[#0097D7]/30 transition-colors shrink-0"
                 >
-                  {phases.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <div className="flex items-center gap-1 shrink-0">
-                  <span className="text-xs text-white/30">R</span>
-                  <input
-                    type="number"
-                    min={1}
-                    value={match.round}
-                    onChange={e => update(match.id, { round: Number(e.target.value) })}
-                    className="w-12 px-2 py-1 rounded bg-white/5 border border-white/10 text-xs text-white focus:outline-none"
-                  />
-                </div>
-                <button onClick={() => { setSelected(new Set([match.id])); setTimeout(deleteSelected, 0) }} className="text-white/20 hover:text-red-400 transition-colors shrink-0 hidden">
-                  <Trash2 size={15} />
+                  <Plus size={12} /> Añadir
                 </button>
-              </div>
+              </button>
+
+              {/* ── Partidos de la fase (colapsables) ── */}
+              {!isCollapsed && (
+                <div className="flex flex-col gap-3 pt-3">
+                  {phaseMatches.length === 0 && (
+                    <p className="text-white/30 text-xs px-1">Sin partidos en esta fase.</p>
+                  )}
+                  {phaseMatches.map(match => {
+                    const team1 = teams.find(t => t.id === match.team1Id)
+                    const team2 = teams.find(t => t.id === match.team2Id)
+                    const isSelected = selected.has(match.id)
+
+                    return (
+                      <div
+                        key={match.id}
+                        className={clsx(
+                          'rounded-xl border bg-[#0d1321] p-4 flex flex-col gap-3 transition-colors',
+                          isSelected ? 'border-[#0097D7]/50 bg-[#0097D7]/5' : 'border-white/10',
+                        )}
+                      >
+                        {/* Cabecera: checkbox + ronda */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(match.id)}
+                            className="accent-[#0097D7] shrink-0"
+                          />
+                          <span className="text-xs text-white/30 flex-1">Partido</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-xs text-white/30">R</span>
+                            <input
+                              type="number"
+                              min={1}
+                              value={match.round}
+                              onChange={e => update(match.id, { round: Number(e.target.value) })}
+                              className="w-12 px-2 py-1 rounded bg-white/5 border border-white/10 text-xs text-white focus:outline-none"
+                            />
+                          </div>
+                        </div>
 
               {/* Equipos + resultado */}
               <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start">
@@ -585,25 +602,30 @@ export default function AdminPartidos() {
                 </div>
               </div>
 
-              <div className="self-end flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(`${window.location.origin}/overlay/partidos/${match.id}`)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-white/40 text-sm hover:text-white hover:border-white/30 transition-colors"
-                  title="Copiar URL del overlay"
-                >
-                  <Copy size={14} />
-                  Overlay
-                </button>
-                <button
-                  onClick={() => saveMatch(match)}
-                  disabled={saving === match.id}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
-                >
-                  <Save size={14} />
-                  {saving === match.id ? 'Guardando...' : 'Guardar'}
-                </button>
-              </div>
+                        <div className="self-end flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(`${window.location.origin}/overlay/partidos/${match.id}`)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-white/40 text-sm hover:text-white hover:border-white/30 transition-colors"
+                            title="Copiar URL del overlay"
+                          >
+                            <Copy size={14} />
+                            Overlay
+                          </button>
+                          <button
+                            onClick={() => saveMatch(match)}
+                            disabled={saving === match.id}
+                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
+                          >
+                            <Save size={14} />
+                            {saving === match.id ? 'Guardando...' : 'Guardar'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )
         })}
