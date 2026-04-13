@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
 import { getPhaseById, getMatches, saveMatches, generateId } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { GenerateSchema } from '@/lib/schemas'
@@ -315,6 +314,5 @@ export async function POST(req: NextRequest) {
 
   allMatches.push(...created)
   try { saveMatches(allMatches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
-  revalidatePath('/fases')
   return NextResponse.json({ created: created.length })
 }

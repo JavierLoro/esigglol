@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
 import { getPhases, savePhases, generateId, getMatches, saveMatches } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { PhaseSchema, PhaseUpdateSchema, DeleteIdSchema } from '@/lib/schemas'
@@ -28,7 +27,6 @@ export async function POST(req: NextRequest) {
   const phase: Phase = { id: generateId('phase'), ...parsed.data }
   phases.push(phase)
   try { savePhases(phases) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
-  revalidatePath('/fases')
   return NextResponse.json(phase, { status: 201 })
 }
 
@@ -47,7 +45,6 @@ export async function PUT(req: NextRequest) {
   if (idx === -1) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   phases[idx] = parsed.data as Phase
   try { savePhases(phases) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
-  revalidatePath('/fases')
   return NextResponse.json(parsed.data)
 }
 
@@ -68,6 +65,5 @@ export async function DELETE(req: NextRequest) {
   const remainingMatches = getMatches().filter(m => m.phaseId !== parsed.data.id)
   try { saveMatches(remainingMatches) } catch (err) { log.error({ err }, 'DB write failed on match cascade') }
 
-  revalidatePath('/fases')
   return NextResponse.json({ ok: true })
 }

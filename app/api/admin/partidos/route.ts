@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
 import { getMatches, saveMatches, generateId, getPhaseById, savePhase } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { advanceWinner } from '@/lib/bracket'
@@ -32,7 +31,6 @@ export async function POST(req: NextRequest) {
 
   matches.push(...newMatches)
   try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
-  revalidatePath('/fases')
   return NextResponse.json(newMatches, { status: 201 })
 }
 
@@ -73,7 +71,6 @@ export async function PUT(req: NextRequest) {
     }
   }
 
-  revalidatePath('/fases')
   return NextResponse.json(body)
 }
 
@@ -94,6 +91,5 @@ export async function DELETE(req: NextRequest) {
 
   const matches = getMatches().filter(m => !toDelete.has(m.id))
   try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
-  revalidatePath('/fases')
   return NextResponse.json({ ok: true, deleted: toDelete.size })
 }

@@ -5,6 +5,8 @@ import EliminationBracket from '@/components/brackets/EliminationBracket'
 import UpperLowerBracket from '@/components/brackets/UpperLowerBracket'
 import { clsx } from 'clsx'
 
+export const dynamic = 'force-dynamic'
+
 const statusLabel: Record<string, string> = {
   upcoming: 'Próximamente',
   active: 'En curso',
