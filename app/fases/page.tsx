@@ -5,8 +5,6 @@ import EliminationBracket from '@/components/brackets/EliminationBracket'
 import UpperLowerBracket from '@/components/brackets/UpperLowerBracket'
 import { clsx } from 'clsx'
 
-export const revalidate = 60
-
 const statusLabel: Record<string, string> = {
   upcoming: 'Próximamente',
   active: 'En curso',
