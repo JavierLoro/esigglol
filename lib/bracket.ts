@@ -127,11 +127,11 @@ export function advanceWinner(
       }
       if (round === 3) {
         const r99 = matchesInRound(99)
-        const rNeg3 = matchesInRound(-3)
+        const rNeg4 = matchesInRound(-4)
         if (r99[0]) fillSlot(r99[0], 'team1Id', winner)
-        if (rNeg3[0]) {
-          if (rNeg3[0].team1Id === 'TBD') fillSlot(rNeg3[0], 'team1Id', loser)
-          else fillSlot(rNeg3[0], 'team2Id', loser)
+        if (rNeg4[0]) {
+          if (rNeg4[0].team1Id === 'TBD') fillSlot(rNeg4[0], 'team1Id', loser)
+          else fillSlot(rNeg4[0], 'team2Id', loser)
         }
       }
       if (round === -1) {

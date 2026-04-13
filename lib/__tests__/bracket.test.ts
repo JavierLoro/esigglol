@@ -195,3 +195,90 @@ describe('advanceWinner — upper-lower 4 equipos', () => {
     expect(result[5].team2Id).toBe('D')  // grand final team2
   })
 })
+
+// ── Upper-lower (8 equipos) ──────────────────────────────────────────────────
+
+describe('advanceWinner — upper-lower 8 equipos', () => {
+  const phase = makePhase('upper-lower', { bracketTeamIds: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] })
+
+  function makeUL8Matches() {
+    return [
+      // Upper R1 (×4)
+      makeMatch({ id: 'u1a', round: 1, team1Id: 'A', team2Id: 'B' }),
+      makeMatch({ id: 'u1b', round: 1, team1Id: 'C', team2Id: 'D' }),
+      makeMatch({ id: 'u1c', round: 1, team1Id: 'E', team2Id: 'F' }),
+      makeMatch({ id: 'u1d', round: 1, team1Id: 'G', team2Id: 'H' }),
+      // Upper R2 (×2)
+      makeMatch({ id: 'u2a', round: 2 }),
+      makeMatch({ id: 'u2b', round: 2 }),
+      // Upper final R3 (×1)
+      makeMatch({ id: 'u3', round: 3 }),
+      // Lower R1 (×2)
+      makeMatch({ id: 'l1a', round: -1 }),
+      makeMatch({ id: 'l1b', round: -1 }),
+      // Lower R2 (×2)
+      makeMatch({ id: 'l2a', round: -2 }),
+      makeMatch({ id: 'l2b', round: -2 }),
+      // Lower semi R-3 (×1)
+      makeMatch({ id: 'l3', round: -3 }),
+      // Lower final R-4 (×1)
+      makeMatch({ id: 'l4', round: -4 }),
+      // Grand final R99
+      makeMatch({ id: 'gf', round: 99 }),
+    ]
+  }
+
+  it('R1: ganador → upper R2 (por índice), perdedor → lower R-1 (por índice)', () => {
+    const matches = makeUL8Matches()
+    matches[0].result = { team1Score: 1, team2Score: 0 }
+    matches[0].winnerId = 'A'
+
+    const result = advanceWinner(phase, matches, matches[0])
+    const r2 = result.filter(m => m.round === 2).sort((a, b) => a.id.localeCompare(b.id))
+    const rNeg1 = result.filter(m => m.round === -1).sort((a, b) => a.id.localeCompare(b.id))
+    expect(r2[0].team1Id).toBe('A')   // u1a(idx=0) → r2[0].team1
+    expect(rNeg1[0].team1Id).toBe('B') // perdedor → lower R-1[0].team1
+  })
+
+  it('R3 (upper final): ganador → R99 team1, perdedor → R-4 (NO a R-3)', () => {
+    const matches = makeUL8Matches()
+    matches[6].team1Id = 'A'
+    matches[6].team2Id = 'C'
+    matches[6].result = { team1Score: 2, team2Score: 1 }
+    matches[6].winnerId = 'A'
+
+    const result = advanceWinner(phase, matches, matches[6])
+    const r99  = result.find(m => m.round === 99)!
+    const rNeg4 = result.find(m => m.round === -4)!
+    const rNeg3 = result.find(m => m.round === -3)!
+
+    expect(r99.team1Id).toBe('A')    // ganador → grand final team1
+    expect(rNeg4.team1Id).toBe('C')  // perdedor → R-4 (lower final)
+    expect(rNeg3.team1Id).toBe('TBD') // R-3 no debe ser tocado por R3
+    expect(rNeg3.team2Id).toBe('TBD')
+  })
+
+  it('R-2: ganadores van a R-3', () => {
+    const matches = makeUL8Matches()
+    matches[9].team1Id = 'B'
+    matches[9].team2Id = 'D'
+    matches[9].result = { team1Score: 1, team2Score: 0 }
+    matches[9].winnerId = 'B'
+
+    const result = advanceWinner(phase, matches, matches[9])
+    const rNeg3 = result.find(m => m.round === -3)!
+    expect(rNeg3.team1Id).toBe('B')
+  })
+
+  it('R-4 (lower final): ganador → R99 team2', () => {
+    const matches = makeUL8Matches()
+    matches[12].team1Id = 'C'
+    matches[12].team2Id = 'B'
+    matches[12].result = { team1Score: 0, team2Score: 2 }
+    matches[12].winnerId = 'B'
+
+    const result = advanceWinner(phase, matches, matches[12])
+    const r99 = result.find(m => m.round === 99)!
+    expect(r99.team2Id).toBe('B')
+  })
+})
