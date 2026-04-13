@@ -17,6 +17,11 @@ function getLocalIPs(): string[] {
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  experimental: {
+    staleTimes: {
+      dynamic: 0,
+    },
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
     NEXT_PUBLIC_GIT_SHA: process.env.COMMIT_SHA ?? '',
