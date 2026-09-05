@@ -139,7 +139,6 @@ Documento de seguimiento de tareas pendientes para llevar ESIgg.lol a produccion
 
 ### Programacion de partidos (`scheduledAt`)
 - [ ] No se valida que la fecha sea futura
-- [ ] No hay conversion/indicacion de timezone para el usuario
 - [ ] No existe sistema de recordatorios o notificaciones de proximos partidos
 - [ ] No se ordena por fecha programada en la vista publica
 

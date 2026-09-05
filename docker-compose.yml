@@ -18,6 +18,23 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
+  backup:
+    # The backup worker uses SQLite's online backup API, so it is safe while
+    # the app is writing in WAL mode. BACKUP_HOST_PATH may point to a mounted
+    # disk/NFS directory; keep it outside the database volume when possible.
+    build:
+      context: .
+      target: backup
+    user: "1000"
+    env_file:
+      - .env.local
+    environment:
+      BACKUP_DIR: /app/backups
+    volumes:
+      - ./data:/app/data:ro
+      - ${BACKUP_HOST_PATH:-./backups}:/app/backups
+    restart: unless-stopped
+
   watchtower:
     image: containrrr/watchtower:latest
     volumes:

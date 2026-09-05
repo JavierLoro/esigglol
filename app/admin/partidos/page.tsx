@@ -19,6 +19,7 @@ export default function AdminPartidos() {
   const [deleting, setDeleting] = useState(false)
   const [parsing, setParsing] = useState<string | null>(null) // "matchId-gameIndex"
   const [parseError, setParseError] = useState<string | null>(null)
+  const [screenshotParsingAvailable, setScreenshotParsingAvailable] = useState(false)
   const [hasTournamentConfig, setHasTournamentConfig] = useState(false)
   const [generatingCodes, setGeneratingCodes] = useState<string | null>(null)
   const [lobbyData, setLobbyData] = useState<Record<string, { summonerName: string; eventType: string }[]>>({})
@@ -30,8 +31,12 @@ export default function AdminPartidos() {
       fetch('/api/data/equipos').then(r => r.json()),
       fetch('/api/admin/fases').then(r => r.json()),
     ]).then(([m, t, p]) => { setMatches(m); setTeams(t); setPhases(p) })
+    fetch('/api/admin/partidos/parse-screenshot')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setScreenshotParsingAvailable(data?.available === true))
+      .catch(() => setScreenshotParsingAvailable(false))
     fetch('/api/admin/tournament').then(r => r.json()).then(data => {
-      if (data?.providerId) setHasTournamentConfig(true)
+      if (data?.configured === true || data?.providerId) setHasTournamentConfig(true)
     }).catch(() => {})
   }, [])
 
@@ -246,6 +251,7 @@ export default function AdminPartidos() {
         <GameDataModal
           title={`Partida ${gameModal.gameIndex + 1}${t1 && t2 ? ` — ${t1.name} vs ${t2.name}` : ''}`}
           parsing={parsing === `${gameModal.matchId}-${gameModal.gameIndex}`}
+          screenshotParsingAvailable={screenshotParsingAvailable}
           onParse={async (file, prompt) => {
             const result = await uploadScreenshot(gameModal.matchId, gameModal.gameIndex, file, prompt)
             return result
@@ -640,12 +646,14 @@ export default function AdminPartidos() {
 function GameDataModal({
   title,
   parsing,
+  screenshotParsingAvailable,
   onParse,
   onApply,
   onClose,
 }: {
   title: string
   parsing: boolean
+  screenshotParsingAvailable: boolean
   onParse: (file: File, prompt: string) => Promise<GameData | null>
   onApply: (data: GameData) => void
   onClose: () => void
@@ -733,11 +741,17 @@ function GameDataModal({
             <button
               type="button"
               onClick={handleParse}
-              disabled={!image || parsing}
+              disabled={!image || parsing || !screenshotParsingAvailable}
+              aria-describedby="screenshot-parse-help"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-xs font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-40 w-fit"
             >
               {parsing ? <><Loader2 size={12} className="animate-spin" /> Parseando...</> : <>Parsear con IA</>}
             </button>
+            <p id="screenshot-parse-help" role="status" aria-live="polite" className="text-xs text-white/50">
+              {screenshotParsingAvailable
+                ? 'El parseo con IA está disponible.'
+                : 'El parseo con IA está deshabilitado porque falta configurar ANTHROPIC_API_KEY en el servidor. Puedes subir un JSON directamente.'}
+            </p>
 
             {/* Preview JSON */}
             {resultJson && (

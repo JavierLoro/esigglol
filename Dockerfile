@@ -25,6 +25,16 @@ ENV RIOT_API_KEY=build-placeholder
 
 RUN npm run build
 
+# -- Backup worker --------------------------------------------------------------
+# This stage is selected by the backup service in docker-compose*.yml. Keep it
+# before runner so a normal `docker build .` still produces the web image.
+FROM deps AS backup
+WORKDIR /app
+COPY scripts/backup-sqlite.ts ./scripts/backup-sqlite.ts
+COPY scripts/load-env.ts ./scripts/load-env.ts
+ENV NODE_ENV=production
+ENTRYPOINT ["./node_modules/.bin/tsx", "scripts/backup-sqlite.ts", "--loop"]
+
 # -- Runner ---------------------------------------------------------------------
 FROM base AS runner
 RUN apk add --no-cache libc6-compat

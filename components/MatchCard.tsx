@@ -2,6 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import type { Match, Team, Phase } from '@/lib/types'
 import { clsx } from 'clsx'
+import LocalDateTime from '@/components/LocalDateTime'
 
 interface Props {
   match: Match
@@ -36,7 +37,7 @@ export default function MatchCard({ match, teams, phase }: Props) {
         {!played && (
           <span className="text-xs font-semibold text-[#0097D7] bg-[#0097D7]/10 px-2 py-0.5 rounded-full">
             {match.scheduledAt
-              ? new Date(match.scheduledAt).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
+              ? <LocalDateTime iso={match.scheduledAt} />
               : 'Pendiente'}
           </span>
         )}

@@ -90,3 +90,8 @@ export function saveTournamentConfig(config: TournamentConfig): void {
     'INSERT OR REPLACE INTO tournament_config (key, data) VALUES (?, ?)'
   ).run('config', JSON.stringify(config))
 }
+
+/** Remove the registered Riot tournament while keeping other settings (such as the API key). */
+export function deleteTournamentConfig(): void {
+  db.prepare('DELETE FROM tournament_config WHERE key = ?').run('config')
+}

@@ -1,10 +1,21 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useSyncExternalStore } from 'react'
 import { DayPicker } from 'react-day-picker'
-import { format, parseISO } from 'date-fns'
+import { parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Calendar, X } from 'lucide-react'
 import clsx from 'clsx'
+import {
+  formatLocalDateTime,
+  formatLocalTime,
+  getBrowserTimeZone,
+  getLocalTimeZoneLabel,
+  localDateTimeToIso,
+} from '@/lib/date-time'
+
+const subscribe = () => () => {}
+const getClientSnapshot = () => true
+const getServerSnapshot = () => false
 
 interface Props {
   value?: string        // ISO date string o undefined
@@ -16,6 +27,11 @@ export default function DateTimePicker({ value, onChange, className }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
+  // Date formatting depends on the browser's time zone. Wait until hydration
+  // before deriving a Date so an admin editor in another zone never gets a
+  // server-rendered value that belongs to the server's zone.
+  const ready = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot)
+
   // Cerrar al hacer click fuera
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -25,21 +41,18 @@ export default function DateTimePicker({ value, onChange, className }: Props) {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [open])
 
-  const selected = value ? parseISO(value) : undefined
-  const timeStr = value ? format(parseISO(value), 'HH:mm') : '00:00'
+  const selected = ready && value ? parseISO(value) : undefined
+  const timeStr = ready && value ? formatLocalTime(value) : '00:00'
 
   function handleDaySelect(day: Date | undefined) {
     if (!day) { onChange(undefined); return }
-    const [h, m] = timeStr.split(':').map(Number)
-    day.setHours(h, m, 0, 0)
-    onChange(day.toISOString())
+    onChange(localDateTimeToIso(day, timeStr))
   }
 
   function handleTimeChange(e: React.ChangeEvent<HTMLInputElement>) {
     const [h, m] = e.target.value.split(':').map(Number)
     const base = selected ? new Date(selected) : new Date()
-    base.setHours(h, m, 0, 0)
-    onChange(base.toISOString())
+    onChange(localDateTimeToIso(base, `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`))
   }
 
   return (
@@ -52,10 +65,16 @@ export default function DateTimePicker({ value, onChange, className }: Props) {
           className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white hover:border-white/20 transition-colors text-left"
         >
           <Calendar size={13} className="text-white/40 shrink-0" />
-          {selected
-            ? format(selected, "dd MMM yyyy, HH:mm", { locale: es })
-            : <span className="text-white/30">Sin fecha</span>
-          }
+          {selected ? (
+            <span className="inline-flex flex-col">
+              <time dateTime={value ?? ''}>
+                {formatLocalDateTime(value ?? '')}
+              </time>
+              <span className="text-[10px] font-normal text-white/40">
+                hora local · {getLocalTimeZoneLabel(value, getBrowserTimeZone())}
+              </span>
+            </span>
+          ) : <span className="text-white/30">Sin fecha</span>}
         </button>
         {selected && (
           <button
@@ -123,6 +142,9 @@ export default function DateTimePicker({ value, onChange, className }: Props) {
               OK
             </button>
           </div>
+          <p className="mt-2 text-[10px] leading-tight text-white/30">
+            Se guarda como UTC · hora local del navegador ({ready ? getBrowserTimeZone() : '…'})
+          </p>
         </div>
       )}
     </div>

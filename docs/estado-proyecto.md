@@ -82,9 +82,6 @@ Si un screenshot se parsea mal, no hay forma de corregirlo desde la UI sin borra
 **Sin reset de tournament config**
 Una vez registrado un provider/tournament en Riot, no hay forma de reconfigurarlo desde la UI.
 
-**Sin indicación de timezone en `scheduledAt`**
-Las fechas programadas se muestran sin referencia de zona horaria.
-
 **Sin tests E2E**
 Hay tests unitarios de `bracket.ts` (12 casos con Vitest), pero no hay tests de integración para flujos completos como generación de bracket + actualización de resultados.
 

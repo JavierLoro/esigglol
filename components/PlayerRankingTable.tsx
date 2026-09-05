@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { PlayerRow } from '@/lib/types'
 import { clsx } from 'clsx'
 import { ChevronUp, ChevronDown, TriangleAlert } from 'lucide-react'
+import RefreshPlayerButton from '@/components/RefreshPlayerButton'
 
 type SortKey = 'rank' | 'level' | 'winrate' | 'wins' | 'lp'
 
@@ -31,9 +32,10 @@ const RANK_ORDER: Record<string, number> = { I: 4, II: 3, III: 2, IV: 1 }
 
 interface Props {
   rows: PlayerRow[]
+  isAdmin?: boolean
 }
 
-export default function PlayerRankingTable({ rows }: Props) {
+export default function PlayerRankingTable({ rows, isAdmin = false }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('rank')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [search, setSearch] = useState('')
@@ -138,6 +140,7 @@ export default function PlayerRankingTable({ rows }: Props) {
               <th className="px-3 py-3 cursor-pointer select-none" onClick={() => toggleSort('level')}>
                 <span className="flex items-center justify-center gap-1">Nivel {sortIcon('level')}</span>
               </th>
+              {isAdmin && <th className="px-3 py-3 text-center">Actualizar</th>}
             </tr>
           </thead>
           <tbody>
@@ -198,6 +201,11 @@ export default function PlayerRankingTable({ rows }: Props) {
                   <span className="text-red-400">{r.losses}D</span>
                 </td>
                 <td className="px-3 py-3 text-center text-white/40">{r.level}</td>
+                {isAdmin && (
+                  <td className="px-3 py-3 text-center">
+                    <RefreshPlayerButton summonerName={r.summonerName} />
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

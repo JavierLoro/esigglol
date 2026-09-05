@@ -108,7 +108,7 @@ Almacena partidos vinculados a una fase.
   winnerId?: string
   riotMatchIds: string[]      // IDs de partidas en Riot API
   games?: GameData[]          // datos parseados por screenshot (index = game number)
-  scheduledAt?: string        // ISO date string
+  scheduledAt?: string        // ISO UTC; rendered in each browser's local time zone
   tournamentCodes?: string[]  // uno por game del BO
 }
 

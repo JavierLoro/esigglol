@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
+import { ANTHROPIC_API_KEY } from '@/lib/env'
 import { parseScreenshot } from '@/lib/screenshot-parser'
 import logger from '@/lib/logger'
 
 const log = logger.child({ module: 'parse-screenshot' })
+
+export async function GET() {
+  const denied = await requireAdminSession()
+  if (denied) return denied
+
+  // Only expose whether the integration is available, never the key itself.
+  return NextResponse.json({ available: Boolean(ANTHROPIC_API_KEY) })
+}
 
 export async function POST(req: Request) {
   const denied = await requireAdminSession()

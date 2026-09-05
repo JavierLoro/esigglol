@@ -48,6 +48,7 @@ skills-lock.json
 
 # runtime data directory
 /data/
+/backups/
 
 # typescript
 *.tsbuildinfo

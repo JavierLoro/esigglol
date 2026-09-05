@@ -102,6 +102,10 @@ npm run dev
 | `REFRESH_AUTO_INTERVAL_MS` | No | Min age for auto refresh in ms (default: `21600000`) |
 | `REFRESH_BATCH_SIZE` | No | Players processed per refresh batch (default: `3`) |
 | `REFRESH_BATCH_DELAY_MS` | No | Delay between refresh batches in ms (default: `30000`) |
+| `BACKUP_ENABLED` | No | Enables the Docker SQLite backup worker (default: `true`) |
+| `BACKUP_INTERVAL_SECONDS` | No | Seconds between snapshots (default: `86400`) |
+| `BACKUP_RETENTION_COUNT` | No | Number of snapshots to keep (default: `7`) |
+| `BACKUP_HOST_PATH` | No | Host directory mounted for backups (default: `./backups`) |
 
 > **Note:** The Riot API key can be configured at runtime from the admin dashboard — no server restart needed when the dev key expires.
 
@@ -139,6 +143,12 @@ The SQLite database is persisted in `./data/` via a volume mount. The container 
 chmod 666 data/esigglol.db data/esigglol.db-shm data/esigglol.db-wal
 ```
 
+The Compose stack also runs a separate `backup` worker. It uses SQLite's
+online backup API (safe with WAL mode), validates each snapshot, and retains
+seven files by default. See [docs/backups.md](docs/backups.md) for external
+mounts, verification, and the manual restore procedure. No cloud credentials
+are configured or uploaded by the repository.
+
 **Watchtower** polls the registry every 60 seconds and automatically redeploys when a new image is available.
 
 ---
@@ -167,6 +177,9 @@ docker compose restart app
 | `npm run sync-ddragon` | Manually sync Data Dragon assets |
 | `npm run collect-stats-dev` | Collect player stats (dev key, rate-limited) |
 | `npm run collect-stats-prod` | Collect player stats (production key) |
+| `npm run backup` | Create and validate one SQLite backup |
+| `npm run backup:verify -- <file>` | Validate an existing backup |
+| `npm run backup:restore -- --source <file> --force` | Manually restore a backup (stop the app first) |
 | `npx tsx scripts/seed-data.ts` | Seed placeholder teams and players into the database |
 
 > Pre-commit runs `lint-staged`, which executes ESLint with `--fix` only on staged JS/TS files.
@@ -292,6 +305,10 @@ npm run dev
 | `REFRESH_AUTO_INTERVAL_MS` | No | Edad mínima (ms) para auto refresh (default: `21600000`) |
 | `REFRESH_BATCH_SIZE` | No | Jugadores procesados por batch de refresh (default: `3`) |
 | `REFRESH_BATCH_DELAY_MS` | No | Delay entre batches de refresh en ms (default: `30000`) |
+| `BACKUP_ENABLED` | No | Activa el worker de backups SQLite en Docker (default: `true`) |
+| `BACKUP_INTERVAL_SECONDS` | No | Segundos entre snapshots (default: `86400`) |
+| `BACKUP_RETENTION_COUNT` | No | Numero de snapshots a conservar (default: `7`) |
+| `BACKUP_HOST_PATH` | No | Directorio del host para backups (default: `./backups`) |
 
 > **Nota:** La API key de Riot se puede configurar en tiempo real desde el panel admin — no requiere reiniciar el servidor cuando la dev key expira.
 
@@ -329,6 +346,12 @@ La base de datos SQLite se persiste en `./data/` mediante un volumen. El contene
 chmod 666 data/esigglol.db data/esigglol.db-shm data/esigglol.db-wal
 ```
 
+El stack de Compose tambien ejecuta un worker `backup` separado. Usa la API
+online de SQLite (segura con WAL), valida cada snapshot y conserva siete por
+defecto. Consulta [docs/backups.md](docs/backups.md) para montajes externos,
+verificacion y restauracion manual. El repositorio no configura credenciales
+cloud ni sube datos automaticamente.
+
 **Watchtower** comprueba cada 60 segundos si hay una nueva imagen en el registry y redespliega automaticamente.
 
 ---
@@ -357,6 +380,9 @@ docker compose restart app
 | `npm run sync-ddragon` | Sincronizar assets de Data Dragon manualmente |
 | `npm run collect-stats-dev` | Recolectar stats de jugadores (dev key, con delays) |
 | `npm run collect-stats-prod` | Recolectar stats de jugadores (prod key) |
+| `npm run backup` | Crear y validar un backup SQLite |
+| `npm run backup:verify -- <fichero>` | Validar un backup existente |
+| `npm run backup:restore -- --source <fichero> --force` | Restaurar manualmente un backup (parar la app antes) |
 | `npx tsx scripts/seed-data.ts` | Poblar la BD con equipos y jugadores placeholder |
 
 > El pre-commit ejecuta `lint-staged`, que lanza ESLint con `--fix` solo sobre archivos JS/TS staged.

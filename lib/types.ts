@@ -90,7 +90,7 @@ export interface Match {
   winnerId?: string            // teamId del ganador (derivado del result, o asignado manualmente)
   riotMatchIds: string[]       // IDs de partidas reales en Riot API
   games?: GameData[]           // parsed screenshot data, index = game number
-  scheduledAt?: string         // ISO date string opcional
+  scheduledAt?: string         // ISO UTC opcional; se muestra en la zona local del navegador
   tournamentCodes?: string[]   // Tournament codes, one per game in BO series
 }
 
