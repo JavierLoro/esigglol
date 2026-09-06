@@ -6,6 +6,7 @@ import type { GameData } from '@/lib/types'
 import { GameDataSchema } from '@/lib/schemas'
 import DateTimePicker from '@/components/admin/DateTimePicker'
 import clsx from 'clsx'
+import { getEffectiveBO } from '@/lib/match-validation'
 
 export default function AdminPartidos() {
   const [matches, setMatches] = useState<Match[]>([])
@@ -109,7 +110,7 @@ export default function AdminPartidos() {
     setMatches(prev => prev.map(m => {
       if (m.id !== matchId) return m
       const phase = phases.find(p => p.id === m.phaseId)
-      const bo = phase?.config.bo ?? 1
+      const bo = phase ? getEffectiveBO(phase, m.round) : 1
       const wins = Math.ceil(bo / 2)
       const isTeam1 = winnerId === m.team1Id
       return {
@@ -372,7 +373,7 @@ export default function AdminPartidos() {
                         <input
                           type="number"
                           min={0}
-                          max={phase?.config.bo ?? 5}
+                          max={phase ? getEffectiveBO(phase, match.round) : 5}
                           value={match.result.team1Score}
                           onChange={e => updateScore(match.id, 'team1Score', e.target.value)}
                           className={clsx(
@@ -384,7 +385,7 @@ export default function AdminPartidos() {
                         <input
                           type="number"
                           min={0}
-                          max={phase?.config.bo ?? 5}
+                          max={phase ? getEffectiveBO(phase, match.round) : 5}
                           value={match.result.team2Score}
                           onChange={e => updateScore(match.id, 'team2Score', e.target.value)}
                           className={clsx(

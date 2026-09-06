@@ -7,6 +7,7 @@ import type { Match } from '@/lib/types'
 import { z } from 'zod'
 import logger from '@/lib/logger'
 import { validateMatch, issuesToMessage } from '@/lib/domain-validation'
+import { validateMatchResult } from '@/lib/match-validation'
 
 const log = logger.child({ module: 'partidos' })
 
@@ -28,6 +29,12 @@ export async function POST(req: NextRequest) {
 
   const matches = getMatches()
   const items = Array.isArray(parsed.data) ? parsed.data : [parsed.data]
+  for (const item of items) {
+    const phase = getPhaseById(item.phaseId)
+    if (!phase) return NextResponse.json({ error: 'Fase no encontrada' }, { status: 404 })
+    const validationError = validateMatchResult(phase, item, item.result)
+    if (validationError) return NextResponse.json({ error: validationError }, { status: 422 })
+  }
   const newMatches: Match[] = items.map(m => ({ id: generateId('match'), ...m } satisfies Match))
   const domainIssues = newMatches.flatMap((match, index) => validateMatch(match, getTeams(), getPhases()).map(issue => ({ ...issue, path: [index, ...issue.path] })))
   if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
@@ -52,15 +59,18 @@ export async function PUT(req: NextRequest) {
   const idx = matches.findIndex(m => m.id === body.id)
   if (idx === -1) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  const candidateMatches = [...matches]
-  candidateMatches[idx] = body
+  const phase = getPhaseById(body.phaseId)
+  if (!phase) return NextResponse.json({ error: 'Fase no encontrada' }, { status: 404 })
+  const validationError = validateMatchResult(phase, body, body.result)
+  if (validationError) return NextResponse.json({ error: validationError }, { status: 422 })
+
   const domainIssues = validateMatch(body, getTeams(), getPhases())
   if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
-  matches = candidateMatches
+
+  matches[idx] = body
 
   // ── Avance de bracket ───────────────────────────────────────────────────
   if (body.result && body.winnerId) {
-    const phase = getPhaseById(body.phaseId)
     if (phase && (phase.type === 'elimination' || phase.type === 'final-four' || phase.type === 'upper-lower')) {
       matches = advanceWinner(phase, matches, body)
     }
@@ -69,7 +79,6 @@ export async function PUT(req: NextRequest) {
   try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
 
   // ── Actualizar estado de la fase ────────────────────────────────────────
-  const phase = getPhaseById(body.phaseId)
   if (phase && phase.status === 'upcoming') {
     const phaseMatches = matches.filter(m => m.phaseId === body.phaseId)
     const hasResult = phaseMatches.some(m => m.result !== null)
