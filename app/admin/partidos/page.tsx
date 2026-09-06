@@ -62,6 +62,12 @@ export default function AdminPartidos() {
       body: JSON.stringify(match),
     })
     const updated = await res.json()
+    if (!res.ok) {
+      const detail = typeof updated.error === 'string' ? updated.error : 'No se pudo guardar el partido'
+      notify(detail)
+      setSaving(null)
+      return
+    }
     // Refrescar todos los matches para ver avances de bracket
     const all = await fetch('/api/admin/partidos').then(r => r.json())
     setMatches(all)
@@ -150,7 +156,7 @@ export default function AdminPartidos() {
     setMatches(prev => prev.map(m => {
       if (m.id !== matchId) return m
       const games = [...(m.games ?? [])]
-      while (games.length <= gameIndex) games.push(undefined as unknown as GameData)
+      while (games.length <= gameIndex) games.push(null)
       games[gameIndex] = gameData
       return { ...m, games }
     }))
@@ -541,8 +547,8 @@ export default function AdminPartidos() {
                                 type="button"
                                 onClick={() => {
                                   const games = [...(match.games ?? [])]
-                                  games.splice(i, 1, undefined as unknown as GameData)
-                                  while (games.length > 0 && !games[games.length - 1]) games.pop()
+                                  games.splice(i, 1, null)
+                                  while (games.length > 0 && games[games.length - 1] === null) games.pop()
                                   update(match.id, { games: games.length > 0 ? games : undefined })
                                 }}
                                 className="text-white/20 hover:text-red-400 transition-colors shrink-0"
@@ -559,8 +565,8 @@ export default function AdminPartidos() {
                               onChange={(e) => {
                                 const value = e.target.value.trim()
                                 const riotMatchIds = [...(match.riotMatchIds ?? [])]
-                                riotMatchIds[i] = value || (undefined as unknown as string)
-                                while (riotMatchIds.length > 0 && !riotMatchIds[riotMatchIds.length - 1]) {
+                                riotMatchIds[i] = value || null
+                                while (riotMatchIds.length > 0 && riotMatchIds[riotMatchIds.length - 1] === null) {
                                   riotMatchIds.pop()
                                 }
                                 update(match.id, {

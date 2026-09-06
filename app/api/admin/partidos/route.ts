@@ -8,6 +8,7 @@ import { z } from 'zod'
 import logger from '@/lib/logger'
 import { validateMatch, issuesToMessage } from '@/lib/domain-validation'
 import { validateMatchResult } from '@/lib/match-validation'
+import { validateAndNormalizeMatch } from '@/lib/match-coherence'
 
 const log = logger.child({ module: 'partidos' })
 
@@ -29,15 +30,19 @@ export async function POST(req: NextRequest) {
 
   const matches = getMatches()
   const items = Array.isArray(parsed.data) ? parsed.data : [parsed.data]
+  const newMatches: Match[] = []
   for (const item of items) {
-    const phase = getPhaseById(item.phaseId)
+    const candidate = { id: generateId('match'), ...item } satisfies Match
+    const phase = getPhaseById(candidate.phaseId)
     if (!phase) return NextResponse.json({ error: 'Fase no encontrada' }, { status: 404 })
-    const validationError = validateMatchResult(phase, item, item.result)
+    const checked = validateAndNormalizeMatch(candidate, phase)
+    if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 422 })
+    const validationError = validateMatchResult(phase, checked.match, checked.match.result)
     if (validationError) return NextResponse.json({ error: validationError }, { status: 422 })
+    const domainIssues = validateMatch(checked.match, getTeams(), getPhases())
+    if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
+    newMatches.push(checked.match)
   }
-  const newMatches: Match[] = items.map(m => ({ id: generateId('match'), ...m } satisfies Match))
-  const domainIssues = newMatches.flatMap((match, index) => validateMatch(match, getTeams(), getPhases()).map(issue => ({ ...issue, path: [index, ...issue.path] })))
-  if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
 
   matches.push(...newMatches)
   try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
@@ -55,24 +60,27 @@ export async function PUT(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
   const body = parsed.data as Match
+  const checked = validateAndNormalizeMatch(body, getPhaseById(body.phaseId))
+  if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 422 })
+  const normalizedBody = checked.match
   let matches = getMatches()
   const idx = matches.findIndex(m => m.id === body.id)
   if (idx === -1) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  const phase = getPhaseById(body.phaseId)
+  const phase = getPhaseById(normalizedBody.phaseId)
   if (!phase) return NextResponse.json({ error: 'Fase no encontrada' }, { status: 404 })
-  const validationError = validateMatchResult(phase, body, body.result)
+  const validationError = validateMatchResult(phase, normalizedBody, normalizedBody.result)
   if (validationError) return NextResponse.json({ error: validationError }, { status: 422 })
 
-  const domainIssues = validateMatch(body, getTeams(), getPhases())
+  const domainIssues = validateMatch(normalizedBody, getTeams(), getPhases())
   if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
 
-  matches[idx] = body
+  matches[idx] = normalizedBody
 
   // ── Avance de bracket ───────────────────────────────────────────────────
-  if (body.result && body.winnerId) {
+  if (normalizedBody.result && normalizedBody.winnerId) {
     if (phase && (phase.type === 'elimination' || phase.type === 'final-four' || phase.type === 'upper-lower')) {
-      matches = advanceWinner(phase, matches, body)
+      matches = advanceWinner(phase, matches, normalizedBody)
     }
   }
 
@@ -87,7 +95,7 @@ export async function PUT(req: NextRequest) {
     }
   }
 
-  return NextResponse.json(body)
+  return NextResponse.json(normalizedBody)
 }
 
 export async function DELETE(req: NextRequest) {

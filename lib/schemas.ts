@@ -110,8 +110,10 @@ export const MatchSchema = z.object({
   team2Id: z.string().min(1),
   result: MatchResultSchema.nullable().default(null),
   winnerId: z.string().optional(),
-  riotMatchIds: z.array(z.string()).default([]),
-  games: z.array(GameDataSchema).optional(),
+  // null is an explicit empty slot, so deleting game 2 does not create an
+  // invalid sparse array when the payload is serialized as JSON.
+  riotMatchIds: z.array(z.string().nullable()).default([]),
+  games: z.array(GameDataSchema.nullable()).optional(),
   scheduledAt: z.string().optional(),
   tournamentCodes: z.array(z.string()).optional(),
 }).superRefine((match, ctx) => {
