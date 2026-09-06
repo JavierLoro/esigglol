@@ -250,6 +250,12 @@ Webhook receptor de eventos de Riot Tournament API.
 **Body:** evento de Riot (JSON)
 **Respuesta:** `200 OK`
 
+### `GET /api/admin/riot-events`
+
+Canal SSE para administradores autenticados. Emite `riot-result` cuando el callback de Riot añade y persiste un nuevo `gameId` en un partido. Incluye latidos periódicos para mantener la conexión activa.
+
+**Auth:** Sí
+
 ---
 
 ## Datos públicos

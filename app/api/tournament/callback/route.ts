@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getMatches, saveMatches } from '@/lib/data'
+import { publishRiotResult } from '@/lib/riot-events'
 
 export async function POST(req: NextRequest) {
   let body: unknown
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
   const events = Array.isArray(body) ? body : [body]
 
   const matches = getMatches()
-  let updated = false
+  const notifications: { matchId: string; gameId: string; shortCode: string }[] = []
 
   for (const event of events) {
     const e = event as { shortCode?: string; metaData?: string; gameId?: number; winningTeam?: string[] }
@@ -24,12 +25,16 @@ export async function POST(req: NextRequest) {
       const riotId = String(e.gameId)
       if (!match.riotMatchIds.includes(riotId)) {
         match.riotMatchIds.push(riotId)
-        updated = true
+        notifications.push({ matchId: match.id, gameId: riotId, shortCode: e.shortCode })
       }
     }
   }
 
-  if (updated) saveMatches(matches)
+  if (notifications.length > 0) {
+    saveMatches(matches)
+    const receivedAt = new Date().toISOString()
+    for (const notification of notifications) publishRiotResult({ ...notification, receivedAt })
+  }
 
   return NextResponse.json({ ok: true })
 }
