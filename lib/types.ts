@@ -92,6 +92,7 @@ export interface Match {
   games?: GameData[]           // detailed game data, index = game number
   scheduledAt?: string         // ISO UTC opcional; se muestra en la zona local del navegador
   tournamentCodes?: string[]   // Tournament codes, one per game in BO series
+  tournamentCodesGeneratedAt?: string // ISO timestamp of the last code generation
 }
 
 // ── Tournament API ──────────────────────────────────────────────────────────

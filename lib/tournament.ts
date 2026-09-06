@@ -6,6 +6,14 @@ export const TOURNAMENT_BASE = `https://${MATCH_CLUSTER}.api.riotgames.com/lol/$
   TOURNAMENT_API_MODE === 'production' ? 'tournament' : 'tournament-stub'
 }/v5`
 
+/** Error returned by Riot, retaining the status so callers can distinguish an expired code (404). */
+export class TournamentApiError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message)
+    this.name = 'TournamentApiError'
+  }
+}
+
 async function tournamentFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...options,
@@ -18,7 +26,7 @@ async function tournamentFetch<T>(url: string, options?: RequestInit): Promise<T
 
   if (!res.ok) {
     const body = await res.text()
-    throw new Error(`Tournament API error ${res.status}: ${body}`)
+    throw new TournamentApiError(res.status, `Tournament API error ${res.status}: ${body}`)
   }
 
   return res.json() as Promise<T>

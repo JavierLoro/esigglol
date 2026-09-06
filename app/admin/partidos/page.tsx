@@ -170,9 +170,9 @@ export default function AdminPartidos() {
         return
       }
       setMatches(prev => prev.map(m =>
-        m.id === matchId ? { ...m, tournamentCodes: data.codes } : m
+        m.id === matchId ? { ...m, tournamentCodes: data.codes, tournamentCodesGeneratedAt: new Date().toISOString() } : m
       ))
-      notify('Tournament codes generados')
+      notify(data.regenerated ? 'Tournament codes expirados: regenerados' : 'Tournament codes generados')
     } catch {
       notify('Error de conexion')
     } finally {
@@ -475,6 +475,16 @@ export default function AdminPartidos() {
                           ) : null}
                         </div>
                       ))}
+                      <button
+                        type="button"
+                        onClick={() => generateTournamentCodes(match.id)}
+                        disabled={generatingCodes === match.id}
+                        className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:text-white hover:border-[#0097D7]/30 transition-colors disabled:opacity-50"
+                        title="Comprueba si han expirado y los regenera"
+                      >
+                        {generatingCodes === match.id ? <Loader2 size={12} className="animate-spin" /> : <Ticket size={12} />}
+                        Regenerar expirados
+                      </button>
                     </div>
                   ) : (
                     <button
