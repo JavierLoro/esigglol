@@ -9,6 +9,7 @@ import logger from '@/lib/logger'
 import { validateMatch, issuesToMessage } from '@/lib/domain-validation'
 import { validateMatchResult } from '@/lib/match-validation'
 import { validateAndNormalizeMatch } from '@/lib/match-coherence'
+import { derivePhaseStatus } from '@/lib/phase-status'
 
 const log = logger.child({ module: 'partidos' })
 
@@ -86,13 +87,10 @@ export async function PUT(req: NextRequest) {
 
   try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
 
-  // ── Actualizar estado de la fase ────────────────────────────────────────
-  if (phase && phase.status === 'upcoming') {
-    const phaseMatches = matches.filter(m => m.phaseId === body.phaseId)
-    const hasResult = phaseMatches.some(m => m.result !== null)
-    if (hasResult) {
-      try { savePhase({ ...phase, status: 'active' }) } catch (err) { log.error({ err }, 'DB write failed on phase status update') }
-    }
+  // ── Actualizar automáticamente el ciclo de estado de la fase ────────────
+  const status = derivePhaseStatus(phase, matches)
+  if (phase.status !== status) {
+    try { savePhase({ ...phase, status }) } catch (err) { log.error({ err }, 'DB write failed on phase status update') }
   }
 
   return NextResponse.json(normalizedBody)
