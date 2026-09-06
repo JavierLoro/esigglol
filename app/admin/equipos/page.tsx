@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import type { Team, Player, Role } from '@/lib/types'
 import Image from 'next/image'
 import { Plus, Trash2, Save, ChevronDown, ChevronRight, Upload } from 'lucide-react'
+import { adminRequest, errorMessage, isArrayOfRecords, isEntity, isOk } from '@/lib/admin-client'
 
 const PRIMARY_ROLES: Role[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente']
 const SECONDARY_ROLES: Exclude<Role, 'Suplente'>[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill']
@@ -15,44 +16,39 @@ export default function AdminEquipos() {
   const [saving, setSaving] = useState<string | null>(null)
   const [uploading, setUploading] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    fetch('/api/admin/equipos').then(r => r.json()).then(setTeams)
+    adminRequest<Team[]>(fetch('/api/admin/equipos'), isArrayOfRecords).then(setTeams).catch(error => setLoadError(errorMessage(error)))
   }, [])
 
   function notify(text: string) { setMsg(text); setTimeout(() => setMsg(''), 3000) }
 
   async function saveTeam(team: Team) {
     setSaving(team.id)
-    const res = await fetch('/api/admin/equipos', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(team),
-    })
-    setSaving(null)
-    if (res.ok) notify('Guardado')
+    try {
+      await adminRequest(fetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isEntity)
+      notify('Guardado')
+    } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
   }
 
   async function addTeam() {
-    const res = await fetch('/api/admin/equipos', {
+    try {
+    const team = await adminRequest(fetch('/api/admin/equipos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Nuevo equipo', logo: '', players: [] }),
-    })
-    const team = await res.json()
-    setTeams(prev => [...prev, team])
-    setExpanded(team.id)
+    }), isEntity)
+    setTeams(prev => [...prev, team as Team]); setExpanded(team.id)
+    } catch (error) { notify(errorMessage(error)) }
   }
 
   async function deleteTeam(id: string) {
     if (!confirm('¿Eliminar este equipo?')) return
-    const res = await fetch('/api/admin/equipos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({})) as { error?: string }
-      notify(body.error ?? 'Error al eliminar el equipo')
-      return
-    }
-    setTeams(prev => prev.filter(t => t.id !== id))
+    try {
+      await adminRequest(fetch('/api/admin/equipos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }), isOk)
+      setTeams(prev => prev.filter(t => t.id !== id)); notify('Equipo eliminado')
+    } catch (error) { notify(errorMessage(error)) }
   }
 
   function updateTeam(id: string, patch: Partial<Team>) {
@@ -64,16 +60,10 @@ export default function AdminEquipos() {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('teamId', teamId)
-    const res = await fetch('/api/admin/equipos/upload-logo', { method: 'POST', body: formData })
-    setUploading(null)
-    if (!res.ok) {
-      const { error } = await res.json()
-      notify(error || 'Error al subir logo')
-      return
-    }
-    const { path } = await res.json()
-    updateTeam(teamId, { logo: path })
-    notify('Logo subido')
+    try {
+      const data = await adminRequest<{ path: string }>(fetch('/api/admin/equipos/upload-logo', { method: 'POST', body: formData }), (value): value is { path: string } => Boolean(value && typeof value === 'object' && 'path' in value && typeof value.path === 'string'))
+      updateTeam(teamId, { logo: (data as { path: string }).path }); notify('Logo subido')
+    } catch (error) { notify(errorMessage(error)) } finally { setUploading(null) }
   }
 
   function addPlayer(teamId: string) {
@@ -98,14 +88,14 @@ export default function AdminEquipos() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Equipos</h1>
         <div className="flex items-center gap-3">
-          {msg && <span className="text-green-400 text-sm">{msg}</span>}
+          {(msg || loadError) && <span className={(loadError || msg.startsWith('Error') || msg.startsWith('Sesión')) ? 'text-red-400 text-sm' : 'text-green-400 text-sm'}>{loadError || msg}</span>}
           <button onClick={addTeam} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors">
             <Plus size={15} /> Añadir equipo
           </button>
         </div>
       </div>
 
-      {teams.map(team => (
+      {loadError ? <p className="text-red-400 text-sm">No se pudieron cargar los equipos.</p> : teams.map(team => (
         <div key={team.id} className="rounded-xl border border-white/10 overflow-hidden">
           <div
             className="flex items-center gap-3 px-4 py-3 bg-[#0d1321] cursor-pointer hover:bg-white/5"
