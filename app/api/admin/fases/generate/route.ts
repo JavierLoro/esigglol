@@ -5,6 +5,7 @@ import { GenerateSchema } from '@/lib/schemas'
 import logger from '@/lib/logger'
 import type { Match, BOFormat } from '@/lib/types'
 import { bracketSizeError } from '@/lib/bracket-sizes'
+import { validateGroupsConfig } from '@/lib/phase-validation'
 
 const log = logger.child({ module: 'generate' })
 
@@ -60,6 +61,10 @@ export async function POST(req: NextRequest) {
     // ── Grupos ───────────────────────────────────────────────────────────────
     if (body.type === 'groups') {
       const groups = phase.config.groups ?? []
+      const validationErrors = validateGroupsConfig(phase.config)
+      if (validationErrors.length > 0) {
+        return NextResponse.json({ error: 'Configuración de grupos inválida', details: validationErrors }, { status: 400 })
+      }
       for (const group of groups) {
         const ids = group.teamIds
         for (let i = 0; i < ids.length; i++) {

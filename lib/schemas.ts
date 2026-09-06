@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { validateGroupsConfig } from './phase-validation'
 
 const RoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente'])
 
@@ -44,7 +45,7 @@ const PhaseConfigSchema = z.object({
   confirmedBracket: z.boolean().optional(),
 })
 
-export const PhaseSchema = z.object({
+const PhaseSchemaBase = z.object({
   name: z.string().min(1).max(100),
   type: PhaseTypeSchema,
   status: PhaseStatusSchema.default('upcoming'),
@@ -52,9 +53,19 @@ export const PhaseSchema = z.object({
   config: PhaseConfigSchema,
 })
 
-export const PhaseUpdateSchema = PhaseSchema.extend({
+function addPhaseValidation(phase: { type: string; config: { groups?: ReadonlyArray<{ id: string; teamIds: ReadonlyArray<string> }>; advanceCount?: number } }, ctx: z.RefinementCtx) {
+  if (phase.type === 'groups') {
+    for (const message of validateGroupsConfig(phase.config)) {
+      ctx.addIssue({ code: 'custom', message, path: ['config', 'groups'] })
+    }
+  }
+}
+
+export const PhaseSchema = PhaseSchemaBase.superRefine(addPhaseValidation)
+
+export const PhaseUpdateSchema = PhaseSchemaBase.extend({
   id: z.string().min(1),
-})
+}).superRefine(addPhaseValidation)
 
 const MatchResultSchema = z.object({
   team1Score: z.number().int().nonnegative(),

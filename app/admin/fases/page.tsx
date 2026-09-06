@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { Phase, PhaseType, PhaseStatus, BOFormat, Team, Match } from '@/lib/types'
+import { validateGroupsConfig } from '@/lib/phase-validation'
 import { Plus, Trash2, Save, GripVertical, Zap, Check, Copy } from 'lucide-react'
 import { bracketSizeError } from '@/lib/bracket-sizes'
 
@@ -166,6 +167,7 @@ export default function AdminFases() {
 
       {phases.map((phase, i) => {
         const maxRounds = (phase.config.advanceWins ?? 2) + (phase.config.eliminateLosses ?? 2) - 1
+        const groupValidationErrors = phase.type === 'groups' ? validateGroupsConfig(phase.config) : []
 
         return (
           <div key={phase.id} className="rounded-xl border border-white/10 bg-[#0d1321] p-4 flex flex-col gap-4">
@@ -288,6 +290,11 @@ export default function AdminFases() {
                     </div>
                   ))}
                 </div>
+                {groupValidationErrors.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-xs text-red-300">
+                    {groupValidationErrors.map(error => <p key={error}>{error}</p>)}
+                  </div>
+                )}
                 {(phase.config.groups ?? []).some(g => g.teamIds.length >= 2) && (() => {
                   const hasMatches = allMatches.some(m => m.phaseId === phase.id)
                   return hasMatches ? (
@@ -297,7 +304,7 @@ export default function AdminFases() {
                   ) : (
                     <button
                       onClick={() => generateMatches(phase, 'groups')}
-                      disabled={generating === phase.id}
+                      disabled={generating === phase.id || groupValidationErrors.length > 0}
                       className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#0097D7]/40 text-[#0097D7] text-xs font-bold hover:bg-[#0097D7]/10 transition-colors disabled:opacity-50"
                     >
                       <Zap size={13} />
@@ -551,7 +558,7 @@ export default function AdminFases() {
               </button>
               <button
                 onClick={() => savePhase(phase)}
-                disabled={saving === phase.id}
+                disabled={saving === phase.id || groupValidationErrors.length > 0}
                 className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
               >
                 <Save size={14} />
