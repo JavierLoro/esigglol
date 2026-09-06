@@ -41,16 +41,20 @@ export const SESSION_SECRET = requiredSecret('SESSION_SECRET')
 // bcrypt hashes contain $ which dotenv-expand interprets as variable references.
 // In Docker (env_file with single quotes) the value arrives intact.
 // In Next.js dev, dotenv-expand corrupts it. Fall back to reading .env.local raw.
+// Production must only use the value injected by the runtime/secret manager.
 export const ADMIN_PASSWORD_HASH = (() => {
   const val = process.env.ADMIN_PASSWORD_HASH
   if (val && val.startsWith('$2')) return val
-  // dotenv-expand corrupted the value — read raw from .env.local
-  try {
-    const raw = readFileSync(path.join(process.cwd(), '.env.local'), 'utf-8')
-    const match = raw.match(/^ADMIN_PASSWORD_HASH='([^']+)'/m)
-      ?? raw.match(/^ADMIN_PASSWORD_HASH=(.+)$/m)
-    if (match?.[1]) return match[1]
-  } catch { /* file may not exist in Docker */ }
+  // dotenv-expand can corrupt local development values. Never read a local
+  // file in production: the process environment is the source of truth there.
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const raw = readFileSync(path.join(process.cwd(), '.env.local'), 'utf-8')
+      const match = raw.match(/^ADMIN_PASSWORD_HASH='([^']+)'/m)
+        ?? raw.match(/^ADMIN_PASSWORD_HASH=(.+)$/m)
+      if (match?.[1]) return match[1]
+    } catch { /* file may not exist */ }
+  }
   if (!val) throw new Error('ADMIN_PASSWORD_HASH env var is required')
   return val
 })()

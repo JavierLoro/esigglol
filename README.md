@@ -136,6 +136,12 @@ docker logs esigglol-app-1 -f
 docker compose ps
 ```
 
+Production does not read `.env.local`. Configure `SESSION_SECRET`,
+`ADMIN_PASSWORD_HASH` and optional variables in the deploy platform or secret
+manager, then inject them into the host environment before running Docker
+Compose. The production compose file forwards those system variables to the
+container; never copy a local env file to the server.
+
 The SQLite database is persisted in `./data/` via a volume mount. The container runs as user `1000`. Ensure the database files are writable:
 
 ```bash
@@ -335,6 +341,12 @@ docker logs esigglol-app-1 -f
 # Ver estado
 docker compose ps
 ```
+
+Produccion no lee `.env.local`. Configura `SESSION_SECRET`,
+`ADMIN_PASSWORD_HASH` y las variables opcionales en la plataforma de deploy o
+gestor de secretos, e inyectalas en el entorno del host antes de ejecutar
+Docker Compose. El compose de produccion reenvia esas variables del sistema al
+contenedor; no copies un archivo local al servidor.
 
 La base de datos SQLite se persiste en `./data/` mediante un volumen. El contenedor corre como usuario `1000`. Los archivos de la BD deben tener permisos de escritura:
 

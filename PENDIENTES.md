@@ -9,7 +9,7 @@ Documento de seguimiento de tareas pendientes para llevar ESIgg.lol a produccion
 ### Seguridad de credenciales
 - [ ] Rotar todas las API keys (Riot) y generar nuevos secrets
 - [x] Proporcionar un generador de `SESSION_SECRET` criptograficamente seguro (256 bits desde CSPRNG)
-- [ ] Usar un gestor de secretos (Vault, AWS Secrets Manager, o similar) en lugar de `.env.local`
+- [x] Usar variables inyectadas por el runtime/gestor de secretos en producción en lugar de `.env.local`
 - [x] Asegurar que `.env.local` nunca se commitea (ya esta en `.gitignore`, verificar)
 
 ### Hasheo de password de admin
