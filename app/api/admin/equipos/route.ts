@@ -4,6 +4,7 @@ import { requireAdminSession } from '@/lib/auth'
 import { TeamSchema, TeamUpdateSchema, DeleteIdSchema } from '@/lib/schemas'
 import type { Team } from '@/lib/types'
 import logger from '@/lib/logger'
+import { validateTeams, issuesToMessage } from '@/lib/domain-validation'
 
 const log = logger.child({ module: 'equipos' })
 
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest) {
 
   const teams = getTeams()
   const team: Team = { id: generateId('team'), ...parsed.data }
+  const domainIssues = validateTeams([...teams, team])
+  if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
   teams.push(team)
   try { saveTeams(teams) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json(team, { status: 201 })
@@ -44,6 +47,8 @@ export async function PUT(req: NextRequest) {
   const idx = teams.findIndex(t => t.id === parsed.data.id)
   if (idx === -1) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   teams[idx] = parsed.data as Team
+  const domainIssues = validateTeams(teams)
+  if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
   try { saveTeams(teams) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json(parsed.data)
 }

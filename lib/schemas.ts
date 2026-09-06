@@ -4,16 +4,26 @@ import { validateGroupsConfig } from './phase-validation'
 const RoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente'])
 
 const PlayerSchema = z.object({
-  id: z.string().min(1),
-  summonerName: z.string().min(1),
+  id: z.string().trim().min(1),
+  summonerName: z.string().trim().min(1),
   primaryRole: RoleSchema,
   secondaryRole: z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill']).optional(),
 })
 
 export const TeamSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().trim().min(1).max(100),
   logo: z.string().default(''),
   players: z.array(PlayerSchema).default([]),
+}).superRefine((team, ctx) => {
+  const ids = new Set<string>()
+  const summonerNames = new Set<string>()
+  team.players.forEach((player, index) => {
+    if (ids.has(player.id)) ctx.addIssue({ code: 'custom', path: ['players', index, 'id'], message: 'El ID del jugador debe ser único' })
+    ids.add(player.id)
+    const name = player.summonerName.trim().toLocaleLowerCase()
+    if (summonerNames.has(name)) ctx.addIssue({ code: 'custom', path: ['players', index, 'summonerName'], message: 'El invocador no puede repetirse' })
+    summonerNames.add(name)
+  })
 })
 
 export const TeamUpdateSchema = TeamSchema.extend({
@@ -104,6 +114,20 @@ export const MatchSchema = z.object({
   games: z.array(GameDataSchema).optional(),
   scheduledAt: z.string().optional(),
   tournamentCodes: z.array(z.string()).optional(),
+}).superRefine((match, ctx) => {
+  if (match.team1Id !== 'TBD' && match.team1Id === match.team2Id) {
+    ctx.addIssue({ code: 'custom', path: ['team2Id'], message: 'Un partido debe tener dos equipos distintos' })
+  }
+  if (match.result === null) {
+    if (match.winnerId !== undefined) ctx.addIssue({ code: 'custom', path: ['winnerId'], message: 'Un partido sin resultado no puede tener ganador' })
+    return
+  }
+  if (match.result.team1Score === match.result.team2Score) {
+    ctx.addIssue({ code: 'custom', path: ['result'], message: 'El resultado no puede terminar en empate' })
+    return
+  }
+  const expectedWinner = match.result.team1Score > match.result.team2Score ? match.team1Id : match.team2Id
+  if (match.winnerId !== expectedWinner) ctx.addIssue({ code: 'custom', path: ['winnerId'], message: 'El ganador debe coincidir con el resultado' })
 })
 
 export const MatchUpdateSchema = MatchSchema.extend({

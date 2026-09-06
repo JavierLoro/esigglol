@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getMatches, saveMatches, generateId, getPhaseById, savePhase } from '@/lib/data'
+import { getMatches, saveMatches, generateId, getPhaseById, savePhase, getTeams, getPhases } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { advanceWinner } from '@/lib/bracket'
 import { MatchSchema, MatchUpdateSchema, DeleteIdsSchema } from '@/lib/schemas'
 import type { Match } from '@/lib/types'
 import { z } from 'zod'
 import logger from '@/lib/logger'
+import { validateMatch, issuesToMessage } from '@/lib/domain-validation'
 
 const log = logger.child({ module: 'partidos' })
 
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
   const matches = getMatches()
   const items = Array.isArray(parsed.data) ? parsed.data : [parsed.data]
   const newMatches: Match[] = items.map(m => ({ id: generateId('match'), ...m } satisfies Match))
+  const domainIssues = newMatches.flatMap((match, index) => validateMatch(match, getTeams(), getPhases()).map(issue => ({ ...issue, path: [index, ...issue.path] })))
+  if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
 
   matches.push(...newMatches)
   try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
@@ -49,7 +52,11 @@ export async function PUT(req: NextRequest) {
   const idx = matches.findIndex(m => m.id === body.id)
   if (idx === -1) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  matches[idx] = body
+  const candidateMatches = [...matches]
+  candidateMatches[idx] = body
+  const domainIssues = validateMatch(body, getTeams(), getPhases())
+  if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
+  matches = candidateMatches
 
   // ── Avance de bracket ───────────────────────────────────────────────────
   if (body.result && body.winnerId) {
