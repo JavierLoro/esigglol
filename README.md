@@ -65,8 +65,8 @@ cp .env.example .env.local
 # Generate admin password hash
 npx tsx scripts/gen-password-hash.ts <your-password>
 
-# Generate SESSION_SECRET
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# Generate SESSION_SECRET (prints one 256-bit secret; do not commit the output)
+npm run generate-session-secret
 
 # Build and start (same image as production)
 docker compose -f docker-compose.dev.yml up --build
@@ -91,7 +91,7 @@ npm run dev
 | Variable | Required | Description |
 |---|---|---|
 | `ADMIN_PASSWORD_HASH` | Yes | bcrypt hash of the admin password |
-| `SESSION_SECRET` | Yes | JWT signing secret (min 32 chars) |
+| `SESSION_SECRET` | Yes | JWT signing secret (at least 32 chars; generate with `npm run generate-session-secret`) |
 | `RIOT_API_KEY` | No | Riot Games API key (can also be set from admin panel) |
 | `RIOT_REGION` | No | Riot API region (default: `euw1`) |
 | `TWITCH_CHANNEL` | No | Twitch channel name for embed |
@@ -105,6 +105,8 @@ npm run dev
 | `BACKUP_HOST_PATH` | No | Host directory mounted for backups (default: `./backups`) |
 
 > **Note:** The Riot API key can be configured at runtime from the admin dashboard — no server restart needed when the dev key expires.
+
+> **Security:** API key rotation requires access to the Riot and Anthropic consoles. Revoke the old keys, create replacements, update the deployment secret manager, and restart the app; never add the values to `.env.example`, Git, logs, or issue comments. This repository cannot perform that external rotation.
 
 > **Note:** `ADMIN_PASSWORD_HASH` contains `$` characters. Always wrap the value in single quotes in `.env.local` to prevent shell variable expansion:
 > ```
@@ -265,8 +267,8 @@ cp .env.example .env.local
 # Generar hash de password para admin
 npx tsx scripts/gen-password-hash.ts <tu-password>
 
-# Generar SESSION_SECRET
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# Generar SESSION_SECRET (imprime un secreto de 256 bits; no commitear la salida)
+npm run generate-session-secret
 
 # Construir y arrancar (misma imagen que produccion)
 docker compose -f docker-compose.dev.yml up --build
@@ -291,7 +293,7 @@ npm run dev
 | Variable | Requerida | Descripcion |
 |---|---|---|
 | `ADMIN_PASSWORD_HASH` | Si | Hash bcrypt del password de admin |
-| `SESSION_SECRET` | Si | Secreto para firmar JWT (min 32 chars) |
+| `SESSION_SECRET` | Si | Secreto para firmar JWT (min 32 chars; generar con `npm run generate-session-secret`) |
 | `RIOT_API_KEY` | No | API key de Riot Games (tambien configurable desde el panel admin) |
 | `RIOT_REGION` | No | Region de Riot API (default: `euw1`) |
 | `TWITCH_CHANNEL` | No | Canal de Twitch para el embed |

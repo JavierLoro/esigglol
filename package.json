@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "sync-ddragon": "tsx scripts/sync-ddragon.ts",
+    "generate-session-secret": "tsx scripts/generate-session-secret.ts",
     "test-riot": "tsx scripts/test-riot-api.ts",
     "collect-stats-dev": "tsx scripts/collect-stats-dev.ts",
     "collect-stats-prod": "tsx scripts/collect-stats-prod.ts",

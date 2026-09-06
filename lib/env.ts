@@ -11,6 +11,14 @@ function required(name: string): string {
   return value
 }
 
+function requiredSecret(name: string): string {
+  const value = required(name)
+  if (value.length < 32) {
+    throw new Error(`${name} env var must be at least 32 characters long`)
+  }
+  return value
+}
+
 // Returns default when missing/invalid, accepts values >= 0.
 function optionalNonNegativeInt(name: string, defaultValue: number): number {
   const value = process.env[name]
@@ -29,7 +37,7 @@ function optionalPositiveInt(name: string, defaultValue: number): number {
 
 // ── Required ─────────────────────────────────────────────────────────────────
 
-export const SESSION_SECRET = required('SESSION_SECRET')
+export const SESSION_SECRET = requiredSecret('SESSION_SECRET')
 // bcrypt hashes contain $ which dotenv-expand interprets as variable references.
 // In Docker (env_file with single quotes) the value arrives intact.
 // In Next.js dev, dotenv-expand corrupts it. Fall back to reading .env.local raw.
