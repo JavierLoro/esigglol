@@ -1,8 +1,10 @@
-import { MATCH_CLUSTER } from './env'
+import { MATCH_CLUSTER, TOURNAMENT_API_MODE } from './env'
 import db from './db'
 import type { TournamentConfig, LobbyEvent } from './types'
 import { getRiotApiKey } from './data'
-const TOURNAMENT_BASE = `https://${MATCH_CLUSTER}.api.riotgames.com/lol/tournament-stub/v5`
+export const TOURNAMENT_BASE = `https://${MATCH_CLUSTER}.api.riotgames.com/lol/${
+  TOURNAMENT_API_MODE === 'production' ? 'tournament' : 'tournament-stub'
+}/v5`
 
 async function tournamentFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {

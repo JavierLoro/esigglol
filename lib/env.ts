@@ -68,6 +68,13 @@ export const REFRESH_AUTO_INTERVAL_MS = optionalNonNegativeInt('REFRESH_AUTO_INT
 export const REFRESH_BATCH_SIZE = optionalPositiveInt('REFRESH_BATCH_SIZE', 3)
 export const REFRESH_BATCH_DELAY_MS = optionalNonNegativeInt('REFRESH_BATCH_DELAY_MS', 30_000)
 
+// Riot exposes the Tournament API in two separate deployments. Keep the
+// stub as the default so local environments do not accidentally make
+// production requests; production must be explicitly opted into.
+export type TournamentApiMode = 'stub' | 'production'
+export const TOURNAMENT_API_MODE: TournamentApiMode =
+  process.env.TOURNAMENT_API_MODE === 'production' ? 'production' : 'stub'
+
 // ── Paths ────────────────────────────────────────────────────────────────────
 
 export const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), 'data', 'esigglol.db')

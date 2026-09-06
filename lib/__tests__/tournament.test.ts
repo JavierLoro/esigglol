@@ -20,7 +20,7 @@ describe('tournament config persistence', () => {
   let deleteTournamentConfig: typeof import('../tournament').deleteTournamentConfig
 
   beforeAll(async () => {
-    process.env.SESSION_SECRET ??= 'test-session-secret'
+    process.env.SESSION_SECRET ??= 'test-session-secret-0123456789abcdef'
     process.env.ADMIN_PASSWORD_HASH ??= '$2b$12$abcdefghijklmnopqrstuv1234567890abcdEFGHIJKLMN'
     const tournament = await import('../tournament')
     getTournamentConfig = tournament.getTournamentConfig
@@ -43,5 +43,27 @@ describe('tournament config persistence', () => {
   it('is safe to call when no tournament is configured', () => {
     expect(() => deleteTournamentConfig()).not.toThrow()
     expect(getTournamentConfig()).toBeNull()
+  })
+})
+
+describe('Tournament API endpoint', () => {
+  it('uses the stub endpoint by default', async () => {
+    vi.resetModules()
+    delete process.env.TOURNAMENT_API_MODE
+    process.env.SESSION_SECRET = 'test-session-secret-0123456789abcdef'
+    process.env.ADMIN_PASSWORD_HASH = '$2b$12$abcdefghijklmnopqrstuv1234567890abcdEFGHIJKLMN'
+
+    const tournament = await import('@/lib/tournament')
+    expect(tournament.TOURNAMENT_BASE).toBe('https://europe.api.riotgames.com/lol/tournament-stub/v5')
+  })
+
+  it('uses the production endpoint when explicitly enabled', async () => {
+    vi.resetModules()
+    process.env.TOURNAMENT_API_MODE = 'production'
+    process.env.SESSION_SECRET = 'test-session-secret-0123456789abcdef'
+    process.env.ADMIN_PASSWORD_HASH = '$2b$12$abcdefghijklmnopqrstuv1234567890abcdEFGHIJKLMN'
+
+    const tournament = await import('@/lib/tournament')
+    expect(tournament.TOURNAMENT_BASE).toBe('https://europe.api.riotgames.com/lol/tournament/v5')
   })
 })

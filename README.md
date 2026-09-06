@@ -241,6 +241,11 @@ ESIgg.lol es una plataforma privada de torneos de League of Legends para ESIUCLM
 - Recoleccion de stats de jugadores desde la API de Riot
 - Gestion de la API key de Riot en tiempo real (sin reinicio)
 
+  La integración usa `tournament-stub/v5` por defecto. Para generar códigos
+  válidos para partidas reales, solicita primero acceso a Riot y configura
+  `TOURNAMENT_API_MODE=production`; usa `TOURNAMENT_API_MODE=stub` para
+  desarrollo y pruebas.
+
 ---
 
 ## Tech Stack

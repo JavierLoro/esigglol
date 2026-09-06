@@ -42,4 +42,22 @@ describe('refresh env config', () => {
       'SESSION_SECRET env var must be at least 32 characters long'
     )
   })
+
+  it('keeps Tournament API on the stub unless production is explicit', async () => {
+    delete process.env.TOURNAMENT_API_MODE
+    process.env.SESSION_SECRET = 'test-session-secret-0123456789abcdef'
+    process.env.ADMIN_PASSWORD_HASH = '$2b$12$abcdefghijklmnopqrstuv1234567890abcdEFGHIJKLMN'
+
+    const env = await import('@/lib/env')
+    expect(env.TOURNAMENT_API_MODE).toBe('stub')
+  })
+
+  it('supports the production Tournament API mode', async () => {
+    process.env.TOURNAMENT_API_MODE = 'production'
+    process.env.SESSION_SECRET = 'test-session-secret-0123456789abcdef'
+    process.env.ADMIN_PASSWORD_HASH = '$2b$12$abcdefghijklmnopqrstuv1234567890abcdEFGHIJKLMN'
+
+    const env = await import('@/lib/env')
+    expect(env.TOURNAMENT_API_MODE).toBe('production')
+  })
 })
