@@ -24,7 +24,6 @@
     "*.{js,jsx,ts,tsx,mjs,cjs}": "eslint --max-warnings=0 --fix"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.80.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.8.0",
     "clsx": "^2.1.1",

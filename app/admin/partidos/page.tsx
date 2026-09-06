@@ -1,10 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { Match, Team, Phase } from '@/lib/types'
-import { Plus, Trash2, Save, Trophy, Check, Loader2, X, Copy, Ticket, Users, FileJson2, ImageUp, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, Save, Trophy, Check, Loader2, X, Copy, Ticket, Users, FileJson2, ChevronDown, ChevronRight } from 'lucide-react'
 import type { GameData } from '@/lib/types'
 import { GameDataSchema } from '@/lib/schemas'
-import { DEFAULT_SCREENSHOT_PROMPT } from '@/lib/screenshot-prompt'
 import DateTimePicker from '@/components/admin/DateTimePicker'
 import clsx from 'clsx'
 
@@ -17,9 +16,6 @@ export default function AdminPartidos() {
   const [msg, setMsg] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
-  const [parsing, setParsing] = useState<string | null>(null) // "matchId-gameIndex"
-  const [parseError, setParseError] = useState<string | null>(null)
-  const [screenshotParsingAvailable, setScreenshotParsingAvailable] = useState(false)
   const [hasTournamentConfig, setHasTournamentConfig] = useState(false)
   const [generatingCodes, setGeneratingCodes] = useState<string | null>(null)
   const [lobbyData, setLobbyData] = useState<Record<string, { summonerName: string; eventType: string }[]>>({})
@@ -31,10 +27,6 @@ export default function AdminPartidos() {
       fetch('/api/data/equipos').then(r => r.json()),
       fetch('/api/admin/fases').then(r => r.json()),
     ]).then(([m, t, p]) => { setMatches(m); setTeams(t); setPhases(p) })
-    fetch('/api/admin/partidos/parse-screenshot')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => setScreenshotParsingAvailable(data?.available === true))
-      .catch(() => setScreenshotParsingAvailable(false))
     fetch('/api/admin/tournament').then(r => r.json()).then(data => {
       if (data?.configured === true || data?.providerId) setHasTournamentConfig(true)
     }).catch(() => {})
@@ -164,32 +156,6 @@ export default function AdminPartidos() {
     notify(`Partida ${gameIndex + 1} cargada: ${gameData.duration}`)
   }
 
-  async function uploadScreenshot(matchId: string, gameIndex: number, file: File, customPrompt?: string): Promise<GameData | null> {
-    const key = `${matchId}-${gameIndex}`
-    setParsing(key)
-    setParseError(null)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      if (customPrompt) formData.append('prompt', customPrompt)
-      const res = await fetch('/api/admin/partidos/parse-screenshot', {
-        method: 'POST',
-        body: formData,
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setParseError(data.error ?? 'Error al parsear')
-        return null
-      }
-      return data as GameData
-    } catch {
-      setParseError('Error de red al enviar la captura')
-      return null
-    } finally {
-      setParsing(null)
-    }
-  }
-
   async function generateTournamentCodes(matchId: string) {
     setGeneratingCodes(matchId)
     try {
@@ -250,12 +216,6 @@ export default function AdminPartidos() {
       return (
         <GameDataModal
           title={`Partida ${gameModal.gameIndex + 1}${t1 && t2 ? ` — ${t1.name} vs ${t2.name}` : ''}`}
-          parsing={parsing === `${gameModal.matchId}-${gameModal.gameIndex}`}
-          screenshotParsingAvailable={screenshotParsingAvailable}
-          onParse={async (file, prompt) => {
-            const result = await uploadScreenshot(gameModal.matchId, gameModal.gameIndex, file, prompt)
-            return result
-          }}
           onApply={(gameData) => {
             applyGameData(gameModal.matchId, gameModal.gameIndex, gameData)
             setGameModal(null)
@@ -533,7 +493,7 @@ export default function AdminPartidos() {
                 </div>
               )}
 
-              {/* Partidas — captura o Riot ID */}
+              {/* Partidas — datos manuales o Riot ID */}
               <div>
                 <label className="text-xs text-white/30 mb-1.5 block">
                   Partidas (BO{phase?.config.roundBo?.[String(match.round)] ?? phase?.config.bo ?? 1})
@@ -602,9 +562,6 @@ export default function AdminPartidos() {
                       )
                     }
                   )}
-                  {parseError && (
-                    <span className="text-xs text-red-400">{parseError}</span>
-                  )}
                 </div>
               </div>
 
@@ -645,39 +602,15 @@ export default function AdminPartidos() {
 
 function GameDataModal({
   title,
-  parsing,
-  screenshotParsingAvailable,
-  onParse,
   onApply,
   onClose,
 }: {
   title: string
-  parsing: boolean
-  screenshotParsingAvailable: boolean
-  onParse: (file: File, prompt: string) => Promise<GameData | null>
   onApply: (data: GameData) => void
   onClose: () => void
 }) {
-  const [image, setImage] = useState<File | null>(null)
-  const [prompt, setPrompt] = useState(DEFAULT_SCREENSHOT_PROMPT)
-  const [result, setResult] = useState<GameData | null>(null)
-  const [resultJson, setResultJson] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [jsonFile, setJsonFile] = useState<File | null>(null)
-
-  async function handleParse() {
-    if (!image) return
-    setError(null)
-    setResult(null)
-    setResultJson('')
-    const data = await onParse(image, prompt)
-    if (data) {
-      setResult(data)
-      setResultJson(JSON.stringify(data, null, 2))
-    } else {
-      setError('No se pudo parsear la imagen')
-    }
-  }
 
   function handleJsonUpload() {
     if (!jsonFile) return
@@ -711,79 +644,9 @@ function GameDataModal({
         </div>
 
         <div className="overflow-y-auto flex flex-col gap-5 p-5">
-          {/* ── Sección IA ── */}
-          <div className="flex flex-col gap-3">
-            <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Parsear con IA</p>
-
-            {/* Selector de imagen */}
-            <label className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/25 transition-colors cursor-pointer w-fit">
-              <ImageUp size={13} />
-              {image ? image.name : 'Seleccionar imagen...'}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) setImage(f); e.target.value = '' }}
-              />
-            </label>
-
-            {/* Prompt editable */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-white/30">Prompt</label>
-              <textarea
-                value={prompt}
-                onChange={e => setPrompt(e.target.value)}
-                rows={6}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[11px] text-white/70 font-mono focus:outline-none focus:border-[#0097D7]/40 resize-y"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleParse}
-              disabled={!image || parsing || !screenshotParsingAvailable}
-              aria-describedby="screenshot-parse-help"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-xs font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-40 w-fit"
-            >
-              {parsing ? <><Loader2 size={12} className="animate-spin" /> Parseando...</> : <>Parsear con IA</>}
-            </button>
-            <p id="screenshot-parse-help" role="status" aria-live="polite" className="text-xs text-white/50">
-              {screenshotParsingAvailable
-                ? 'El parseo con IA está disponible.'
-                : 'El parseo con IA está deshabilitado porque falta configurar ANTHROPIC_API_KEY en el servidor. Puedes subir un JSON directamente.'}
-            </p>
-
-            {/* Preview JSON */}
-            {resultJson && (
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-white/30">Resultado</label>
-                <textarea
-                  readOnly
-                  value={resultJson}
-                  rows={8}
-                  className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-[11px] text-green-300 font-mono focus:outline-none resize-y"
-                />
-                <button
-                  type="button"
-                  onClick={() => result && onApply(result)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600/30 border border-green-500/40 text-green-400 text-xs font-bold hover:bg-green-600/40 transition-colors w-fit"
-                >
-                  <Check size={12} /> Aplicar resultado
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* ── Divisor ── */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-white/10" />
-            <span className="text-[10px] text-white/25">o sube el JSON directamente</span>
-            <div className="flex-1 h-px bg-white/10" />
-          </div>
-
           {/* ── Sección JSON ── */}
           <div className="flex flex-col gap-3">
-            <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Subir JSON</p>
+            <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Cargar datos de partida</p>
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/25 transition-colors cursor-pointer">
                 <FileJson2 size={13} />

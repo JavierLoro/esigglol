@@ -29,7 +29,6 @@ ESIgg.lol is a private League of Legends tournament platform for ESIUCLM. It pro
 ### Admin panel (`/admin`)
 - Team, phase, and match management (with logo upload)
 - Automatic bracket generation
-- Match screenshot parsing via Claude Vision
 - Riot Tournament API integration (tournament codes, lobby events)
 - Player stats collection from Riot API
 - Runtime Riot API key management (no restart needed)
@@ -48,7 +47,6 @@ ESIgg.lol is a private League of Legends tournament platform for ESIUCLM. It pro
 | Validation | Zod v4 |
 | Logging | Pino + pino-pretty |
 | Metrics | Prometheus — `prom-client` |
-| AI | Anthropic SDK (screenshot parsing) |
 | Testing | Vitest |
 
 ---
@@ -97,7 +95,6 @@ npm run dev
 | `RIOT_API_KEY` | No | Riot Games API key (can also be set from admin panel) |
 | `RIOT_REGION` | No | Riot API region (default: `euw1`) |
 | `TWITCH_CHANNEL` | No | Twitch channel name for embed |
-| `ANTHROPIC_API_KEY` | No | Anthropic API key (enables screenshot parsing) |
 | `DB_PATH` | No | SQLite database path (default: `./data/esigglol.db`) |
 | `REFRESH_AUTO_INTERVAL_MS` | No | Min age for auto refresh in ms (default: `21600000`) |
 | `REFRESH_BATCH_SIZE` | No | Players processed per refresh batch (default: `3`) |
@@ -232,7 +229,6 @@ ESIgg.lol es una plataforma privada de torneos de League of Legends para ESIUCLM
 ### Panel de administracion (`/admin`)
 - Gestion de equipos, fases y partidos (con subida de logos)
 - Generacion automatica de brackets
-- Parseo de screenshots de partidos via Claude Vision
 - Integracion con Riot Tournament API (codigos de torneo, lobby events)
 - Recoleccion de stats de jugadores desde la API de Riot
 - Gestion de la API key de Riot en tiempo real (sin reinicio)
@@ -251,7 +247,6 @@ ESIgg.lol es una plataforma privada de torneos de League of Legends para ESIUCLM
 | Validacion | Zod v4 |
 | Logging | Pino + pino-pretty |
 | Metricas | Prometheus — `prom-client` |
-| IA | Anthropic SDK (parseo de screenshots) |
 | Testing | Vitest |
 
 ---
@@ -300,7 +295,6 @@ npm run dev
 | `RIOT_API_KEY` | No | API key de Riot Games (tambien configurable desde el panel admin) |
 | `RIOT_REGION` | No | Region de Riot API (default: `euw1`) |
 | `TWITCH_CHANNEL` | No | Canal de Twitch para el embed |
-| `ANTHROPIC_API_KEY` | No | API key de Anthropic (habilita parseo de screenshots) |
 | `DB_PATH` | No | Ruta de la BD SQLite (default: `./data/esigglol.db`) |
 | `REFRESH_AUTO_INTERVAL_MS` | No | Edad mínima (ms) para auto refresh (default: `21600000`) |
 | `REFRESH_BATCH_SIZE` | No | Jugadores procesados por batch de refresh (default: `3`) |

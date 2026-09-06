@@ -11,9 +11,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **ESIgg.lol** is a private League of Legends tournament manager for ESIUCLM. It has two main areas:
 
 - **Public site** — view tournament phases/brackets, player rankings, match results, team detail pages, team comparison, Twitch stream embed
-- **Admin panel** (`/admin/*`) — manage teams, phases, matches, generate brackets, parse screenshots, manage tournament codes; password-protected
+- **Admin panel** (`/admin/*`) — manage teams, phases, matches, generate brackets, manage tournament codes; password-protected
 
-External integrations: Riot Games API (player stats, Tournament API), Twitch (stream embed), Anthropic Claude (screenshot parsing).
+External integrations: Riot Games API (player stats, Tournament API), Twitch (stream embed).
 
 ---
 
@@ -30,7 +30,6 @@ External integrations: Riot Games API (player stats, Tournament API), Twitch (st
 | Database | `better-sqlite3` (WAL mode) |
 | Logging | `pino` + `pino-pretty` (dev) |
 | Metrics | `prom-client` (Prometheus) |
-| AI | `@anthropic-ai/sdk` (screenshot parsing) |
 | Dates | `date-fns`, `react-day-picker` |
 | Icons | `lucide-react` |
 | Class utils | `clsx` |
@@ -62,13 +61,13 @@ External integrations: Riot Games API (player stats, Tournament API), Twitch (st
 │   │   ├── login/                  # Login page (unprotected)
 │   │   ├── equipos/                # Team management
 │   │   ├── fases/                  # Phase management
-│   │   └── partidos/               # Match management (scores, codes, GameDataModal: parseo IA de captura + subida JSON)
+│   │   └── partidos/               # Match management (scores, codes, detailed game data JSON)
 │   ├── api/
 │   │   ├── admin/                  # Protected CRUD routes
 │   │   │   ├── login/              # Session create/destroy
 │   │   │   ├── equipos/            # Team CRUD
 │   │   │   ├── fases/              # Phase CRUD + generate/
-│   │   │   ├── partidos/           # Match CRUD + codes/ + lobby/ + parse-screenshot/
+│   │   │   ├── partidos/           # Match CRUD + codes/ + lobby/
 │   │   │   ├── settings/           # Admin settings (Riot API key management)
 │   │   │   └── tournament/         # Tournament API setup
 │   │   ├── data/                   # Public read-only routes (equipos, fases)
@@ -114,8 +113,6 @@ External integrations: Riot Games API (player stats, Tournament API), Twitch (st
 │   ├── ddragon.ts                  # DDragon asset sync utilities
 │   ├── riot.ts                     # Riot API client with in-memory cache
 │   ├── tournament.ts               # Riot Tournament API v5 wrapper
-│   ├── screenshot-parser.ts        # Claude Vision integration for match screenshots
-│   ├── screenshot-prompt.ts        # Prompt IA para parsear capturas (DEFAULT_SCREENSHOT_PROMPT)
 │   ├── refresh.ts                  # Lógica de refresh de stats: runRefresh(), getRefreshState(), triggerAutoRefresh()
 │   ├── logger.ts                   # Pino structured logger
 │   ├── metrics.ts                  # Prometheus metrics (request duration, count)
@@ -209,7 +206,6 @@ All route handlers are in `app/api/` using the App Router convention (`route.ts`
 | `POST /api/admin/tournament` | Yes | Register Riot Tournament API provider/tournament |
 | `POST /api/admin/partidos/codes` | Yes | Generate tournament codes for a match |
 | `GET /api/admin/partidos/lobby` | Yes | Get lobby events from tournament codes |
-| `POST /api/admin/partidos/parse-screenshot` | Yes | Parse match screenshot via Claude Vision |
 | `GET/PUT /api/admin/settings` | Yes | Get/update Riot API key (masked in GET) |
 | `POST /api/admin/equipos/upload-logo` | Yes | Upload team logo image |
 | `GET /api/uploads/[filename]` | No | Serve uploaded files (logos) |
@@ -340,7 +336,6 @@ ADMIN_PASSWORD_HASH='...'  # bcrypt hash (MUST be in single quotes due to $ char
 RIOT_API_KEY=              # Riot Games API key (can also be set via admin panel, stored in DB)
 RIOT_REGION=euw1           # Riot region (default: euw1)
 TWITCH_CHANNEL=            # Twitch channel name for embed
-ANTHROPIC_API_KEY=         # Claude API key (enables screenshot parsing)
 DB_PATH=./data/esigglol.db # SQLite database path (default: ./data/esigglol.db)
 LOG_PRETTY=true            # Enables pino-pretty (colorized, human-readable logs). Optional in dev.
 COMMIT_SHA=                # Git commit SHA injected at build time → exposed as NEXT_PUBLIC_GIT_SHA

@@ -33,7 +33,6 @@
 │  ├── riot.ts              → cliente Riot API + caché in-memory      │
 │  ├── tournament.ts        → Riot Tournament API v5 wrapper          │
 │  ├── bracket.ts           → lógica de avance de bracket             │
-│  ├── screenshot-parser.ts → Claude Vision para parsear screenshots  │
 │  ├── logger.ts            → Pino structured logger                  │
 │  └── metrics.ts           → Prometheus client                       │
 └───────────────────────────────┬─────────────────────────────────────┘
@@ -46,7 +45,6 @@
 ┌───────────────────────────────▼─────────────────────────────────────┐
 │  APIs externas                                                      │
 │  ├── Riot Games API (summoner, league, mastery, match, tournament)  │
-│  ├── Anthropic Claude API (screenshot parsing / Vision)             │
 │  └── Twitch embed (iframe)                                          │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -88,17 +86,6 @@ Admin click "Refrescar"
 
 Browser polling (cada 3s)
   └─→ GET /api/riot/refresh-stats → estado actual (isRunning, progress)
-```
-
-### Parseo de screenshot
-
-```
-Admin sube imagen
-  └─→ POST /api/admin/partidos/parse-screenshot
-        └─→ lib/screenshot-parser.ts
-              └─→ Anthropic Claude API (claude-3-5-sonnet, Vision)
-              └─→ Zod validation del JSON devuelto
-        └─→ lib/data.ts → saveMatch() con games[]
 ```
 
 ---

@@ -207,15 +207,6 @@ Consulta los eventos de lobby de los tournament codes de un partido.
 
 ---
 
-### `POST /api/admin/partidos/parse-screenshot`
-
-Parsea un screenshot de fin de partida usando Claude Vision.
-
-**Auth:** Sí
-**Body:** `multipart/form-data` con campo `file` (imagen PNG/JPG) y `matchId`
-**Respuesta:** `200 OK` → `GameData`
-**Requiere:** `ANTHROPIC_API_KEY` configurada
-
 ---
 
 ## Settings
