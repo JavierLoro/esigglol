@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import type { Phase, PhaseType, PhaseStatus, BOFormat, Team, Match } from '@/lib/types'
 import { Plus, Trash2, Save, GripVertical, Zap, Check, Copy } from 'lucide-react'
+import { bracketSizeError } from '@/lib/bracket-sizes'
 
 const PHASE_TYPES: { value: PhaseType; label: string }[] = [
   { value: 'groups', label: 'Fase de Grupos' },
@@ -78,6 +79,11 @@ export default function AdminFases() {
   }
 
   async function savePhase(phase: Phase) {
+    const count = phase.type === 'swiss' ? (phase.config.swissTeamIds?.length ?? 0) : (phase.config.bracketTeamIds?.length ?? 0)
+    if (count > 0) {
+      const sizeError = bracketSizeError(phase.type, count)
+      if (sizeError) { notify(sizeError); return }
+    }
     setSaving(phase.id)
     await fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(phase) })
     setSaving(null)
@@ -96,6 +102,9 @@ export default function AdminFases() {
   }
 
   async function generateMatches(phase: Phase, type: 'groups' | 'swiss' | 'elimination' | 'final-four' | 'upper-lower', round?: number) {
+    const count = type === 'swiss' ? (phase.config.swissTeamIds?.length ?? 0) : (phase.config.bracketTeamIds?.length ?? 0)
+    const sizeError = bracketSizeError(type, count)
+    if (sizeError) { notify(sizeError); return }
     setGenerating(phase.id)
     // Guardar primero para que el endpoint tenga la config actualizada
     await fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(phase) })
@@ -300,7 +309,7 @@ export default function AdminFases() {
             )}
 
             {/* Configuración suizo */}
-            {phase.type === 'swiss' && (
+              {phase.type === 'swiss' && (
               <div className="flex flex-col gap-4">
                 {/* Parámetros suizo */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -396,6 +405,9 @@ export default function AdminFases() {
                   {(phase.config.swissTeamIds ?? []).length > 0 && (
                     <p className="text-xs text-white/30 mt-1">{(phase.config.swissTeamIds ?? []).length} equipos seleccionados</p>
                   )}
+                  {(phase.config.swissTeamIds ?? []).length > 0 && bracketSizeError('swiss', phase.config.swissTeamIds!.length) && (
+                    <p className="text-xs text-red-400 mt-1">{bracketSizeError('swiss', phase.config.swissTeamIds!.length)}</p>
+                  )}
                 </div>
 
                 {/* Botones generar / confirmar rondas */}
@@ -470,8 +482,11 @@ export default function AdminFases() {
                       )
                     })}
                   </div>
-                  {(phase.config.bracketTeamIds ?? []).length > 0 && (
+              {(phase.config.bracketTeamIds ?? []).length > 0 && (
                     <p className="text-xs text-white/30 mt-1">{(phase.config.bracketTeamIds ?? []).length} equipos seleccionados</p>
+                  )}
+                  {phase.type !== 'groups' && phase.type !== 'swiss' && (phase.config.bracketTeamIds ?? []).length > 0 && bracketSizeError(phase.type, phase.config.bracketTeamIds!.length) && (
+                    <p className="text-xs text-red-400 mt-1">{bracketSizeError(phase.type, phase.config.bracketTeamIds!.length)}</p>
                   )}
                 </div>
 

@@ -4,6 +4,7 @@ import { requireAdminSession } from '@/lib/auth'
 import { GenerateSchema } from '@/lib/schemas'
 import logger from '@/lib/logger'
 import type { Match, BOFormat } from '@/lib/types'
+import { bracketSizeError } from '@/lib/bracket-sizes'
 
 const log = logger.child({ module: 'generate' })
 
@@ -29,6 +30,14 @@ export async function POST(req: NextRequest) {
   const body = parsed.data
   const phase = getPhaseById(body.phaseId)
   if (!phase) return NextResponse.json({ error: 'Fase no encontrada' }, { status: 404 })
+
+  const configuredCount = body.type === 'swiss'
+    ? phase.config.swissTeamIds?.length
+    : body.type === 'groups' ? undefined : phase.config.bracketTeamIds?.length
+  if (configuredCount !== undefined) {
+    const sizeError = bracketSizeError(body.type, configuredCount)
+    if (sizeError) return NextResponse.json({ error: sizeError }, { status: 400 })
+  }
 
   const allMatches = getMatches()
   const phaseMatches = allMatches.filter(m => m.phaseId === phase.id)
@@ -152,9 +161,8 @@ export async function POST(req: NextRequest) {
     // ── Eliminación clásica — generación progresiva ──────────────────────────
     if (body.type === 'elimination') {
       const teamIds = phase.config.bracketTeamIds ?? []
-      if (teamIds.length < 2) {
-        return NextResponse.json({ error: 'Se necesitan al menos 2 equipos' }, { status: 400 })
-      }
+      const sizeError = bracketSizeError(body.type, teamIds.length)
+      if (sizeError) return NextResponse.json({ error: sizeError }, { status: 400 })
 
       if (!exists(1)) {
         // Ronda 1: emparejar equipos secuencialmente; último sin pareja tiene bye (no se crea partido)
@@ -191,9 +199,8 @@ export async function POST(req: NextRequest) {
     // ── Final Four — generación progresiva ───────────────────────────────────
     if (body.type === 'final-four') {
       const teamIds = phase.config.bracketTeamIds ?? []
-      if (teamIds.length < 4) {
-        return NextResponse.json({ error: 'Se necesitan 4 equipos' }, { status: 400 })
-      }
+      const sizeError = bracketSizeError(body.type, teamIds.length)
+      if (sizeError) return NextResponse.json({ error: sizeError }, { status: 400 })
 
       if (!exists(1)) {
         // Generar semifinales
@@ -218,6 +225,8 @@ export async function POST(req: NextRequest) {
     if (body.type === 'upper-lower') {
       const teamIds = phase.config.bracketTeamIds ?? []
       const n = teamIds.length
+      const sizeError = bracketSizeError(body.type, n)
+      if (sizeError) return NextResponse.json({ error: sizeError }, { status: 400 })
 
       if (n <= 4) {
         // ── 4 equipos: G1→G2→G3→G4 ──────────────────────────────────────────
