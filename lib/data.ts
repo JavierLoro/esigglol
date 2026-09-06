@@ -45,6 +45,33 @@ export function getTeamById(id: string): Team | undefined {
   return team
 }
 
+export interface TeamReferences {
+  phaseIds: string[]
+  matchIds: string[]
+}
+
+/** Finds all persisted tournament records that would become invalid if a team is removed. */
+export function findTeamReferences(teamId: string, phases: Phase[], matches: Match[]): TeamReferences {
+  const phaseIds = phases
+    .filter(phase => {
+      const config = phase.config
+      return config.groups?.some(group => group.teamIds.includes(teamId))
+        || config.swissTeamIds?.includes(teamId)
+        || config.bracketTeamIds?.includes(teamId)
+    })
+    .map(phase => phase.id)
+
+  const matchIds = matches
+    .filter(match => match.team1Id === teamId || match.team2Id === teamId || match.winnerId === teamId)
+    .map(match => match.id)
+
+  return { phaseIds, matchIds }
+}
+
+export function getTeamReferences(teamId: string): TeamReferences {
+  return findTeamReferences(teamId, getPhases(), getMatches())
+}
+
 // ── Phases ───────────────────────────────────────────────────────────────────
 
 export function getPhases(): Phase[] {

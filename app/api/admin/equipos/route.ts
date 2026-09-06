@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTeams, saveTeams, generateId } from '@/lib/data'
+import { getTeams, saveTeams, generateId, getTeamReferences } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { TeamSchema, TeamUpdateSchema, DeleteIdSchema } from '@/lib/schemas'
 import type { Team } from '@/lib/types'
@@ -63,7 +63,20 @@ export async function DELETE(req: NextRequest) {
   const parsed = DeleteIdSchema.safeParse(raw)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
-  const teams = getTeams().filter(t => t.id !== parsed.data.id)
-  try { saveTeams(teams) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
+  const teams = getTeams()
+  if (!teams.some(team => team.id === parsed.data.id)) {
+    return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+  }
+
+  const references = getTeamReferences(parsed.data.id)
+  if (references.phaseIds.length > 0 || references.matchIds.length > 0) {
+    return NextResponse.json({
+      error: 'No se puede eliminar un equipo que está referenciado por fases o partidos',
+      references,
+    }, { status: 409 })
+  }
+
+  const remainingTeams = teams.filter(t => t.id !== parsed.data.id)
+  try { saveTeams(remainingTeams) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json({ ok: true })
 }

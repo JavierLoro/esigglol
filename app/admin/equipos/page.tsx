@@ -46,7 +46,12 @@ export default function AdminEquipos() {
 
   async function deleteTeam(id: string) {
     if (!confirm('¿Eliminar este equipo?')) return
-    await fetch('/api/admin/equipos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    const res = await fetch('/api/admin/equipos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string }
+      notify(body.error ?? 'Error al eliminar el equipo')
+      return
+    }
     setTeams(prev => prev.filter(t => t.id !== id))
   }
 

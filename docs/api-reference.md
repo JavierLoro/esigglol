@@ -78,6 +78,7 @@ Elimina un equipo.
 **Auth:** Sí
 **Body:** `{ "id": "team-..." }`
 **Respuesta:** `200 OK`
+**Errores:** `404` si el equipo no existe; `409` si el equipo está referenciado por una fase o partido (la respuesta incluye `references.phaseIds` y `references.matchIds`)
 
 ---
 
