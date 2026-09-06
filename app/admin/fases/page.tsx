@@ -120,16 +120,24 @@ export default function AdminFases() {
 
   async function confirmBracket(phase: Phase) {
     const updated = { ...phase, config: { ...phase.config, confirmedBracket: true } }
+    const res = await fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) })
+    if (!res.ok) {
+      notify('No se pudo confirmar el bracket')
+      return
+    }
     setPhases(prev => prev.map(p => p.id === phase.id ? updated : p))
-    await fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) })
     notify('Bracket confirmado')
   }
 
   async function confirmRound(phase: Phase, round: number) {
-    const confirmed = [...(phase.config.confirmedRounds ?? []), round]
+    const confirmed = [...new Set([...(phase.config.confirmedRounds ?? []), round])]
     const updated = { ...phase, config: { ...phase.config, confirmedRounds: confirmed } }
+    const res = await fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) })
+    if (!res.ok) {
+      notify(`No se pudo confirmar la ronda ${round}`)
+      return
+    }
     setPhases(prev => prev.map(p => p.id === phase.id ? updated : p))
-    await fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) })
     notify(`Ronda ${round} confirmada`)
   }
 

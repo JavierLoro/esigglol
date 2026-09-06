@@ -41,6 +41,7 @@ const PhaseConfigSchema = z.object({
   confirmedRounds: z.array(z.number()).optional(),
   bracketTeamIds: z.array(z.string()).optional(),
   include3rdPlace: z.boolean().optional(),
+  confirmedBracket: z.boolean().optional(),
 })
 
 export const PhaseSchema = z.object({

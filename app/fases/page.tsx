@@ -4,6 +4,7 @@ import SwissView from '@/components/brackets/SwissView'
 import EliminationBracket from '@/components/brackets/EliminationBracket'
 import UpperLowerBracket from '@/components/brackets/UpperLowerBracket'
 import { clsx } from 'clsx'
+import { isPhasePublished } from '@/lib/publication'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +32,7 @@ export default function FasesPage() {
         <p className="text-white/40 text-sm">El torneo aún no tiene fases configuradas.</p>
       )}
 
-      {phases.map(phase => {
+      {phases.filter(isPhasePublished).map(phase => {
         const matches = getMatchesByPhase(phase.id)
 
         return (
