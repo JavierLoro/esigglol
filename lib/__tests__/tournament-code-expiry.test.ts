@@ -6,6 +6,9 @@ vi.mock('../data', () => ({ getRiotApiKey: () => 'test-key' }))
 describe('tournament code expiry checks', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.resetModules()
+    process.env.SESSION_SECRET = 'test-session-secret-0123456789abcdef'
+    process.env.ADMIN_PASSWORD_HASH = '$2b$12$abcdefghijklmnopqrstuv1234567890abcdEFGHIJKLMN'
   })
 
   it('preserves Riot status 404 so expired codes can be regenerated', async () => {
@@ -14,11 +17,12 @@ describe('tournament code expiry checks', () => {
     ))
 
     const { getCodeDetails, TournamentApiError } = await import('../tournament')
-    await expect(getCodeDetails('EUW-EXPIRED')).rejects.toMatchObject({
+    const request = getCodeDetails('EUW-EXPIRED')
+    await expect(request).rejects.toMatchObject({
       status: 404,
       name: 'TournamentApiError',
     })
-    await expect(getCodeDetails('EUW-EXPIRED')).rejects.toBeInstanceOf(TournamentApiError)
+    await expect(request).rejects.toBeInstanceOf(TournamentApiError)
   })
 
   it('returns details for active codes', async () => {

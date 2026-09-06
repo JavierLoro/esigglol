@@ -35,7 +35,7 @@ vi.mock('@/lib/ddragon', () => ({ ensureProfileIcon: mocks.ensureProfileIcon }))
 
 describe('refresh individual de jugadores', () => {
   beforeEach(() => {
-    process.env.SESSION_SECRET = 'test-session-secret'
+    process.env.SESSION_SECRET = 'test-session-secret-0123456789abcdef'
     process.env.ADMIN_PASSWORD_HASH = '$2b$12$abcdefghijklmnopqrstuv1234567890abcdEFGHIJKLMN'
     vi.resetModules()
     vi.clearAllMocks()
