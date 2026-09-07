@@ -143,9 +143,8 @@ export const MatchBulkSchema = z.union([MatchSchema, z.array(MatchSchema)])
 
 export const GenerateSchema = z.object({
   phaseId: z.string().min(1),
-  type: PhaseTypeSchema,
   round: z.number().int().positive().optional(),
-})
+}).strict()
 
 export const DeleteIdSchema = z.object({
   id: z.string().min(1),
