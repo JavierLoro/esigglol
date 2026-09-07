@@ -29,7 +29,6 @@ ESIgg.lol is a private League of Legends tournament platform for ESIUCLM. It pro
 ### Admin panel (`/admin`)
 - Team, phase, and match management (with logo upload)
 - Automatic bracket generation
-- Match screenshot parsing via Claude Vision
 - Riot Tournament API integration (tournament codes, lobby events)
 - Player stats collection from Riot API
 - Runtime Riot API key management (no restart needed)
@@ -48,7 +47,6 @@ ESIgg.lol is a private League of Legends tournament platform for ESIUCLM. It pro
 | Validation | Zod v4 |
 | Logging | Pino + pino-pretty |
 | Metrics | Prometheus — `prom-client` |
-| AI | Anthropic SDK (screenshot parsing) |
 | Testing | Vitest |
 
 ---
@@ -67,8 +65,8 @@ cp .env.example .env.local
 # Generate admin password hash
 npx tsx scripts/gen-password-hash.ts <your-password>
 
-# Generate SESSION_SECRET
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# Generate SESSION_SECRET (prints one 256-bit secret; do not commit the output)
+npm run generate-session-secret
 
 # Build and start (same image as production)
 docker compose -f docker-compose.dev.yml up --build
@@ -93,17 +91,22 @@ npm run dev
 | Variable | Required | Description |
 |---|---|---|
 | `ADMIN_PASSWORD_HASH` | Yes | bcrypt hash of the admin password |
-| `SESSION_SECRET` | Yes | JWT signing secret (min 32 chars) |
+| `SESSION_SECRET` | Yes | JWT signing secret (at least 32 chars; generate with `npm run generate-session-secret`) |
 | `RIOT_API_KEY` | No | Riot Games API key (can also be set from admin panel) |
 | `RIOT_REGION` | No | Riot API region (default: `euw1`) |
 | `TWITCH_CHANNEL` | No | Twitch channel name for embed |
-| `ANTHROPIC_API_KEY` | No | Anthropic API key (enables screenshot parsing) |
 | `DB_PATH` | No | SQLite database path (default: `./data/esigglol.db`) |
 | `REFRESH_AUTO_INTERVAL_MS` | No | Min age for auto refresh in ms (default: `21600000`) |
 | `REFRESH_BATCH_SIZE` | No | Players processed per refresh batch (default: `3`) |
 | `REFRESH_BATCH_DELAY_MS` | No | Delay between refresh batches in ms (default: `30000`) |
+| `BACKUP_ENABLED` | No | Enables the Docker SQLite backup worker (default: `true`) |
+| `BACKUP_INTERVAL_SECONDS` | No | Seconds between snapshots (default: `86400`) |
+| `BACKUP_RETENTION_COUNT` | No | Number of snapshots to keep (default: `7`) |
+| `BACKUP_HOST_PATH` | No | Host directory mounted for backups (default: `./backups`) |
 
 > **Note:** The Riot API key can be configured at runtime from the admin dashboard — no server restart needed when the dev key expires.
+
+> **Security:** API key rotation requires access to the Riot and Anthropic consoles. Revoke the old keys, create replacements, update the deployment secret manager, and restart the app; never add the values to `.env.example`, Git, logs, or issue comments. This repository cannot perform that external rotation.
 
 > **Note:** `ADMIN_PASSWORD_HASH` contains `$` characters. Always wrap the value in single quotes in `.env.local` to prevent shell variable expansion:
 > ```
@@ -133,11 +136,23 @@ docker logs esigglol-app-1 -f
 docker compose ps
 ```
 
+Production does not read `.env.local`. Configure `SESSION_SECRET`,
+`ADMIN_PASSWORD_HASH` and optional variables in the deploy platform or secret
+manager, then inject them into the host environment before running Docker
+Compose. The production compose file forwards those system variables to the
+container; never copy a local env file to the server.
+
 The SQLite database is persisted in `./data/` via a volume mount. The container runs as user `1000`. Ensure the database files are writable:
 
 ```bash
 chmod 666 data/esigglol.db data/esigglol.db-shm data/esigglol.db-wal
 ```
+
+The Compose stack also runs a separate `backup` worker. It uses SQLite's
+online backup API (safe with WAL mode), validates each snapshot, and retains
+seven files by default. See [docs/backups.md](docs/backups.md) for external
+mounts, verification, and the manual restore procedure. No cloud credentials
+are configured or uploaded by the repository.
 
 **Watchtower** polls the registry every 60 seconds and automatically redeploys when a new image is available.
 
@@ -167,6 +182,9 @@ docker compose restart app
 | `npm run sync-ddragon` | Manually sync Data Dragon assets |
 | `npm run collect-stats-dev` | Collect player stats (dev key, rate-limited) |
 | `npm run collect-stats-prod` | Collect player stats (production key) |
+| `npm run backup` | Create and validate one SQLite backup |
+| `npm run backup:verify -- <file>` | Validate an existing backup |
+| `npm run backup:restore -- --source <file> --force` | Manually restore a backup (stop the app first) |
 | `npx tsx scripts/seed-data.ts` | Seed placeholder teams and players into the database |
 
 > Pre-commit runs `lint-staged`, which executes ESLint with `--fix` only on staged JS/TS files.
@@ -219,10 +237,14 @@ ESIgg.lol es una plataforma privada de torneos de League of Legends para ESIUCLM
 ### Panel de administracion (`/admin`)
 - Gestion de equipos, fases y partidos (con subida de logos)
 - Generacion automatica de brackets
-- Parseo de screenshots de partidos via Claude Vision
 - Integracion con Riot Tournament API (codigos de torneo, lobby events)
 - Recoleccion de stats de jugadores desde la API de Riot
 - Gestion de la API key de Riot en tiempo real (sin reinicio)
+
+  La integración usa `tournament-stub/v5` por defecto. Para generar códigos
+  válidos para partidas reales, solicita primero acceso a Riot y configura
+  `TOURNAMENT_API_MODE=production`; usa `TOURNAMENT_API_MODE=stub` para
+  desarrollo y pruebas.
 
 ---
 
@@ -238,7 +260,6 @@ ESIgg.lol es una plataforma privada de torneos de League of Legends para ESIUCLM
 | Validacion | Zod v4 |
 | Logging | Pino + pino-pretty |
 | Metricas | Prometheus — `prom-client` |
-| IA | Anthropic SDK (parseo de screenshots) |
 | Testing | Vitest |
 
 ---
@@ -257,8 +278,8 @@ cp .env.example .env.local
 # Generar hash de password para admin
 npx tsx scripts/gen-password-hash.ts <tu-password>
 
-# Generar SESSION_SECRET
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# Generar SESSION_SECRET (imprime un secreto de 256 bits; no commitear la salida)
+npm run generate-session-secret
 
 # Construir y arrancar (misma imagen que produccion)
 docker compose -f docker-compose.dev.yml up --build
@@ -283,15 +304,18 @@ npm run dev
 | Variable | Requerida | Descripcion |
 |---|---|---|
 | `ADMIN_PASSWORD_HASH` | Si | Hash bcrypt del password de admin |
-| `SESSION_SECRET` | Si | Secreto para firmar JWT (min 32 chars) |
+| `SESSION_SECRET` | Si | Secreto para firmar JWT (min 32 chars; generar con `npm run generate-session-secret`) |
 | `RIOT_API_KEY` | No | API key de Riot Games (tambien configurable desde el panel admin) |
 | `RIOT_REGION` | No | Region de Riot API (default: `euw1`) |
 | `TWITCH_CHANNEL` | No | Canal de Twitch para el embed |
-| `ANTHROPIC_API_KEY` | No | API key de Anthropic (habilita parseo de screenshots) |
 | `DB_PATH` | No | Ruta de la BD SQLite (default: `./data/esigglol.db`) |
 | `REFRESH_AUTO_INTERVAL_MS` | No | Edad mínima (ms) para auto refresh (default: `21600000`) |
 | `REFRESH_BATCH_SIZE` | No | Jugadores procesados por batch de refresh (default: `3`) |
 | `REFRESH_BATCH_DELAY_MS` | No | Delay entre batches de refresh en ms (default: `30000`) |
+| `BACKUP_ENABLED` | No | Activa el worker de backups SQLite en Docker (default: `true`) |
+| `BACKUP_INTERVAL_SECONDS` | No | Segundos entre snapshots (default: `86400`) |
+| `BACKUP_RETENTION_COUNT` | No | Numero de snapshots a conservar (default: `7`) |
+| `BACKUP_HOST_PATH` | No | Directorio del host para backups (default: `./backups`) |
 
 > **Nota:** La API key de Riot se puede configurar en tiempo real desde el panel admin — no requiere reiniciar el servidor cuando la dev key expira.
 
@@ -323,11 +347,23 @@ docker logs esigglol-app-1 -f
 docker compose ps
 ```
 
+Produccion no lee `.env.local`. Configura `SESSION_SECRET`,
+`ADMIN_PASSWORD_HASH` y las variables opcionales en la plataforma de deploy o
+gestor de secretos, e inyectalas en el entorno del host antes de ejecutar
+Docker Compose. El compose de produccion reenvia esas variables del sistema al
+contenedor; no copies un archivo local al servidor.
+
 La base de datos SQLite se persiste en `./data/` mediante un volumen. El contenedor corre como usuario `1000`. Los archivos de la BD deben tener permisos de escritura:
 
 ```bash
 chmod 666 data/esigglol.db data/esigglol.db-shm data/esigglol.db-wal
 ```
+
+El stack de Compose tambien ejecuta un worker `backup` separado. Usa la API
+online de SQLite (segura con WAL), valida cada snapshot y conserva siete por
+defecto. Consulta [docs/backups.md](docs/backups.md) para montajes externos,
+verificacion y restauracion manual. El repositorio no configura credenciales
+cloud ni sube datos automaticamente.
 
 **Watchtower** comprueba cada 60 segundos si hay una nueva imagen en el registry y redespliega automaticamente.
 
@@ -357,6 +393,9 @@ docker compose restart app
 | `npm run sync-ddragon` | Sincronizar assets de Data Dragon manualmente |
 | `npm run collect-stats-dev` | Recolectar stats de jugadores (dev key, con delays) |
 | `npm run collect-stats-prod` | Recolectar stats de jugadores (prod key) |
+| `npm run backup` | Crear y validar un backup SQLite |
+| `npm run backup:verify -- <fichero>` | Validar un backup existente |
+| `npm run backup:restore -- --source <fichero> --force` | Restaurar manualmente un backup (parar la app antes) |
 | `npx tsx scripts/seed-data.ts` | Poblar la BD con equipos y jugadores placeholder |
 
 > El pre-commit ejecuta `lint-staged`, que lanza ESLint con `--fix` solo sobre archivos JS/TS staged.

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft } from 'lucide-react'
 import { clsx } from 'clsx'
+import LocalDateTime from '@/components/LocalDateTime'
 import { getMatchById, getPhaseById, getTeamById } from '@/lib/data'
 import { getMatchDetails } from '@/lib/riot'
 import { getVersion, buildChampionNameMap } from '@/lib/ddragon'
@@ -403,12 +404,11 @@ export default async function PartidoPage({
             </span>
           )}
           {match.scheduledAt && !played && (
-            <span className="ml-auto text-xs font-semibold text-[#0097D7] bg-[#0097D7]/10 px-2 py-0.5 rounded-full">
-              {new Date(match.scheduledAt).toLocaleString('es-ES', {
-                weekday: 'short', day: '2-digit', month: 'short',
-                hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid',
-              })}
-            </span>
+            <LocalDateTime
+              iso={match.scheduledAt}
+              includeWeekday
+              className="ml-auto text-xs font-semibold text-[#0097D7] bg-[#0097D7]/10 px-2 py-0.5 rounded-full"
+            />
           )}
           {played && (
             <span className="ml-auto text-xs font-semibold text-white/30 bg-white/5 px-2 py-0.5 rounded-full">

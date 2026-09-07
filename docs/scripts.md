@@ -25,6 +25,21 @@ Reiniciar el servidor para que tome efecto.
 
 ---
 
+## `generate-session-secret.ts`
+
+Genera una clave `SESSION_SECRET` de 256 bits usando el generador criptografico
+del sistema operativo y la imprime en formato listo para `.env.local`.
+
+**Uso:**
+```bash
+npm run generate-session-secret
+```
+
+No guardes la salida en el repositorio ni la compartas en logs o incidencias.
+La aplicacion rechaza secretos de menos de 32 caracteres.
+
+---
+
 ## `sync-ddragon.ts`
 
 Descarga y cachea los assets de DDragon (datos de campeones, versión del juego).

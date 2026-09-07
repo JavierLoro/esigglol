@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getMatches, saveMatches, generateId, getPhaseById, savePhase } from '@/lib/data'
+import { getMatches, saveMatches, generateId, getPhaseById, savePhase, getTeams, getPhases } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { advanceWinner } from '@/lib/bracket'
 import { MatchSchema, MatchUpdateSchema, DeleteIdsSchema } from '@/lib/schemas'
 import type { Match } from '@/lib/types'
 import { z } from 'zod'
 import logger from '@/lib/logger'
+import { validateMatch, issuesToMessage } from '@/lib/domain-validation'
+import { validateMatchResult } from '@/lib/match-validation'
+import { validateAndNormalizeMatch } from '@/lib/match-coherence'
+import { derivePhaseStatus } from '@/lib/phase-status'
 
 const log = logger.child({ module: 'partidos' })
 
@@ -27,7 +31,19 @@ export async function POST(req: NextRequest) {
 
   const matches = getMatches()
   const items = Array.isArray(parsed.data) ? parsed.data : [parsed.data]
-  const newMatches: Match[] = items.map(m => ({ id: generateId('match'), ...m } satisfies Match))
+  const newMatches: Match[] = []
+  for (const item of items) {
+    const candidate = { id: generateId('match'), ...item } satisfies Match
+    const phase = getPhaseById(candidate.phaseId)
+    if (!phase) return NextResponse.json({ error: 'Fase no encontrada' }, { status: 404 })
+    const checked = validateAndNormalizeMatch(candidate, phase)
+    if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 422 })
+    const validationError = validateMatchResult(phase, checked.match, checked.match.result)
+    if (validationError) return NextResponse.json({ error: validationError }, { status: 422 })
+    const domainIssues = validateMatch(checked.match, getTeams(), getPhases())
+    if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
+    newMatches.push(checked.match)
+  }
 
   matches.push(...newMatches)
   try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
@@ -45,33 +61,39 @@ export async function PUT(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
   const body = parsed.data as Match
+  const checked = validateAndNormalizeMatch(body, getPhaseById(body.phaseId))
+  if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 422 })
+  const normalizedBody = checked.match
   let matches = getMatches()
   const idx = matches.findIndex(m => m.id === body.id)
   if (idx === -1) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  matches[idx] = body
+  const phase = getPhaseById(normalizedBody.phaseId)
+  if (!phase) return NextResponse.json({ error: 'Fase no encontrada' }, { status: 404 })
+  const validationError = validateMatchResult(phase, normalizedBody, normalizedBody.result)
+  if (validationError) return NextResponse.json({ error: validationError }, { status: 422 })
+
+  const domainIssues = validateMatch(normalizedBody, getTeams(), getPhases())
+  if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
+
+  matches[idx] = normalizedBody
 
   // ── Avance de bracket ───────────────────────────────────────────────────
-  if (body.result && body.winnerId) {
-    const phase = getPhaseById(body.phaseId)
+  if (normalizedBody.result && normalizedBody.winnerId) {
     if (phase && (phase.type === 'elimination' || phase.type === 'final-four' || phase.type === 'upper-lower')) {
-      matches = advanceWinner(phase, matches, body)
+      matches = advanceWinner(phase, matches, normalizedBody)
     }
   }
 
   try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
 
-  // ── Actualizar estado de la fase ────────────────────────────────────────
-  const phase = getPhaseById(body.phaseId)
-  if (phase && phase.status === 'upcoming') {
-    const phaseMatches = matches.filter(m => m.phaseId === body.phaseId)
-    const hasResult = phaseMatches.some(m => m.result !== null)
-    if (hasResult) {
-      try { savePhase({ ...phase, status: 'active' }) } catch (err) { log.error({ err }, 'DB write failed on phase status update') }
-    }
+  // ── Actualizar automáticamente el ciclo de estado de la fase ────────────
+  const status = derivePhaseStatus(phase, matches)
+  if (phase.status !== status) {
+    try { savePhase({ ...phase, status }) } catch (err) { log.error({ err }, 'DB write failed on phase status update') }
   }
 
-  return NextResponse.json(body)
+  return NextResponse.json(normalizedBody)
 }
 
 export async function DELETE(req: NextRequest) {

@@ -1,12 +1,13 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { Match, Team, Phase } from '@/lib/types'
-import { Plus, Trash2, Save, Trophy, Check, Loader2, X, Copy, Ticket, Users, FileJson2, ImageUp, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, Save, Trophy, Check, Loader2, X, Copy, Ticket, Users, FileJson2, ChevronDown, ChevronRight } from 'lucide-react'
 import type { GameData } from '@/lib/types'
 import { GameDataSchema } from '@/lib/schemas'
-import { DEFAULT_SCREENSHOT_PROMPT } from '@/lib/screenshot-prompt'
 import DateTimePicker from '@/components/admin/DateTimePicker'
 import clsx from 'clsx'
+import { getEffectiveBO } from '@/lib/match-validation'
+import { adminRequest, errorMessage, isArrayOfRecords, isEntity, isOk } from '@/lib/admin-client'
 
 export default function AdminPartidos() {
   const [matches, setMatches] = useState<Match[]>([])
@@ -17,35 +18,37 @@ export default function AdminPartidos() {
   const [msg, setMsg] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
-  const [parsing, setParsing] = useState<string | null>(null) // "matchId-gameIndex"
-  const [parseError, setParseError] = useState<string | null>(null)
   const [hasTournamentConfig, setHasTournamentConfig] = useState(false)
   const [generatingCodes, setGeneratingCodes] = useState<string | null>(null)
   const [lobbyData, setLobbyData] = useState<Record<string, { summonerName: string; eventType: string }[]>>({})
   const [gameModal, setGameModal] = useState<{ matchId: string; gameIndex: number } | null>(null)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/admin/partidos').then(r => r.json()),
-      fetch('/api/data/equipos').then(r => r.json()),
-      fetch('/api/admin/fases').then(r => r.json()),
-    ]).then(([m, t, p]) => { setMatches(m); setTeams(t); setPhases(p) })
-    fetch('/api/admin/tournament').then(r => r.json()).then(data => {
+      adminRequest<Match[]>(fetch('/api/admin/partidos'), isArrayOfRecords),
+      adminRequest<Team[]>(fetch('/api/data/equipos'), isArrayOfRecords),
+      adminRequest<Phase[]>(fetch('/api/admin/fases'), isArrayOfRecords),
+    ]).then(([m, t, p]) => { setMatches(m); setTeams(t); setPhases(p) }).catch(error => setLoadError(errorMessage(error)))
+    adminRequest<{ providerId?: string } | null>(fetch('/api/admin/tournament'), value => value === null || (typeof value === 'object' && value !== null)).then(data => {
       if (data?.providerId) setHasTournamentConfig(true)
-    }).catch(() => {})
+    }).catch(error => setLoadError(errorMessage(error)))
   }, [])
 
   function notify(text: string) { setMsg(text); setTimeout(() => setMsg(''), 3000) }
 
   async function addMatch(phaseId: string) {
-    const res = await fetch('/api/admin/partidos', {
+    try {
+    const data = await adminRequest(fetch('/api/admin/partidos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phaseId, round: 1, team1Id: teams[0]?.id ?? '', team2Id: teams[1]?.id ?? '', result: null, riotMatchIds: [] }),
-    })
-    const [match] = await res.json()
-    setMatches(prev => [...prev, match])
+    }), isArrayOfRecords)
+    const match = data[0]
+    if (!isEntity(match)) throw new Error('Respuesta inválida')
+    setMatches(prev => [...prev, match as Match])
     setCollapsedPhases(prev => { const next = new Set(prev); next.delete(phaseId); return next })
+    } catch (error) { notify(errorMessage(error)) }
   }
 
   function togglePhaseCollapse(phaseId: string) {
@@ -58,35 +61,37 @@ export default function AdminPartidos() {
 
   async function saveMatch(match: Match) {
     setSaving(match.id)
-    const res = await fetch('/api/admin/partidos', {
+    try {
+    const updated = await adminRequest<Match>(fetch('/api/admin/partidos', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(match),
-    })
-    const updated = await res.json()
+    }), (value): value is Match => isEntity(value))
     // Refrescar todos los matches para ver avances de bracket
-    const all = await fetch('/api/admin/partidos').then(r => r.json())
+    const all = await adminRequest<Match[]>(fetch('/api/admin/partidos'), isArrayOfRecords)
     setMatches(all)
     // Refrescar fases por si cambió el estado
-    const allPhases = await fetch('/api/admin/fases').then(r => r.json())
+    const allPhases = await adminRequest<Phase[]>(fetch('/api/admin/fases'), isArrayOfRecords)
     setPhases(allPhases)
-    setSaving(null)
     notify(updated.winnerId ? '¡Guardado — bracket actualizado!' : 'Guardado')
+    } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
   }
 
   async function deleteSelected() {
     if (selected.size === 0) return
     if (!confirm(`¿Eliminar ${selected.size} partido(s)?`)) return
     setDeleting(true)
-    await fetch('/api/admin/partidos', {
+    const count = selected.size
+    try {
+    await adminRequest(fetch('/api/admin/partidos', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: [...selected] }),
-    })
+    }), isOk)
     setMatches(prev => prev.filter(m => !selected.has(m.id)))
     setSelected(new Set())
-    setDeleting(false)
-    notify(`${selected.size} partido(s) eliminado(s)`)
+    notify(`${count} partido(s) eliminado(s)`)
+    } catch (error) { notify(errorMessage(error)) } finally { setDeleting(false) }
   }
 
   function update(id: string, patch: Partial<Match>) {
@@ -112,7 +117,7 @@ export default function AdminPartidos() {
     setMatches(prev => prev.map(m => {
       if (m.id !== matchId) return m
       const phase = phases.find(p => p.id === m.phaseId)
-      const bo = phase?.config.bo ?? 1
+      const bo = phase ? getEffectiveBO(phase, m.round) : 1
       const wins = Math.ceil(bo / 2)
       const isTeam1 = winnerId === m.team1Id
       return {
@@ -152,37 +157,11 @@ export default function AdminPartidos() {
     setMatches(prev => prev.map(m => {
       if (m.id !== matchId) return m
       const games = [...(m.games ?? [])]
-      while (games.length <= gameIndex) games.push(undefined as unknown as GameData)
+      while (games.length <= gameIndex) games.push(null)
       games[gameIndex] = gameData
       return { ...m, games }
     }))
     notify(`Partida ${gameIndex + 1} cargada: ${gameData.duration}`)
-  }
-
-  async function uploadScreenshot(matchId: string, gameIndex: number, file: File, customPrompt?: string): Promise<GameData | null> {
-    const key = `${matchId}-${gameIndex}`
-    setParsing(key)
-    setParseError(null)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      if (customPrompt) formData.append('prompt', customPrompt)
-      const res = await fetch('/api/admin/partidos/parse-screenshot', {
-        method: 'POST',
-        body: formData,
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setParseError(data.error ?? 'Error al parsear')
-        return null
-      }
-      return data as GameData
-    } catch {
-      setParseError('Error de red al enviar la captura')
-      return null
-    } finally {
-      setParsing(null)
-    }
   }
 
   async function generateTournamentCodes(matchId: string) {
@@ -199,9 +178,9 @@ export default function AdminPartidos() {
         return
       }
       setMatches(prev => prev.map(m =>
-        m.id === matchId ? { ...m, tournamentCodes: data.codes } : m
+        m.id === matchId ? { ...m, tournamentCodes: data.codes, tournamentCodesGeneratedAt: new Date().toISOString() } : m
       ))
-      notify('Tournament codes generados')
+      notify(data.regenerated ? 'Tournament codes expirados: regenerados' : 'Tournament codes generados')
     } catch {
       notify('Error de conexion')
     } finally {
@@ -211,12 +190,9 @@ export default function AdminPartidos() {
 
   async function fetchLobbyEvents(code: string) {
     try {
-      const res = await fetch(`/api/admin/partidos/lobby?code=${encodeURIComponent(code)}`)
-      const events = await res.json()
-      if (Array.isArray(events)) {
-        setLobbyData(prev => ({ ...prev, [code]: events }))
-      }
-    } catch { /* ignore */ }
+      const events = await adminRequest(fetch(`/api/admin/partidos/lobby?code=${encodeURIComponent(code)}`), value => Array.isArray(value))
+      setLobbyData(prev => ({ ...prev, [code]: events as { summonerName: string; eventType: string }[] }))
+    } catch (error) { notify(errorMessage(error)) }
   }
 
   function copyToClipboard(text: string) {
@@ -245,11 +221,6 @@ export default function AdminPartidos() {
       return (
         <GameDataModal
           title={`Partida ${gameModal.gameIndex + 1}${t1 && t2 ? ` — ${t1.name} vs ${t2.name}` : ''}`}
-          parsing={parsing === `${gameModal.matchId}-${gameModal.gameIndex}`}
-          onParse={async (file, prompt) => {
-            const result = await uploadScreenshot(gameModal.matchId, gameModal.gameIndex, file, prompt)
-            return result
-          }}
           onApply={(gameData) => {
             applyGameData(gameModal.matchId, gameModal.gameIndex, gameData)
             setGameModal(null)
@@ -262,7 +233,7 @@ export default function AdminPartidos() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold">Partidos</h1>
         <div className="flex items-center gap-3 flex-wrap">
-          {msg && <span className="text-green-400 text-sm">{msg}</span>}
+          {(msg || loadError) && <span className={(loadError || msg.startsWith('Error') || msg.startsWith('Sesión')) ? 'text-red-400 text-sm' : 'text-green-400 text-sm'}>{loadError || msg}</span>}
           {selected.size > 0 && (
             <button
               onClick={deleteSelected}
@@ -291,7 +262,7 @@ export default function AdminPartidos() {
       {matches.length === 0 && <p className="text-white/40 text-sm">No hay partidos. Añade el primero desde una fase.</p>}
 
       <div className="flex flex-col gap-4">
-        {phases.map(phase => {
+      {loadError ? <p className="text-red-400 text-sm">No se pudieron cargar los partidos.</p> : phases.map(phase => {
           const phaseMatches = matches.filter(m => m.phaseId === phase.id)
           const isCollapsed = collapsedPhases.has(phase.id)
           const completedCount = phaseMatches.filter(m => m.result !== null).length
@@ -406,7 +377,7 @@ export default function AdminPartidos() {
                         <input
                           type="number"
                           min={0}
-                          max={phase?.config.bo ?? 5}
+                          max={phase ? getEffectiveBO(phase, match.round) : 5}
                           value={match.result.team1Score}
                           onChange={e => updateScore(match.id, 'team1Score', e.target.value)}
                           className={clsx(
@@ -418,7 +389,7 @@ export default function AdminPartidos() {
                         <input
                           type="number"
                           min={0}
-                          max={phase?.config.bo ?? 5}
+                          max={phase ? getEffectiveBO(phase, match.round) : 5}
                           value={match.result.team2Score}
                           onChange={e => updateScore(match.id, 'team2Score', e.target.value)}
                           className={clsx(
@@ -509,6 +480,16 @@ export default function AdminPartidos() {
                           ) : null}
                         </div>
                       ))}
+                      <button
+                        type="button"
+                        onClick={() => generateTournamentCodes(match.id)}
+                        disabled={generatingCodes === match.id}
+                        className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:text-white hover:border-[#0097D7]/30 transition-colors disabled:opacity-50"
+                        title="Comprueba si han expirado y los regenera"
+                      >
+                        {generatingCodes === match.id ? <Loader2 size={12} className="animate-spin" /> : <Ticket size={12} />}
+                        Regenerar expirados
+                      </button>
                     </div>
                   ) : (
                     <button
@@ -527,7 +508,7 @@ export default function AdminPartidos() {
                 </div>
               )}
 
-              {/* Partidas — captura o Riot ID */}
+              {/* Partidas — datos manuales o Riot ID */}
               <div>
                 <label className="text-xs text-white/30 mb-1.5 block">
                   Partidas (BO{phase?.config.roundBo?.[String(match.round)] ?? phase?.config.bo ?? 1})
@@ -564,8 +545,8 @@ export default function AdminPartidos() {
                                 type="button"
                                 onClick={() => {
                                   const games = [...(match.games ?? [])]
-                                  games.splice(i, 1, undefined as unknown as GameData)
-                                  while (games.length > 0 && !games[games.length - 1]) games.pop()
+                                  games.splice(i, 1, null)
+                                  while (games.length > 0 && games[games.length - 1] === null) games.pop()
                                   update(match.id, { games: games.length > 0 ? games : undefined })
                                 }}
                                 className="text-white/20 hover:text-red-400 transition-colors shrink-0"
@@ -582,8 +563,8 @@ export default function AdminPartidos() {
                               onChange={(e) => {
                                 const value = e.target.value.trim()
                                 const riotMatchIds = [...(match.riotMatchIds ?? [])]
-                                riotMatchIds[i] = value || (undefined as unknown as string)
-                                while (riotMatchIds.length > 0 && !riotMatchIds[riotMatchIds.length - 1]) {
+                                riotMatchIds[i] = value || null
+                                while (riotMatchIds.length > 0 && riotMatchIds[riotMatchIds.length - 1] === null) {
                                   riotMatchIds.pop()
                                 }
                                 update(match.id, {
@@ -595,9 +576,6 @@ export default function AdminPartidos() {
                         </div>
                       )
                     }
-                  )}
-                  {parseError && (
-                    <span className="text-xs text-red-400">{parseError}</span>
                   )}
                 </div>
               </div>
@@ -639,37 +617,15 @@ export default function AdminPartidos() {
 
 function GameDataModal({
   title,
-  parsing,
-  onParse,
   onApply,
   onClose,
 }: {
   title: string
-  parsing: boolean
-  onParse: (file: File, prompt: string) => Promise<GameData | null>
   onApply: (data: GameData) => void
   onClose: () => void
 }) {
-  const [image, setImage] = useState<File | null>(null)
-  const [prompt, setPrompt] = useState(DEFAULT_SCREENSHOT_PROMPT)
-  const [result, setResult] = useState<GameData | null>(null)
-  const [resultJson, setResultJson] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [jsonFile, setJsonFile] = useState<File | null>(null)
-
-  async function handleParse() {
-    if (!image) return
-    setError(null)
-    setResult(null)
-    setResultJson('')
-    const data = await onParse(image, prompt)
-    if (data) {
-      setResult(data)
-      setResultJson(JSON.stringify(data, null, 2))
-    } else {
-      setError('No se pudo parsear la imagen')
-    }
-  }
 
   function handleJsonUpload() {
     if (!jsonFile) return
@@ -703,73 +659,9 @@ function GameDataModal({
         </div>
 
         <div className="overflow-y-auto flex flex-col gap-5 p-5">
-          {/* ── Sección IA ── */}
-          <div className="flex flex-col gap-3">
-            <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Parsear con IA</p>
-
-            {/* Selector de imagen */}
-            <label className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/25 transition-colors cursor-pointer w-fit">
-              <ImageUp size={13} />
-              {image ? image.name : 'Seleccionar imagen...'}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) setImage(f); e.target.value = '' }}
-              />
-            </label>
-
-            {/* Prompt editable */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-white/30">Prompt</label>
-              <textarea
-                value={prompt}
-                onChange={e => setPrompt(e.target.value)}
-                rows={6}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[11px] text-white/70 font-mono focus:outline-none focus:border-[#0097D7]/40 resize-y"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleParse}
-              disabled={!image || parsing}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-xs font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-40 w-fit"
-            >
-              {parsing ? <><Loader2 size={12} className="animate-spin" /> Parseando...</> : <>Parsear con IA</>}
-            </button>
-
-            {/* Preview JSON */}
-            {resultJson && (
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-white/30">Resultado</label>
-                <textarea
-                  readOnly
-                  value={resultJson}
-                  rows={8}
-                  className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-[11px] text-green-300 font-mono focus:outline-none resize-y"
-                />
-                <button
-                  type="button"
-                  onClick={() => result && onApply(result)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600/30 border border-green-500/40 text-green-400 text-xs font-bold hover:bg-green-600/40 transition-colors w-fit"
-                >
-                  <Check size={12} /> Aplicar resultado
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* ── Divisor ── */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-white/10" />
-            <span className="text-[10px] text-white/25">o sube el JSON directamente</span>
-            <div className="flex-1 h-px bg-white/10" />
-          </div>
-
           {/* ── Sección JSON ── */}
           <div className="flex flex-col gap-3">
-            <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Subir JSON</p>
+            <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Cargar datos de partida</p>
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/25 transition-colors cursor-pointer">
                 <FileJson2 size={13} />

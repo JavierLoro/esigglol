@@ -7,9 +7,9 @@ Documento de seguimiento de tareas pendientes para llevar ESIgg.lol a produccion
 ## Critico — Antes de cualquier despliegue
 
 ### Seguridad de credenciales
-- [ ] Rotar todas las API keys (Riot, Anthropic) y generar nuevos secrets
-- [ ] Generar `SESSION_SECRET` con un valor criptograficamente seguro (no UUID simple)
-- [ ] Usar un gestor de secretos (Vault, AWS Secrets Manager, o similar) en lugar de `.env.local`
+- [ ] Rotar todas las API keys (Riot) y generar nuevos secrets
+- [x] Proporcionar un generador de `SESSION_SECRET` criptograficamente seguro (256 bits desde CSPRNG)
+- [x] Usar variables inyectadas por el runtime/gestor de secretos en producción en lugar de `.env.local`
 - [x] Asegurar que `.env.local` nunca se commitea (ya esta en `.gitignore`, verificar)
 
 ### Hasheo de password de admin
@@ -88,12 +88,6 @@ Documento de seguimiento de tareas pendientes para llevar ESIgg.lol a produccion
 - [ ] Manejar errores 429 (rate limit) con retry + backoff exponencial
 - [ ] Persistir cache de Riot API en Redis/SQLite para sobrevivir reinicios
 
-### Integracion Anthropic (screenshot parsing)
-- [ ] Configurar `ANTHROPIC_API_KEY` en produccion
-- [ ] Anadir fallback si la key no esta configurada (deshabilitar boton en UI)
-- [ ] Cachear resultados parseados para evitar costes duplicados
-- [ ] Documentar coste estimado por screenshot
-
 ---
 
 ## Baja prioridad — Mejoras continuas
@@ -139,7 +133,6 @@ Documento de seguimiento de tareas pendientes para llevar ESIgg.lol a produccion
 
 ### Programacion de partidos (`scheduledAt`)
 - [ ] No se valida que la fecha sea futura
-- [ ] No hay conversion/indicacion de timezone para el usuario
 - [ ] No existe sistema de recordatorios o notificaciones de proximos partidos
 - [ ] No se ordena por fecha programada en la vista publica
 
@@ -166,11 +159,6 @@ Documento de seguimiento de tareas pendientes para llevar ESIgg.lol a produccion
 ### Comparador de equipos (`/comparar`)
 - [x] Revisar que se muestran todas las stats disponibles (mastery, historial reciente)
 - [x] Los datos de `data-riot.ts` (mastery/historial) solo se usan en paginas de equipo, no en comparacion
-
-### Datos de partida: prioridad screenshot vs Riot API
-- [ ] Los datos de screenshot parseados tienen prioridad sobre los de Riot API
-- [ ] Si un screenshot se parsea mal, no hay forma de corregirlo desde la UI sin borrar el game data
-- [ ] No hay validacion cruzada entre datos de screenshot y datos reales de Riot
 
 ### Bracket — edge cases sin tests
 - [x] Logica de avance en `lib/bracket.ts` no tiene tests automatizados (12 tests en Vitest)

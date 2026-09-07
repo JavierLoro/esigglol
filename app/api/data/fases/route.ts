@@ -1,18 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getPhases, getMatches } from '@/lib/data'
-
-const BRACKET_TYPES = new Set(['elimination', 'final-four', 'upper-lower'])
+import { getPublishedTournamentData } from '@/lib/publication'
 
 export async function GET() {
   const phases = getPhases()
   const allMatches = getMatches()
-  const matches = allMatches.filter(m => {
-    const phase = phases.find(p => p.id === m.phaseId)
-    if (!phase) return false
-    if (BRACKET_TYPES.has(phase.type)) return phase.config.confirmedBracket === true
-    return true
-  })
-  const res = NextResponse.json({ phases, matches })
-  res.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=30')
+  const res = NextResponse.json(getPublishedTournamentData(phases, allMatches))
+  res.headers.set('Cache-Control', 'no-store')
   return res
 }

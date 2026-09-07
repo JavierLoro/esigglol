@@ -4,6 +4,7 @@ import GroupsView from '@/components/brackets/GroupsView'
 import SwissView from '@/components/brackets/SwissView'
 import EliminationBracket from '@/components/brackets/EliminationBracket'
 import UpperLowerBracket from '@/components/brackets/UpperLowerBracket'
+import { isPhasePublished } from '@/lib/publication'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +12,7 @@ export default async function OverlayFasePage({ params }: { params: Promise<{ id
   const { id } = await params
   const phase = getPhaseById(id)
   if (!phase) notFound()
+  if (!isPhasePublished(phase)) notFound()
 
   const matches = getMatchesByPhase(id)
   const teams = getTeams()

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, Users, Trophy, Calendar, LogOut } from 'lucide-react'
 import { clsx } from 'clsx'
+import RiotResultNotifications from '@/components/admin/RiotResultNotifications'
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -55,6 +56,7 @@ async function handleLogout() {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)]">
+      <RiotResultNotifications />
       {/* Sidebar — solo desktop */}
       <aside className="hidden md:flex w-52 shrink-0 border-r border-white/10 bg-[#0d1321] flex-col">
         <div className="px-4 py-5 border-b border-white/10">

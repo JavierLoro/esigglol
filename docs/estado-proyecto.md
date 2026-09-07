@@ -39,7 +39,6 @@ Análisis del estado actual a 29 de marzo de 2026.
 ### UI
 - Tema oscuro consistente con design tokens (`--esi-blue`, `--esi-red`)
 - Admin panel responsivo (sidebar desktop + bottom nav móvil)
-- Parseo de screenshots de fin de partida con Claude Vision
 - Comparador de equipos público
 - Tabla de ranking público
 - Embed de Twitch en página principal
@@ -71,19 +70,10 @@ Las llamadas `fetch` a la API de Riot no tienen límite de tiempo. Una respuesta
 **Refresh individual de jugador**
 Solo existe refresh masivo (botón global en `/ranking`). No se puede refrescar un solo jugador desde la UI.
 
-**Fallback en UI para `ANTHROPIC_API_KEY`**
-El botón de parsear screenshot no se desactiva si la key no está configurada. El usuario recibe error solo al intentarlo.
-
-**Datos de screenshot sin corrección**
-Si un screenshot se parsea mal, no hay forma de corregirlo desde la UI sin borrar el `games[]` del partido.
-
 ### Prioridad baja
 
 **Sin reset de tournament config**
 Una vez registrado un provider/tournament en Riot, no hay forma de reconfigurarlo desde la UI.
-
-**Sin indicación de timezone en `scheduledAt`**
-Las fechas programadas se muestran sin referencia de zona horaria.
 
 **Sin tests E2E**
 Hay tests unitarios de `bracket.ts` (12 casos con Vitest), pero no hay tests de integración para flujos completos como generación de bracket + actualización de resultados.
@@ -123,6 +113,5 @@ Estos puntos bloquean o degradan significativamente la experiencia en producció
 1. Sistema de migraciones de DB (`#` ver issue)
 2. Backups automáticos de SQLite
 3. Timeout en llamadas fetch de Riot
-4. Fallback en UI cuando `ANTHROPIC_API_KEY` falta
-5. Refresh individual de jugador
-6. Reset de tournament config desde UI
+4. Refresh individual de jugador
+5. Reset de tournament config desde UI

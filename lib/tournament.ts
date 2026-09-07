@@ -1,8 +1,18 @@
-import { MATCH_CLUSTER } from './env'
+import { MATCH_CLUSTER, TOURNAMENT_API_MODE } from './env'
 import db from './db'
 import type { TournamentConfig, LobbyEvent } from './types'
 import { getRiotApiKey } from './data'
-const TOURNAMENT_BASE = `https://${MATCH_CLUSTER}.api.riotgames.com/lol/tournament-stub/v5`
+export const TOURNAMENT_BASE = `https://${MATCH_CLUSTER}.api.riotgames.com/lol/${
+  TOURNAMENT_API_MODE === 'production' ? 'tournament' : 'tournament-stub'
+}/v5`
+
+/** Error returned by Riot, retaining the status so callers can distinguish an expired code (404). */
+export class TournamentApiError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message)
+    this.name = 'TournamentApiError'
+  }
+}
 
 async function tournamentFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -16,7 +26,7 @@ async function tournamentFetch<T>(url: string, options?: RequestInit): Promise<T
 
   if (!res.ok) {
     const body = await res.text()
-    throw new Error(`Tournament API error ${res.status}: ${body}`)
+    throw new TournamentApiError(res.status, `Tournament API error ${res.status}: ${body}`)
   }
 
   return res.json() as Promise<T>
@@ -89,4 +99,9 @@ export function saveTournamentConfig(config: TournamentConfig): void {
   db.prepare(
     'INSERT OR REPLACE INTO tournament_config (key, data) VALUES (?, ?)'
   ).run('config', JSON.stringify(config))
+}
+
+/** Remove the registered Riot tournament while keeping other settings (such as the API key). */
+export function deleteTournamentConfig(): void {
+  db.prepare('DELETE FROM tournament_config WHERE key = ?').run('config')
 }

@@ -4,8 +4,19 @@ services:
     user: "1000"
     ports:
       - "3000:3000"
-    env_file:
-      - .env.local
+    # Production values come from the host, deploy platform, or an external
+    # secret manager; never copy .env.local to the server.
+    environment:
+      - SESSION_SECRET
+      - ADMIN_PASSWORD_HASH
+      - RIOT_API_KEY
+      - RIOT_REGION
+      - TWITCH_CHANNEL
+      - ANTHROPIC_API_KEY
+      - REFRESH_AUTO_INTERVAL_MS
+      - REFRESH_BATCH_SIZE
+      - REFRESH_BATCH_DELAY_MS
+      - DB_PATH
     volumes:
       - ./data:/app/data
     restart: unless-stopped
@@ -17,6 +28,23 @@ services:
       start_period: 10s
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
+
+  backup:
+    # The backup worker uses SQLite's online backup API, so it is safe while
+    # the app is writing in WAL mode. BACKUP_HOST_PATH may point to a mounted
+    # disk/NFS directory; keep it outside the database volume when possible.
+    build:
+      context: .
+      target: backup
+    user: "1000"
+    env_file:
+      - .env.local
+    environment:
+      BACKUP_DIR: /app/backups
+    volumes:
+      - ./data:/app/data:ro
+      - ${BACKUP_HOST_PATH:-./backups}:/app/backups
+    restart: unless-stopped
 
   watchtower:
     image: containrrr/watchtower:latest

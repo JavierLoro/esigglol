@@ -1,18 +1,29 @@
 import { z } from 'zod'
+import { validateGroupsConfig } from './phase-validation'
 
 const RoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente'])
 
 const PlayerSchema = z.object({
-  id: z.string().min(1),
-  summonerName: z.string().min(1),
+  id: z.string().trim().min(1),
+  summonerName: z.string().trim().min(1),
   primaryRole: RoleSchema,
   secondaryRole: z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill']).optional(),
 })
 
 export const TeamSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().trim().min(1).max(100),
   logo: z.string().default(''),
   players: z.array(PlayerSchema).default([]),
+}).superRefine((team, ctx) => {
+  const ids = new Set<string>()
+  const summonerNames = new Set<string>()
+  team.players.forEach((player, index) => {
+    if (ids.has(player.id)) ctx.addIssue({ code: 'custom', path: ['players', index, 'id'], message: 'El ID del jugador debe ser único' })
+    ids.add(player.id)
+    const name = player.summonerName.trim().toLocaleLowerCase()
+    if (summonerNames.has(name)) ctx.addIssue({ code: 'custom', path: ['players', index, 'summonerName'], message: 'El invocador no puede repetirse' })
+    summonerNames.add(name)
+  })
 })
 
 export const TeamUpdateSchema = TeamSchema.extend({
@@ -41,9 +52,10 @@ const PhaseConfigSchema = z.object({
   confirmedRounds: z.array(z.number()).optional(),
   bracketTeamIds: z.array(z.string()).optional(),
   include3rdPlace: z.boolean().optional(),
+  confirmedBracket: z.boolean().optional(),
 })
 
-export const PhaseSchema = z.object({
+const PhaseSchemaBase = z.object({
   name: z.string().min(1).max(100),
   type: PhaseTypeSchema,
   status: PhaseStatusSchema.default('upcoming'),
@@ -51,9 +63,19 @@ export const PhaseSchema = z.object({
   config: PhaseConfigSchema,
 })
 
-export const PhaseUpdateSchema = PhaseSchema.extend({
+function addPhaseValidation(phase: { type: string; config: { groups?: ReadonlyArray<{ id: string; teamIds: ReadonlyArray<string> }>; advanceCount?: number } }, ctx: z.RefinementCtx) {
+  if (phase.type === 'groups') {
+    for (const message of validateGroupsConfig(phase.config)) {
+      ctx.addIssue({ code: 'custom', message, path: ['config', 'groups'] })
+    }
+  }
+}
+
+export const PhaseSchema = PhaseSchemaBase.superRefine(addPhaseValidation)
+
+export const PhaseUpdateSchema = PhaseSchemaBase.extend({
   id: z.string().min(1),
-})
+}).superRefine(addPhaseValidation)
 
 const MatchResultSchema = z.object({
   team1Score: z.number().int().nonnegative(),
@@ -88,10 +110,26 @@ export const MatchSchema = z.object({
   team2Id: z.string().min(1),
   result: MatchResultSchema.nullable().default(null),
   winnerId: z.string().optional(),
-  riotMatchIds: z.array(z.string()).default([]),
-  games: z.array(GameDataSchema).optional(),
+  // null is an explicit empty slot, so deleting game 2 does not create an
+  // invalid sparse array when the payload is serialized as JSON.
+  riotMatchIds: z.array(z.string().nullable()).default([]),
+  games: z.array(GameDataSchema.nullable()).optional(),
   scheduledAt: z.string().optional(),
   tournamentCodes: z.array(z.string()).optional(),
+}).superRefine((match, ctx) => {
+  if (match.team1Id !== 'TBD' && match.team1Id === match.team2Id) {
+    ctx.addIssue({ code: 'custom', path: ['team2Id'], message: 'Un partido debe tener dos equipos distintos' })
+  }
+  if (match.result === null) {
+    if (match.winnerId !== undefined) ctx.addIssue({ code: 'custom', path: ['winnerId'], message: 'Un partido sin resultado no puede tener ganador' })
+    return
+  }
+  if (match.result.team1Score === match.result.team2Score) {
+    ctx.addIssue({ code: 'custom', path: ['result'], message: 'El resultado no puede terminar en empate' })
+    return
+  }
+  const expectedWinner = match.result.team1Score > match.result.team2Score ? match.team1Id : match.team2Id
+  if (match.winnerId !== expectedWinner) ctx.addIssue({ code: 'custom', path: ['winnerId'], message: 'El ganador debe coincidir con el resultado' })
 })
 
 export const MatchUpdateSchema = MatchSchema.extend({

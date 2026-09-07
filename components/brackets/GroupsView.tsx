@@ -2,6 +2,7 @@ import type { Phase, Match, Team } from '@/lib/types'
 import Image from 'next/image'
 import Link from 'next/link'
 import { clsx } from 'clsx'
+import LocalDateTime from '@/components/LocalDateTime'
 
 interface Props {
   phase: Phase
@@ -41,12 +42,6 @@ function getGroupStandings(teamIds: string[], matches: Match[]): Standing[] {
   }
 
   return Object.values(standings).sort((a, b) => b.points - a.points || b.wins - a.wins)
-}
-
-function formatDate(iso?: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 export default function GroupsView({ phase, matches, teams }: Props) {
@@ -177,7 +172,7 @@ export default function GroupsView({ phase, matches, teams }: Props) {
                               {m.result.team2Score}
                             </span>
                           ) : m.scheduledAt ? (
-                            <span className="text-[11px] text-white/30">{formatDate(m.scheduledAt)}</span>
+                            <LocalDateTime iso={m.scheduledAt} className="text-[11px] text-white/30" />
                           ) : (
                             <span className="text-xs text-white/20">vs</span>
                           )}

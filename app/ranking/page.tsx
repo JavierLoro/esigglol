@@ -98,7 +98,7 @@ export default async function RankingPage() {
         </div>
       )}
 
-      {rows.length > 0 && <RankingTable rows={rows} />}
+      {rows.length > 0 && <RankingTable rows={rows} isAdmin={isAdmin} />}
     </div>
   )
 }

@@ -15,3 +15,17 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  backup:
+    build:
+      context: .
+      target: backup
+    user: "1000"
+    env_file:
+      - .env.local
+    environment:
+      BACKUP_DIR: /app/backups
+    volumes:
+      - ./data:/app/data:ro
+      - ${BACKUP_HOST_PATH:-./backups}:/app/backups
+    restart: unless-stopped

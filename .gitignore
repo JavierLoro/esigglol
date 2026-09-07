@@ -33,6 +33,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -48,6 +49,7 @@ skills-lock.json
 
 # runtime data directory
 /data/
+/backups/
 
 # typescript
 *.tsbuildinfo

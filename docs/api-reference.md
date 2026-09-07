@@ -78,6 +78,7 @@ Elimina un equipo.
 **Auth:** Sí
 **Body:** `{ "id": "team-..." }`
 **Respuesta:** `200 OK`
+**Errores:** `404` si el equipo no existe; `409` si el equipo está referenciado por una fase o partido (la respuesta incluye `references.phaseIds` y `references.matchIds`)
 
 ---
 
@@ -207,15 +208,6 @@ Consulta los eventos de lobby de los tournament codes de un partido.
 
 ---
 
-### `POST /api/admin/partidos/parse-screenshot`
-
-Parsea un screenshot de fin de partida usando Claude Vision.
-
-**Auth:** Sí
-**Body:** `multipart/form-data` con campo `file` (imagen PNG/JPG) y `matchId`
-**Respuesta:** `200 OK` → `GameData`
-**Requiere:** `ANTHROPIC_API_KEY` configurada
-
 ---
 
 ## Settings
@@ -258,6 +250,12 @@ Webhook receptor de eventos de Riot Tournament API.
 **Auth:** No (Riot llama directamente)
 **Body:** evento de Riot (JSON)
 **Respuesta:** `200 OK`
+
+### `GET /api/admin/riot-events`
+
+Canal SSE para administradores autenticados. Emite `riot-result` cuando el callback de Riot añade y persiste un nuevo `gameId` en un partido. Incluye latidos periódicos para mantener la conexión activa.
+
+**Auth:** Sí
 
 ---
 

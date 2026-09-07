@@ -15,6 +15,8 @@ const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
 let isRunning = false
 let keyExpired = false
 
+const normalizeName = (name: string) => name.trim().replace(/\s*#\s*/g, '#').toLowerCase()
+
 export function getRefreshState() {
   const cache = getPlayerStatsCache()
   return { lastUpdated: cache.lastUpdated, running: isRunning, keyExpired }
@@ -33,6 +35,17 @@ function buildChampionMap(): Map<number, string> {
     log.warn('No se pudo leer champion.json, mastery sin nombres')
     return new Map()
   }
+}
+
+export function getRefreshTarget(summonerName: string): { player: Player; team: Team } | null {
+  const normalized = normalizeName(summonerName)
+  if (!normalized) return null
+
+  for (const team of getTeams()) {
+    const player = team.players.find(p => normalizeName(p.summonerName) === normalized)
+    if (player) return { player, team }
+  }
+  return null
 }
 
 async function collectChampionData(summonerName: string, puuid: string, championMap: Map<number, string>) {
@@ -88,12 +101,62 @@ async function collectChampionData(summonerName: string, puuid: string, champion
   log.info({ summonerName, mastery: masteries.length, matchesSaved: saved, matchesNew: newIds.length }, 'Player refreshed')
 }
 
+async function loadPlayerRow(player: Player, team: Team, championMap: Map<number, string>): Promise<PlayerRow> {
+  const stats = await getPlayerStats(player.summonerName)
+  ensureProfileIcon(stats.profileIconId).catch(() => {})
+
+  if (stats.puuid) {
+    try {
+      await collectChampionData(player.summonerName, stats.puuid, championMap)
+    } catch (err) {
+      // Champion history is supplementary: a failure must not discard fresh rank stats.
+      log.warn({ summonerName: player.summonerName, err }, 'Error collecting champion data')
+    }
+  }
+
+  return {
+    ...stats,
+    teamId: team.id,
+    teamName: team.name,
+    teamLogo: team.logo,
+    primaryRole: player.primaryRole,
+    secondaryRole: player.secondaryRole,
+  }
+}
+
+export async function runPlayerRefresh(summonerName: string): Promise<PlayerRow> {
+  if (isRunning) throw new Error('Ya hay una actualización en curso')
+
+  const target = getRefreshTarget(summonerName)
+  if (!target) throw new Error('Jugador no encontrado')
+
+  isRunning = true
+  keyExpired = false
+
+  try {
+    const championMap = buildChampionMap()
+    const previousCache = getPlayerStatsCache()
+    const row = await loadPlayerRow(target.player, target.team, championMap)
+    const refreshedName = normalizeName(row.summonerName)
+    const kept = previousCache.players.filter(p => normalizeName(p.summonerName) !== refreshedName)
+    savePlayerStatsCache({
+      lastUpdated: new Date().toISOString(),
+      players: [...kept, row],
+    })
+    return row
+  } catch (err) {
+    if (err instanceof RiotApiKeyError) keyExpired = true
+    throw err
+  } finally {
+    isRunning = false
+  }
+}
+
 export async function runRefresh(teamIds?: string[]) {
   isRunning = true
   keyExpired = false
 
   try {
-    const normalizeName = (name: string) => name.trim().replace(/\s*#\s*/g, '#').toLowerCase()
     const allTeams = getTeams()
     const teams = teamIds ? allTeams.filter(t => teamIds.includes(t.id)) : allTeams
     const players = teams.flatMap((team: Team) =>
@@ -113,24 +176,7 @@ export async function runRefresh(teamIds?: string[]) {
         if (aborted) return
 
         try {
-          const stats = await getPlayerStats(p.summonerName)
-          ensureProfileIcon(stats.profileIconId).catch(() => {})
-          rows.push({
-            ...stats,
-            teamId: team.id,
-            teamName: team.name,
-            teamLogo: team.logo,
-            primaryRole: p.primaryRole,
-            secondaryRole: p.secondaryRole,
-          })
-
-          if (stats.puuid) {
-            try {
-              await collectChampionData(p.summonerName, stats.puuid, championMap)
-            } catch (err) {
-              log.warn({ summonerName: p.summonerName, err }, 'Error collecting champion data')
-            }
-          }
+          rows.push(await loadPlayerRow(p, team, championMap))
         } catch (err) {
           if (err instanceof RiotApiKeyError) {
             log.error({ summonerName: p.summonerName }, 'Riot API key expired or invalid — aborting refresh')
