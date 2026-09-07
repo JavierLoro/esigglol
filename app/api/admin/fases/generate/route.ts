@@ -6,17 +6,9 @@ import logger from '@/lib/logger'
 import type { Match, BOFormat } from '@/lib/types'
 import { bracketSizeError } from '@/lib/bracket-sizes'
 import { validateGroupsConfig } from '@/lib/phase-validation'
+import { createSwissPairings, getSwissRecords, getSwissRoundError } from '@/lib/swiss'
 
 const log = logger.child({ module: 'generate' })
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
 
 export async function POST(req: NextRequest) {
   const deny = await requireAdminSession()
@@ -99,33 +91,23 @@ export async function POST(req: NextRequest) {
       const teamIds = phase.config.swissTeamIds ?? []
       const roundBo = (phase.config.roundBo?.[String(round)] ?? phase.config.bo) as BOFormat
 
+      const sequenceError = getSwissRoundError(phaseMatches, round, phase.config.confirmedRounds)
+      if (sequenceError) return NextResponse.json({ error: sequenceError }, { status: 400 })
+
       if (round === 1) {
-        const shuffled = shuffle(teamIds)
-        for (let i = 0; i < shuffled.length - 1; i += 2) {
+        for (let i = 0; i < teamIds.length - 1; i += 2) {
           created.push({
             id: generateId('match'),
             phaseId: phase.id,
             round,
-            team1Id: shuffled[i],
-            team2Id: shuffled[i + 1],
+            team1Id: teamIds[i],
+            team2Id: teamIds[i + 1],
             result: null,
             riotMatchIds: [],
           })
         }
       } else {
-        const stats: Record<string, { wins: number; losses: number }> = {}
-        for (const id of teamIds) stats[id] = { wins: 0, losses: 0 }
-
-        for (const m of phaseMatches) {
-          if (!m.result) continue
-          if (m.result.team1Score > m.result.team2Score) {
-            if (stats[m.team1Id]) stats[m.team1Id].wins++
-            if (stats[m.team2Id]) stats[m.team2Id].losses++
-          } else {
-            if (stats[m.team2Id]) stats[m.team2Id].wins++
-            if (stats[m.team1Id]) stats[m.team1Id].losses++
-          }
-        }
+        const stats = getSwissRecords(phaseMatches, teamIds)
 
         const advW = phase.config.advanceWins ?? 2
         const elimL = phase.config.eliminateLosses ?? 2
@@ -135,22 +117,8 @@ export async function POST(req: NextRequest) {
           return s && s.wins < advW && s.losses < elimL
         })
 
-        const groups: Record<string, string[]> = {}
-        for (const id of active) {
-          const key = `${stats[id].wins}-${stats[id].losses}`
-          if (!groups[key]) groups[key] = []
-          groups[key].push(id)
-        }
-
-        const alreadyPlayed = new Set(phaseMatches.map(m => [m.team1Id, m.team2Id].sort().join('|')))
-
-        for (const bucket of Object.values(groups)) {
-          const shuffledBucket = shuffle(bucket)
-          const remaining = [...shuffledBucket]
-          while (remaining.length >= 2) {
-            const a = remaining.shift()!
-            const idx = remaining.findIndex(b => !alreadyPlayed.has([a, b].sort().join('|')))
-            const b = idx !== -1 ? remaining.splice(idx, 1)[0] : remaining.shift()!
+        const pairing = createSwissPairings(active, phaseMatches, stats)
+        for (const { team1Id: a, team2Id: b } of pairing.pairs) {
             created.push({
               id: generateId('match'),
               phaseId: phase.id,
@@ -160,7 +128,11 @@ export async function POST(req: NextRequest) {
               result: null,
               riotMatchIds: [],
             })
-          }
+        }
+        if (pairing.unpairedTeamId) {
+          return NextResponse.json({
+            error: `No se ha podido emparejar al equipo ${pairing.unpairedTeamId} sin dejar un bye. Revisa los resultados de la ronda anterior.`,
+          }, { status: 400 })
         }
       }
 
