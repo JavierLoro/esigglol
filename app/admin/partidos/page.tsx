@@ -270,19 +270,24 @@ export default function AdminPartidos() {
           return (
             <div key={phase.id} className="flex flex-col gap-0">
               {/* ── Cabecera de fase ── */}
-              <button
-                type="button"
-                onClick={() => togglePhaseCollapse(phase.id)}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-[#0d1321] hover:bg-white/[0.04] transition-colors w-full text-left"
-              >
-                {isCollapsed
-                  ? <ChevronRight size={15} className="text-white/30 shrink-0" />
-                  : <ChevronDown  size={15} className="text-white/30 shrink-0" />
-                }
-                <span className="font-semibold text-sm flex-1 truncate">{phase.name}</span>
-                <span className="text-xs text-white/30 shrink-0">
-                  {completedCount}/{phaseMatches.length} completados
-                </span>
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-[#0d1321] hover:bg-white/[0.04] transition-colors w-full">
+                <button
+                  type="button"
+                  id={`phase-toggle-${phase.id}`}
+                  aria-expanded={!isCollapsed}
+                  aria-controls={`phase-matches-${phase.id}`}
+                  onClick={() => togglePhaseCollapse(phase.id)}
+                  className="flex items-center gap-2 min-w-0 flex-1 text-left"
+                >
+                  {isCollapsed
+                    ? <ChevronRight size={15} className="text-white/30 shrink-0" />
+                    : <ChevronDown  size={15} className="text-white/30 shrink-0" />
+                  }
+                  <span className="font-semibold text-sm truncate">{phase.name}</span>
+                  <span className="text-xs text-white/30 shrink-0">
+                    {completedCount}/{phaseMatches.length} completados
+                  </span>
+                </button>
                 <button
                   type="button"
                   onClick={e => { e.stopPropagation(); addMatch(phase.id) }}
@@ -290,11 +295,16 @@ export default function AdminPartidos() {
                 >
                   <Plus size={12} /> Añadir
                 </button>
-              </button>
+              </div>
 
               {/* ── Partidos de la fase (colapsables) ── */}
               {!isCollapsed && (
-                <div className="flex flex-col gap-3 pt-3">
+                <div
+                  id={`phase-matches-${phase.id}`}
+                  role="region"
+                  aria-labelledby={`phase-toggle-${phase.id}`}
+                  className="flex flex-col gap-3 pt-3"
+                >
                   {phaseMatches.length === 0 && (
                     <p className="text-white/30 text-xs px-1">Sin partidos en esta fase.</p>
                   )}
