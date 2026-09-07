@@ -11,7 +11,9 @@ const log = logger.child({ module: 'equipos' })
 export async function GET() {
   const deny = await requireAdminSession()
   if (deny) return deny
-  return NextResponse.json(getTeams())
+  return NextResponse.json(getTeams(), {
+    headers: { 'Cache-Control': 'private, no-store' },
+  })
 }
 
 export async function POST(req: NextRequest) {

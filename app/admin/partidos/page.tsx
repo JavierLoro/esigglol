@@ -27,7 +27,10 @@ export default function AdminPartidos() {
   useEffect(() => {
     Promise.all([
       adminRequest<Match[]>(fetch('/api/admin/partidos'), isArrayOfRecords),
-      adminRequest<Team[]>(fetch('/api/data/equipos'), isArrayOfRecords),
+      // The public endpoint is intentionally cached for visitors. Admin data
+      // must come from the authenticated endpoint so edits are visible
+      // immediately and never leak through a shared cache.
+      adminRequest<Team[]>(fetch('/api/admin/equipos', { cache: 'no-store' }), isArrayOfRecords),
       adminRequest<Phase[]>(fetch('/api/admin/fases'), isArrayOfRecords),
     ]).then(([m, t, p]) => { setMatches(m); setTeams(t); setPhases(p) }).catch(error => setLoadError(errorMessage(error)))
     adminRequest<{ providerId?: string } | null>(fetch('/api/admin/tournament'), value => value === null || (typeof value === 'object' && value !== null)).then(data => {
