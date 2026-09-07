@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { NextRequest } from 'next/server'
 
 const mocks = vi.hoisted(() => ({
   requireAdminSession: vi.fn(),
@@ -32,7 +33,7 @@ describe('POST /api/admin/fases/generate', () => {
   })
 
   it('rechaza el tipo del contrato aunque contradiga el tipo persistido', async () => {
-    const response = await POST(new Request('http://localhost/api/admin/fases/generate', {
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
       method: 'POST',
       body: JSON.stringify({ phaseId: 'phase-1', type: 'swiss' }),
     }))
@@ -44,10 +45,10 @@ describe('POST /api/admin/fases/generate', () => {
   it('genera partidos usando el tipo persistido de la fase', async () => {
     mocks.getPhaseById.mockReturnValue({
       id: 'phase-1', name: 'Grupos', type: 'groups', status: 'upcoming', order: 1,
-      config: { bo: 1, groups: [{ id: 'A', teamIds: ['team-1', 'team-2'] }] },
+      config: { bo: 1, advanceCount: 1, groups: [{ id: 'A', teamIds: ['team-1', 'team-2'] }] },
     })
 
-    const response = await POST(new Request('http://localhost/api/admin/fases/generate', {
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
       method: 'POST',
       body: JSON.stringify({ phaseId: 'phase-1' }),
     }))

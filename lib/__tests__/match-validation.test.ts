@@ -41,8 +41,9 @@ describe('BO efectivo por ronda', () => {
 
   it('rechaza ganador en parcial y exige ganador en final', () => {
     const p = { ...phase, config: { ...phase.config, bo: 3 as const } }
-    expect(validateMatchResult(p, { ...match, winnerId: 'A' }, { team1Score: 1, team2Score: 0 })).toContain('parcial')
-    expect(validateMatchResult(p, match, { team1Score: 2, team2Score: 0 })).toContain('obligatorio')
-    expect(validateMatchResult(p, { ...match, winnerId: 'A' }, { team1Score: 3, team2Score: 0 })).toContain('superar')
+    const bo3Match = { ...match, round: 1 }
+    expect(validateMatchResult(p, { ...bo3Match, winnerId: 'A' }, { team1Score: 1, team2Score: 0 })).toContain('parcial')
+    expect(validateMatchResult(p, bo3Match, { team1Score: 2, team2Score: 0 })).toContain('obligatorio')
+    expect(validateMatchResult(p, { ...bo3Match, winnerId: 'A' }, { team1Score: 3, team2Score: 0 })).toContain('superar')
   })
 })
