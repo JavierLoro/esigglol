@@ -119,7 +119,7 @@ export default function AdminFases() {
     const data = await adminRequest<{ created: number }>(fetch('/api/admin/fases/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phaseId: phase.id, type, round }),
+      body: JSON.stringify({ phaseId: phase.id, round }),
     }), (value): value is { created: number } => typeof value === 'object' && value !== null && 'created' in value && typeof value.created === 'number')
     await loadMatches()
     notify(data.created > 0 ? `${data.created} partido${data.created !== 1 ? 's' : ''} generado${data.created !== 1 ? 's' : ''}` : 'No hay partidos nuevos que generar')

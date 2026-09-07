@@ -32,11 +32,15 @@ export async function POST(req: NextRequest) {
   const phase = getPhaseById(body.phaseId)
   if (!phase) return NextResponse.json({ error: 'Fase no encontrada' }, { status: 404 })
 
-  const configuredCount = body.type === 'swiss'
+  // El tipo persistido es la única fuente de verdad. No se acepta un tipo
+  // redundante en el contrato para evitar generar partidos con otra fase.
+  const type = phase.type
+
+  const configuredCount = type === 'swiss'
     ? phase.config.swissTeamIds?.length
-    : body.type === 'groups' ? undefined : phase.config.bracketTeamIds?.length
+    : type === 'groups' ? undefined : phase.config.bracketTeamIds?.length
   if (configuredCount !== undefined) {
-    const sizeError = bracketSizeError(body.type, configuredCount)
+    const sizeError = bracketSizeError(type, configuredCount)
     if (sizeError) return NextResponse.json({ error: sizeError }, { status: 400 })
   }
 
@@ -59,7 +63,7 @@ export async function POST(req: NextRequest) {
     })
 
     // ── Grupos ───────────────────────────────────────────────────────────────
-    if (body.type === 'groups') {
+    if (type === 'groups') {
       const groups = phase.config.groups ?? []
       const validationErrors = validateGroupsConfig(phase.config)
       if (validationErrors.length > 0) {
@@ -90,7 +94,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Suizo ────────────────────────────────────────────────────────────────
-    if (body.type === 'swiss') {
+    if (type === 'swiss') {
       const round = body.round ?? 1
       const teamIds = phase.config.swissTeamIds ?? []
       const roundBo = (phase.config.roundBo?.[String(round)] ?? phase.config.bo) as BOFormat
@@ -164,9 +168,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Eliminación clásica — generación progresiva ──────────────────────────
-    if (body.type === 'elimination') {
+    if (type === 'elimination') {
       const teamIds = phase.config.bracketTeamIds ?? []
-      const sizeError = bracketSizeError(body.type, teamIds.length)
+      const sizeError = bracketSizeError(type, teamIds.length)
       if (sizeError) return NextResponse.json({ error: sizeError }, { status: 400 })
 
       if (!exists(1)) {
@@ -202,9 +206,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Final Four — generación progresiva ───────────────────────────────────
-    if (body.type === 'final-four') {
+    if (type === 'final-four') {
       const teamIds = phase.config.bracketTeamIds ?? []
-      const sizeError = bracketSizeError(body.type, teamIds.length)
+      const sizeError = bracketSizeError(type, teamIds.length)
       if (sizeError) return NextResponse.json({ error: sizeError }, { status: 400 })
 
       if (!exists(1)) {
@@ -227,10 +231,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Upper/Lower Bracket — generación progresiva ──────────────────────────
-    if (body.type === 'upper-lower') {
+    if (type === 'upper-lower') {
       const teamIds = phase.config.bracketTeamIds ?? []
       const n = teamIds.length
-      const sizeError = bracketSizeError(body.type, n)
+      const sizeError = bracketSizeError(type, n)
       if (sizeError) return NextResponse.json({ error: sizeError }, { status: 400 })
 
       if (n <= 4) {

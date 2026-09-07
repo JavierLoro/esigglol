@@ -46,4 +46,18 @@ describe('coherencia de partidas y series', () => {
     const checked = validateAndNormalizeMatch(match({ games: [game('team1'), game('team1'), game('team1'), game('team1')] }), phase)
     expect(checked).toEqual({ ok: false, error: 'El BO3 no puede tener más de 3 partidas' })
   })
+
+  it('no deriva ganador durante un parcial, pero sí al alcanzar las victorias necesarias', () => {
+    const partial = validateAndNormalizeMatch(match({
+      games: [game('team1')], result: { team1Score: 1, team2Score: 0 }, winnerId: undefined,
+    }), phase)
+    expect(partial).toEqual(expect.objectContaining({ ok: true }))
+    if (partial.ok) expect(partial.match.winnerId).toBeUndefined()
+
+    const final = validateAndNormalizeMatch(match({
+      games: [game('team1'), game('team1')], result: { team1Score: 2, team2Score: 0 },
+    }), phase)
+    expect(final).toEqual(expect.objectContaining({ ok: true }))
+    if (final.ok) expect(final.match.winnerId).toBe('a')
+  })
 })

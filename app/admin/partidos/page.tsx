@@ -27,7 +27,10 @@ export default function AdminPartidos() {
   useEffect(() => {
     Promise.all([
       adminRequest<Match[]>(fetch('/api/admin/partidos'), isArrayOfRecords),
-      adminRequest<Team[]>(fetch('/api/data/equipos'), isArrayOfRecords),
+      // The public endpoint is intentionally cached for visitors. Admin data
+      // must come from the authenticated endpoint so edits are visible
+      // immediately and never leak through a shared cache.
+      adminRequest<Team[]>(fetch('/api/admin/equipos', { cache: 'no-store' }), isArrayOfRecords),
       adminRequest<Phase[]>(fetch('/api/admin/fases'), isArrayOfRecords),
     ]).then(([m, t, p]) => { setMatches(m); setTeams(t); setPhases(p) }).catch(error => setLoadError(errorMessage(error)))
     adminRequest<{ providerId?: string } | null>(fetch('/api/admin/tournament'), value => value === null || (typeof value === 'object' && value !== null)).then(data => {
@@ -103,10 +106,13 @@ export default function AdminPartidos() {
       if (m.id !== id) return m
       const result = m.result ?? { team1Score: 0, team2Score: 0 }
       const newResult = { ...result, [key]: Number(val) }
-      // Recalcular winnerId según scores
-      const winnerId = newResult.team1Score > newResult.team2Score
+      // A non-final score is only progress; the Ganador button records the
+      // final marker explicitly. A score reaching the target is final.
+      const phase = phases.find(p => p.id === m.phaseId)
+      const wins = phase ? Math.ceil(getEffectiveBO(phase, m.round) / 2) : 1
+      const winnerId = newResult.team1Score >= wins && newResult.team1Score > newResult.team2Score
         ? m.team1Id
-        : newResult.team2Score > newResult.team1Score
+        : newResult.team2Score >= wins && newResult.team2Score > newResult.team1Score
           ? m.team2Id
           : undefined
       return { ...m, result: newResult, winnerId }
@@ -270,19 +276,24 @@ export default function AdminPartidos() {
           return (
             <div key={phase.id} className="flex flex-col gap-0">
               {/* ── Cabecera de fase ── */}
-              <button
-                type="button"
-                onClick={() => togglePhaseCollapse(phase.id)}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-[#0d1321] hover:bg-white/[0.04] transition-colors w-full text-left"
-              >
-                {isCollapsed
-                  ? <ChevronRight size={15} className="text-white/30 shrink-0" />
-                  : <ChevronDown  size={15} className="text-white/30 shrink-0" />
-                }
-                <span className="font-semibold text-sm flex-1 truncate">{phase.name}</span>
-                <span className="text-xs text-white/30 shrink-0">
-                  {completedCount}/{phaseMatches.length} completados
-                </span>
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-[#0d1321] hover:bg-white/[0.04] transition-colors w-full">
+                <button
+                  type="button"
+                  id={`phase-toggle-${phase.id}`}
+                  aria-expanded={!isCollapsed}
+                  aria-controls={`phase-matches-${phase.id}`}
+                  onClick={() => togglePhaseCollapse(phase.id)}
+                  className="flex items-center gap-2 min-w-0 flex-1 text-left"
+                >
+                  {isCollapsed
+                    ? <ChevronRight size={15} className="text-white/30 shrink-0" />
+                    : <ChevronDown  size={15} className="text-white/30 shrink-0" />
+                  }
+                  <span className="font-semibold text-sm truncate">{phase.name}</span>
+                  <span className="text-xs text-white/30 shrink-0">
+                    {completedCount}/{phaseMatches.length} completados
+                  </span>
+                </button>
                 <button
                   type="button"
                   onClick={e => { e.stopPropagation(); addMatch(phase.id) }}
@@ -290,11 +301,16 @@ export default function AdminPartidos() {
                 >
                   <Plus size={12} /> Añadir
                 </button>
-              </button>
+              </div>
 
               {/* ── Partidos de la fase (colapsables) ── */}
               {!isCollapsed && (
-                <div className="flex flex-col gap-3 pt-3">
+                <div
+                  id={`phase-matches-${phase.id}`}
+                  role="region"
+                  aria-labelledby={`phase-toggle-${phase.id}`}
+                  className="flex flex-col gap-3 pt-3"
+                >
                   {phaseMatches.length === 0 && (
                     <p className="text-white/30 text-xs px-1">Sin partidos en esta fase.</p>
                   )}
@@ -377,7 +393,7 @@ export default function AdminPartidos() {
                         <input
                           type="number"
                           min={0}
-                          max={phase ? getEffectiveBO(phase, match.round) : 5}
+                          max={phase ? Math.ceil(getEffectiveBO(phase, match.round) / 2) : 3}
                           value={match.result.team1Score}
                           onChange={e => updateScore(match.id, 'team1Score', e.target.value)}
                           className={clsx(
@@ -389,7 +405,7 @@ export default function AdminPartidos() {
                         <input
                           type="number"
                           min={0}
-                          max={phase ? getEffectiveBO(phase, match.round) : 5}
+                          max={phase ? Math.ceil(getEffectiveBO(phase, match.round) / 2) : 3}
                           value={match.result.team2Score}
                           onChange={e => updateScore(match.id, 'team2Score', e.target.value)}
                           className={clsx(

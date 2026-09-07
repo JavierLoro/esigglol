@@ -125,11 +125,14 @@ export const MatchSchema = z.object({
     return
   }
   if (match.result.team1Score === match.result.team2Score) {
-    ctx.addIssue({ code: 'custom', path: ['result'], message: 'El resultado no puede terminar en empate' })
+    if (match.winnerId !== undefined) ctx.addIssue({ code: 'custom', path: ['winnerId'], message: 'Un resultado empatado no puede tener ganador' })
     return
   }
-  const expectedWinner = match.result.team1Score > match.result.team2Score ? match.team1Id : match.team2Id
-  if (match.winnerId !== expectedWinner) ctx.addIssue({ code: 'custom', path: ['winnerId'], message: 'El ganador debe coincidir con el resultado' })
+  // The effective BO is phase-dependent, so winner/completion validation is
+  // performed by validateMatchResult after parsing. Partial scores are valid.
+  if (match.winnerId !== undefined && match.winnerId !== match.team1Id && match.winnerId !== match.team2Id) {
+    ctx.addIssue({ code: 'custom', path: ['winnerId'], message: 'El ganador debe ser uno de los equipos del partido' })
+  }
 })
 
 export const MatchUpdateSchema = MatchSchema.extend({
@@ -140,9 +143,8 @@ export const MatchBulkSchema = z.union([MatchSchema, z.array(MatchSchema)])
 
 export const GenerateSchema = z.object({
   phaseId: z.string().min(1),
-  type: PhaseTypeSchema,
   round: z.number().int().positive().optional(),
-})
+}).strict()
 
 export const DeleteIdSchema = z.object({
   id: z.string().min(1),

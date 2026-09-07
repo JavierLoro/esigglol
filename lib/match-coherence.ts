@@ -1,4 +1,5 @@
 import type { Match, MatchResult, Phase } from './types'
+import { getEffectiveBO } from './match-validation'
 
 export function getMatchBo(phase: Phase | undefined, match: Match): number {
   return phase?.config.roundBo?.[String(match.round)] ?? phase?.config.bo ?? 1
@@ -18,6 +19,7 @@ export function validateAndNormalizeMatch(match: Match, phase: Phase | undefined
   | { ok: true; match: Match }
   | { ok: false; error: string } {
   const bo = getMatchBo(phase, match)
+  const winsNeeded = Math.ceil(getEffectiveBO(phase ?? { config: { bo: 1 } } as Phase, match.round) / 2)
   const games = match.games?.map(game => game ?? null)
   const riotMatchIds = (match.riotMatchIds ?? []).map(id => id || null)
   if ((games?.length ?? 0) > bo || riotMatchIds.length > bo) {
@@ -31,7 +33,7 @@ export function validateAndNormalizeMatch(match: Match, phase: Phase | undefined
   if (supplied && (supplied.team1Score !== derived.team1Score || supplied.team2Score !== derived.team2Score)) {
     return { ok: false, error: 'El marcador de la serie no coincide con las partidas registradas' }
   }
-  const derivedWinner = derived.team1Score === derived.team2Score
+  const derivedWinner = Math.max(derived.team1Score, derived.team2Score) < winsNeeded || derived.team1Score === derived.team2Score
     ? undefined
     : derived.team1Score > derived.team2Score ? match.team1Id : match.team2Id
   if (match.winnerId && match.winnerId !== derivedWinner) {
