@@ -32,7 +32,7 @@ jobs:
 
       - name: Build
         env:
-          SESSION_SECRET: ci-placeholder
+          SESSION_SECRET: ci-placeholder-at-least-32-characters
           ADMIN_PASSWORD_HASH: ci-placeholder
           RIOT_API_KEY: ci-placeholder
         run: npm run build
