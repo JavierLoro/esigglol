@@ -1,4 +1,5 @@
 import type { Match, Phase, Team } from './types'
+import { getEffectiveBO } from './match-validation'
 
 export type DomainIssue = { path: (string | number)[]; message: string }
 
@@ -50,11 +51,18 @@ export function validateMatch(match: Match, teams: Team[], phases: Phase[]): Dom
   }
 
   const { team1Score, team2Score } = match.result
+  const maxWins = Math.ceil(getEffectiveBO(phase ?? { config: { bo: 1 } } as Phase, match.round) / 2)
+  if (team1Score > maxWins || team2Score > maxWins) {
+    issues.push({ path: ['result'], message: `La puntuación no puede superar ${maxWins} victorias` })
+  }
   if (team1Score === team2Score) {
-    issues.push({ path: ['result'], message: 'El resultado no puede terminar en empate' })
+    if (match.winnerId !== undefined) issues.push({ path: ['winnerId'], message: 'Un resultado empatado no puede tener ganador' })
   } else {
     const expectedWinner = team1Score > team2Score ? match.team1Id : match.team2Id
-    if (match.winnerId !== expectedWinner) issues.push({ path: ['winnerId'], message: 'El ganador debe coincidir con el resultado' })
+    const winningScore = Math.max(team1Score, team2Score)
+    if (winningScore < maxWins && match.winnerId !== undefined) issues.push({ path: ['winnerId'], message: 'Un resultado parcial no puede tener ganador' })
+    if (winningScore >= maxWins && match.winnerId === undefined) issues.push({ path: ['winnerId'], message: 'El ganador es obligatorio al completar la serie' })
+    if (match.winnerId !== undefined && match.winnerId !== expectedWinner) issues.push({ path: ['winnerId'], message: 'El ganador debe coincidir con el resultado' })
   }
   if (match.winnerId !== undefined && match.winnerId !== match.team1Id && match.winnerId !== match.team2Id) {
     issues.push({ path: ['winnerId'], message: 'El ganador debe ser uno de los equipos del partido' })

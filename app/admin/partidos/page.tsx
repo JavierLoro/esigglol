@@ -106,10 +106,13 @@ export default function AdminPartidos() {
       if (m.id !== id) return m
       const result = m.result ?? { team1Score: 0, team2Score: 0 }
       const newResult = { ...result, [key]: Number(val) }
-      // Recalcular winnerId según scores
-      const winnerId = newResult.team1Score > newResult.team2Score
+      // A non-final score is only progress; the Ganador button records the
+      // final marker explicitly. A score reaching the target is final.
+      const phase = phases.find(p => p.id === m.phaseId)
+      const wins = phase ? Math.ceil(getEffectiveBO(phase, m.round) / 2) : 1
+      const winnerId = newResult.team1Score >= wins && newResult.team1Score > newResult.team2Score
         ? m.team1Id
-        : newResult.team2Score > newResult.team1Score
+        : newResult.team2Score >= wins && newResult.team2Score > newResult.team1Score
           ? m.team2Id
           : undefined
       return { ...m, result: newResult, winnerId }
@@ -390,7 +393,7 @@ export default function AdminPartidos() {
                         <input
                           type="number"
                           min={0}
-                          max={phase ? getEffectiveBO(phase, match.round) : 5}
+                          max={phase ? Math.ceil(getEffectiveBO(phase, match.round) / 2) : 3}
                           value={match.result.team1Score}
                           onChange={e => updateScore(match.id, 'team1Score', e.target.value)}
                           className={clsx(
@@ -402,7 +405,7 @@ export default function AdminPartidos() {
                         <input
                           type="number"
                           min={0}
-                          max={phase ? getEffectiveBO(phase, match.round) : 5}
+                          max={phase ? Math.ceil(getEffectiveBO(phase, match.round) / 2) : 3}
                           value={match.result.team2Score}
                           onChange={e => updateScore(match.id, 'team2Score', e.target.value)}
                           className={clsx(

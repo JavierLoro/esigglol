@@ -35,6 +35,13 @@ export function validateMatchResult(
   }
 
   const expectedWinner = result.team1Score > result.team2Score ? match.team1Id : match.team2Id
+  const winningScore = Math.max(result.team1Score, result.team2Score)
+  if (winningScore < maxWins && match.winnerId !== undefined) {
+    return 'Un resultado parcial no puede tener ganador'
+  }
+  if (winningScore >= maxWins && match.winnerId === undefined) {
+    return `El ganador es obligatorio al alcanzar ${maxWins} victorias en BO${bo}`
+  }
   if (match.winnerId !== undefined && match.winnerId !== expectedWinner) {
     return 'El ganador no coincide con la puntuación'
   }

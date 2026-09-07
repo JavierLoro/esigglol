@@ -27,7 +27,7 @@ describe('validación de invariantes de dominio', () => {
   it('mantiene resultado y ganador consistentes y no permite empates', () => {
     expect(validateMatch(match({ result: { team1Score: 1, team2Score: 1 }, winnerId: 'team-1' }), teams, [phase])).toEqual(expect.arrayContaining([expect.objectContaining({ path: ['result'] })]))
     expect(validateMatch(match({ result: { team1Score: 2, team2Score: 1 }, winnerId: 'team-2' }), teams, [phase])).toEqual(expect.arrayContaining([expect.objectContaining({ path: ['winnerId'] })]))
-    expect(validateMatch(match({ result: { team1Score: 2, team2Score: 1 }, winnerId: 'team-1' }), teams, [phase])).toHaveLength(0)
+    expect(validateMatch(match({ result: { team1Score: 1, team2Score: 0 }, winnerId: 'team-1' }), teams, [phase])).toHaveLength(0)
     expect(validateMatch(match({ result: null, winnerId: 'team-1' }), teams, [phase])).toEqual(expect.arrayContaining([expect.objectContaining({ path: ['winnerId'] })]))
   })
 })
