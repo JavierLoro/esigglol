@@ -192,19 +192,19 @@ Elimina uno o varios partidos.
 Genera tournament codes de Riot para un partido.
 
 **Auth:** Sí
-**Body:** `{ "matchId": "match-...", "count": number }`
-**Respuesta:** `200 OK` → `{ "codes": string[] }`
+**Body:** `{ "matchId": "match-..." }`
+**Respuesta:** `200 OK` → `{ "codes": string[]; "regenerated": boolean }`
 **Requiere:** Tournament API configurada en el dashboard
 
 ---
 
 ### `GET /api/admin/partidos/lobby`
 
-Consulta los eventos de lobby de los tournament codes de un partido.
+Consulta los eventos de lobby de un tournament code.
 
 **Auth:** Sí
-**Query:** `?matchId=match-...`
-**Respuesta:** `200 OK` → `{ "events": LobbyEvent[] }`
+**Query:** `?code=EUW-...`
+**Respuesta:** `200 OK` → `LobbyEvent[]`
 
 ---
 
@@ -238,8 +238,10 @@ Actualiza la API key de Riot en runtime (persiste en DB).
 Registra un provider y tournament en la Riot Tournament API.
 
 **Auth:** Sí
-**Body:** `{ "callbackUrl": "https://...", "tournamentName": "..." }`
-**Respuesta:** `200 OK` → `{ "providerId": number; "tournamentId": number }`
+El callback se deriva del host público de la petición.
+
+**Body:** `{ "tournamentName": "..." }`
+**Respuesta:** `201 Created` → `{ "providerId": number; "tournamentId": number; "configured": true; "callbackUrl": string }`
 
 ---
 
@@ -247,8 +249,8 @@ Registra un provider y tournament en la Riot Tournament API.
 
 Webhook receptor de eventos de Riot Tournament API.
 
-**Auth:** No (Riot llama directamente)
-**Body:** evento de Riot (JSON)
+**Auth:** No mediante sesión (Riot llama directamente); se validan el código y el token incluido en `metaData`.
+**Body:** evento de Riot o array de eventos (JSON)
 **Respuesta:** `200 OK`
 
 ### `GET /api/admin/riot-events`

@@ -54,7 +54,7 @@ describe('Tournament API endpoint', () => {
     process.env.ADMIN_PASSWORD_HASH = '$2b$12$abcdefghijklmnopqrstuv1234567890abcdEFGHIJKLMN'
 
     const tournament = await import('@/lib/tournament')
-    expect(tournament.TOURNAMENT_BASE).toBe('https://europe.api.riotgames.com/lol/tournament-stub/v5')
+    expect(tournament.TOURNAMENT_BASE).toBe('https://euw1.api.riotgames.com/lol/tournament-stub/v5')
   })
 
   it('uses the production endpoint when explicitly enabled', async () => {
@@ -64,6 +64,48 @@ describe('Tournament API endpoint', () => {
     process.env.ADMIN_PASSWORD_HASH = '$2b$12$abcdefghijklmnopqrstuv1234567890abcdEFGHIJKLMN'
 
     const tournament = await import('@/lib/tournament')
-    expect(tournament.TOURNAMENT_BASE).toBe('https://europe.api.riotgames.com/lol/tournament/v5')
+    expect(tournament.TOURNAMENT_BASE).toBe('https://euw1.api.riotgames.com/lol/tournament/v5')
+  })
+})
+
+describe('Tournament API contracts', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    delete process.env.TOURNAMENT_API_MODE
+  })
+
+  it('sends the v5 code fields and metadata using the official names', async () => {
+    vi.resetModules()
+    process.env.SESSION_SECRET = 'test-session-secret-0123456789abcdef'
+    process.env.ADMIN_PASSWORD_HASH = '$2b$12$abcdefghijklmnopqrstuv1234567890abcdEFGHIJKLMN'
+    const fetchMock = vi.fn().mockResolvedValue(new Response('["CODE-1"]', { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { generateCodes } = await import('../tournament')
+    await expect(generateCodes(42, 1, {
+      allowedParticipants: ['puuid-1'],
+      metadata: '{"matchId":"match-1"}',
+    })).resolves.toEqual(['CODE-1'])
+
+    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(String(request.body))).toMatchObject({
+      allowedParticipants: ['puuid-1'],
+      enoughPlayers: true,
+      metadata: '{"matchId":"match-1"}',
+    })
+  })
+
+  it('reads lobby events from eventList', async () => {
+    vi.resetModules()
+    process.env.SESSION_SECRET = 'test-session-secret-0123456789abcdef'
+    process.env.ADMIN_PASSWORD_HASH = '$2b$12$abcdefghijklmnopqrstuv1234567890abcdEFGHIJKLMN'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      eventList: [{ eventType: 'PlayerJoinedGameEvent', timestamp: '123', puuid: 'encrypted' }],
+    }), { status: 200 })))
+
+    const { getLobbyEvents } = await import('../tournament')
+    await expect(getLobbyEvents('CODE-1')).resolves.toEqual([
+      { eventType: 'PlayerJoinedGameEvent', timestamp: '123', puuid: 'encrypted' },
+    ])
   })
 })

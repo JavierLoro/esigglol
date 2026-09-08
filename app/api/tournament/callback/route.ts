@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getMatches, saveMatches } from '@/lib/data'
 import { publishRiotResult } from '@/lib/riot-events'
 
+interface CallbackMetadata {
+  matchId?: string
+  callbackToken?: string
+}
+
+function parseMetadata(value: unknown): CallbackMetadata | null {
+  if (typeof value !== 'string') return null
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return typeof parsed === 'object' && parsed !== null ? parsed as CallbackMetadata : null
+  } catch {
+    return null
+  }
+}
+
 export async function POST(req: NextRequest) {
   let body: unknown
   try { body = await req.json() } catch { return NextResponse.json({ ok: false }, { status: 400 }) }
@@ -14,11 +29,14 @@ export async function POST(req: NextRequest) {
   const notifications: { matchId: string; gameId: string; shortCode: string }[] = []
 
   for (const event of events) {
-    const e = event as { shortCode?: string; metaData?: string; gameId?: number; winningTeam?: string[] }
+    const e = event as { shortCode?: string; metaData?: string; gameId?: number }
     if (!e.shortCode) continue
 
     const match = matches.find(m => m.tournamentCodes?.includes(e.shortCode!))
     if (!match) continue
+
+    const metadata = parseMetadata(e.metaData)
+    if (!metadata || metadata.matchId !== match.id || metadata.callbackToken !== match.tournamentCallbackToken) continue
 
     // Store the Riot match/game ID if available
     if (e.gameId) {
