@@ -9,6 +9,9 @@ interface TournamentStatusResponse {
   tournamentId?: number
   configured?: boolean
   callbackUrl?: string | null
+  mode?: 'stub' | 'production'
+  region?: string
+  hasApiKey?: boolean
   error?: string
 }
 
@@ -19,6 +22,7 @@ function isTournamentConfig(data: TournamentStatusResponse): data is TournamentS
 export default function TournamentSetup() {
   const [config, setConfig] = useState<TournamentConfig | null>(null)
   const [callbackUrl, setCallbackUrl] = useState<string | null>(null)
+  const [environment, setEnvironment] = useState<{ mode: 'stub' | 'production'; region: string; hasApiKey: boolean }>({ mode: 'stub', region: 'euw1', hasApiKey: false })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [resetting, setResetting] = useState(false)
@@ -35,6 +39,11 @@ export default function TournamentSetup() {
       if (!res.ok) throw new Error(data.error || 'No se pudo cargar la configuración')
 
       setCallbackUrl(data.callbackUrl ?? null)
+      setEnvironment({
+        mode: data.mode ?? 'stub',
+        region: data.region ?? 'euw1',
+        hasApiKey: data.hasApiKey === true,
+      })
       setConfig(data.configured === true && isTournamentConfig(data)
         ? { providerId: data.providerId, tournamentId: data.tournamentId }
         : null)
@@ -104,7 +113,10 @@ export default function TournamentSetup() {
   if (loadError) {
     return (
       <div className="rounded-xl border border-red-400/20 bg-[#0d1321] p-5 flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider">Tournament API</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider">Tournament API</h2>
+          <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-1 text-[10px] uppercase tracking-wider text-amber-300">{environment.mode} · {environment.region}</span>
+        </div>
         <div className="flex items-center gap-2 text-red-400 text-sm" role="alert">
           <AlertCircle size={16} />
           <span>{loadError}</span>
@@ -139,6 +151,11 @@ export default function TournamentSetup() {
             {callbackUrl ?? 'No disponible'}
           </code>
         </div>
+        <ol className="grid gap-2 text-xs text-white/50 sm:grid-cols-3">
+          <li className="rounded-lg bg-white/5 p-2"><span className="text-[#0097D7]">1.</span> Genera códigos desde Partidos</li>
+          <li className="rounded-lg bg-white/5 p-2"><span className="text-[#0097D7]">2.</span> Revisa configuración y lobby</li>
+          <li className="rounded-lg bg-white/5 p-2"><span className="text-[#0097D7]">3.</span> Riot notificará el game ID</li>
+        </ol>
         {msg && (
           <div className={`flex items-center gap-2 text-sm ${msg.type === 'ok' ? 'text-green-400' : 'text-red-400'}`} role={msg.type === 'error' ? 'alert' : undefined}>
             {msg.type === 'ok' ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
@@ -160,7 +177,10 @@ export default function TournamentSetup() {
 
   return (
     <form onSubmit={handleSubmit} className="rounded-xl border border-white/10 bg-[#0d1321] p-5 flex flex-col gap-4">
-      <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider">Tournament API</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider">Tournament API</h2>
+        <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-1 text-[10px] uppercase tracking-wider text-amber-300">{environment.mode} · {environment.region}</span>
+      </div>
       <div className="flex items-center gap-2 text-white/50 text-sm">
         <AlertCircle size={16} />
         <span>Sin configurar</span>
@@ -172,6 +192,7 @@ export default function TournamentSetup() {
         </div>
       )}
       <p className="text-xs text-white/40">Registra un provider y tournament en Riot para generar códigos de partida. El callback se configura automáticamente.</p>
+      {!environment.hasApiKey ? <p className="text-xs text-red-400" role="alert">Configura primero una Riot API key desde el panel.</p> : null}
 
       <input
         type="text"

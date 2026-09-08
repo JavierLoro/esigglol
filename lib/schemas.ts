@@ -116,6 +116,8 @@ export const MatchSchema = z.object({
   games: z.array(GameDataSchema.nullable()).optional(),
   scheduledAt: z.string().optional(),
   tournamentCodes: z.array(z.string()).optional(),
+  tournamentCodesGeneratedAt: z.string().optional(),
+  tournamentCallbackToken: z.string().optional(),
 }).superRefine((match, ctx) => {
   if (match.team1Id !== 'TBD' && match.team1Id === match.team2Id) {
     ctx.addIssue({ code: 'custom', path: ['team2Id'], message: 'Un partido debe tener dos equipos distintos' })

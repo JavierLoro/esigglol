@@ -3,6 +3,14 @@ import { requireAdminSession } from '@/lib/auth'
 import { TournamentSetupSchema } from '@/lib/schemas'
 import { registerProvider, createTournament, getTournamentConfig, saveTournamentConfig, deleteTournamentConfig } from '@/lib/tournament'
 import { RIOT_REGION } from '@/lib/env'
+import { TOURNAMENT_API_MODE } from '@/lib/env'
+import { getRiotApiKey } from '@/lib/data'
+
+const TOURNAMENT_REGIONS: Record<string, string> = {
+  br1: 'BR', eun1: 'EUNE', euw1: 'EUW', jp1: 'JP', kr: 'KR',
+  la1: 'LAN', la2: 'LAS', na1: 'NA', oc1: 'OCE', pbe1: 'PBE',
+  ph2: 'PH', ru: 'RU', sg2: 'SG', th2: 'TH', tr1: 'TR', tw2: 'TW', vn2: 'VN',
+}
 
 function getCallbackUrl(req: NextRequest): string | null {
   const host = req.headers.get('host')
@@ -19,6 +27,9 @@ function getTournamentStatus(req: NextRequest) {
     ...(config ?? {}),
     configured: config !== null,
     callbackUrl: getCallbackUrl(req),
+    mode: TOURNAMENT_API_MODE,
+    region: RIOT_REGION,
+    hasApiKey: getRiotApiKey().length > 0,
   }
 }
 
@@ -40,14 +51,15 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
   const { tournamentName } = parsed.data
-  const region = RIOT_REGION
+  const region = TOURNAMENT_REGIONS[RIOT_REGION.toLowerCase()]
+  if (!region) return NextResponse.json({ error: `RIOT_REGION no compatible con Tournament API: ${RIOT_REGION}` }, { status: 400 })
 
   // Derive callback URL from the request's own origin
   const callbackUrl = getCallbackUrl(req)
   if (!callbackUrl) return NextResponse.json({ error: 'No se pudo determinar el host' }, { status: 400 })
 
   try {
-    const providerId = await registerProvider(callbackUrl, region.toUpperCase())
+    const providerId = await registerProvider(callbackUrl, region)
     const tournamentId = await createTournament(providerId, tournamentName)
     const config = { providerId, tournamentId }
     saveTournamentConfig(config)

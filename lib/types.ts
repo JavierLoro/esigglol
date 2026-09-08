@@ -93,6 +93,7 @@ export interface Match {
   scheduledAt?: string            // ISO UTC opcional; se muestra en la zona local del navegador
   tournamentCodes?: string[]   // Tournament codes, one per game in BO series
   tournamentCodesGeneratedAt?: string // ISO timestamp of the last code generation
+  tournamentCallbackToken?: string // nonce embedded in Riot metadata to authenticate callbacks
 }
 
 // ── Tournament API ──────────────────────────────────────────────────────────
@@ -103,9 +104,25 @@ export interface TournamentConfig {
 }
 
 export interface LobbyEvent {
-  summonerName: string
+  puuid?: string
   eventType: string
   timestamp: string
+}
+
+export interface TournamentCodeDetails {
+  id: number
+  providerId: number
+  tournamentId: number
+  code: string
+  region: string
+  map: string
+  teamSize: number
+  spectators: string
+  pickType: string
+  lobbyName: string
+  password: string
+  metaData: string
+  participants: string[]
 }
 
 // ── Riot API ─────────────────────────────────────────────────────────────────

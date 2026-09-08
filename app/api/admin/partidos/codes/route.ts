@@ -4,6 +4,23 @@ import { GenerateCodesSchema } from '@/lib/schemas'
 import { getMatches, saveMatches, getPhaseById } from '@/lib/data'
 import { getTournamentConfig, generateCodes, getCodeDetails, TournamentApiError } from '@/lib/tournament'
 import type { BOFormat } from '@/lib/types'
+import { randomUUID } from 'crypto'
+
+export async function GET(req: NextRequest) {
+  const deny = await requireAdminSession()
+  if (deny) return deny
+
+  const code = req.nextUrl.searchParams.get('code')?.trim()
+  if (!code) return NextResponse.json({ error: 'Parametro code requerido' }, { status: 400 })
+
+  try {
+    return NextResponse.json(await getCodeDetails(code))
+  } catch (err) {
+    const status = err instanceof TournamentApiError && err.status === 404 ? 404 : 502
+    const message = err instanceof Error ? err.message : 'Error desconocido'
+    return NextResponse.json({ error: message }, { status })
+  }
+}
 
 export async function POST(req: NextRequest) {
   const deny = await requireAdminSession()
@@ -34,7 +51,9 @@ export async function POST(req: NextRequest) {
       const reason = nonExpiryFailure.reason instanceof Error ? nonExpiryFailure.reason.message : 'Error desconocido'
       return NextResponse.json({ error: reason }, { status: 502 })
     }
-    regenerated = failed.length > 0
+    // Codes created before callback metadata authentication cannot be trusted.
+    // Replace them even if Riot still reports them as active.
+    regenerated = failed.length > 0 || !match.tournamentCallbackToken
     if (!regenerated) {
       return NextResponse.json({ error: 'Este partido ya tiene tournament codes activos' }, { status: 409 })
     }
@@ -46,9 +65,12 @@ export async function POST(req: NextRequest) {
   const codeCount = bo === 2 ? 3 : bo // BO2 needs up to 3 games, others match BO number
 
   try {
-    const codes = await generateCodes(config.tournamentId, codeCount)
+    const callbackToken = randomUUID()
+    const metadata = JSON.stringify({ matchId: match.id, callbackToken })
+    const codes = await generateCodes(config.tournamentId, codeCount, { metadata })
     match.tournamentCodes = codes
     match.tournamentCodesGeneratedAt = new Date().toISOString()
+    match.tournamentCallbackToken = callbackToken
     saveMatches(matches)
     return NextResponse.json({ codes, regenerated })
   } catch (err) {

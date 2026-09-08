@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { Match, Team, Phase } from '@/lib/types'
-import { Plus, Trash2, Save, Trophy, Check, Loader2, X, Copy, Ticket, Users, FileJson2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, Save, Trophy, Check, Loader2, X, Copy, Ticket, FileJson2, ChevronDown, ChevronRight } from 'lucide-react'
 import type { GameData } from '@/lib/types'
 import { GameDataSchema } from '@/lib/schemas'
 import DateTimePicker from '@/components/admin/DateTimePicker'
@@ -9,6 +9,7 @@ import clsx from 'clsx'
 import { getEffectiveBO } from '@/lib/match-validation'
 import { getPhaseTeamIds } from '@/lib/phase-validation'
 import { adminRequest, errorMessage, isArrayOfRecords, isEntity, isOk } from '@/lib/admin-client'
+import TournamentCodeCard from '@/components/admin/TournamentCodeCard'
 
 export default function AdminPartidos() {
   const [matches, setMatches] = useState<Match[]>([])
@@ -21,7 +22,6 @@ export default function AdminPartidos() {
   const [deleting, setDeleting] = useState(false)
   const [hasTournamentConfig, setHasTournamentConfig] = useState(false)
   const [generatingCodes, setGeneratingCodes] = useState<string | null>(null)
-  const [lobbyData, setLobbyData] = useState<Record<string, { summonerName: string; eventType: string }[]>>({})
   const [gameModal, setGameModal] = useState<{ matchId: string; gameIndex: number } | null>(null)
   const [loadError, setLoadError] = useState('')
 
@@ -34,8 +34,8 @@ export default function AdminPartidos() {
       adminRequest<Team[]>(fetch('/api/admin/equipos', { cache: 'no-store' }), isArrayOfRecords),
       adminRequest<Phase[]>(fetch('/api/admin/fases'), isArrayOfRecords),
     ]).then(([m, t, p]) => { setMatches(m); setTeams(t); setPhases(p) }).catch(error => setLoadError(errorMessage(error)))
-    adminRequest<{ providerId?: string } | null>(fetch('/api/admin/tournament'), value => value === null || (typeof value === 'object' && value !== null)).then(data => {
-      if (data?.providerId) setHasTournamentConfig(true)
+    adminRequest<{ providerId?: number; configured?: boolean }>(fetch('/api/admin/tournament'), value => typeof value === 'object' && value !== null).then(data => {
+      setHasTournamentConfig(data.configured === true && typeof data.providerId === 'number')
     }).catch(error => setLoadError(errorMessage(error)))
   }, [])
 
@@ -201,13 +201,6 @@ export default function AdminPartidos() {
     } finally {
       setGeneratingCodes(null)
     }
-  }
-
-  async function fetchLobbyEvents(code: string) {
-    try {
-      const events = await adminRequest(fetch(`/api/admin/partidos/lobby?code=${encodeURIComponent(code)}`), value => Array.isArray(value))
-      setLobbyData(prev => ({ ...prev, [code]: events as { summonerName: string; eventType: string }[] }))
-    } catch (error) { notify(errorMessage(error)) }
   }
 
   function copyToClipboard(text: string) {
@@ -490,33 +483,12 @@ export default function AdminPartidos() {
                   {match.tournamentCodes?.length ? (
                     <div className="flex flex-col gap-1.5">
                       {match.tournamentCodes.map((code, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <span className="text-[11px] text-white/30 w-16 shrink-0">Game {i + 1}</span>
-                          <code className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-[#0097D7] font-mono select-all">
-                            {code}
-                          </code>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(code)}
-                            className="text-white/30 hover:text-[#0097D7] transition-colors shrink-0"
-                            title="Copiar"
-                          >
-                            <Copy size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => fetchLobbyEvents(code)}
-                            className="text-white/30 hover:text-[#0097D7] transition-colors shrink-0"
-                            title="Ver lobby"
-                          >
-                            <Users size={13} />
-                          </button>
-                          {lobbyData[code]?.length ? (
-                            <span className="text-[10px] text-green-400">
-                              {lobbyData[code].length} evento(s)
-                            </span>
-                          ) : null}
-                        </div>
+                        <TournamentCodeCard
+                          key={code}
+                          code={code}
+                          gameNumber={i + 1}
+                          onCopy={copyToClipboard}
+                        />
                       ))}
                       <button
                         type="button"
