@@ -17,13 +17,12 @@ COPY . .
 ARG COMMIT_SHA
 ENV COMMIT_SHA=$COMMIT_SHA
 
-# Dummy env vars so lib/env.ts validation passes during build.
-# Real values are provided at runtime.
-ENV SESSION_SECRET=build-placeholder
-ENV ADMIN_PASSWORD_HASH=build-placeholder
-ENV RIOT_API_KEY=build-placeholder
-
-RUN npm run build
+# Dummy values scoped to the build command so lib/env.ts validation passes.
+# Real values are provided only when the container runs.
+RUN SESSION_SECRET=build-placeholder-not-a-runtime-secret \
+    ADMIN_PASSWORD_HASH=build-placeholder \
+    RIOT_API_KEY=build-placeholder \
+    npm run build
 
 # -- Backup worker --------------------------------------------------------------
 # This stage is selected by the backup service in docker-compose*.yml. Keep it
