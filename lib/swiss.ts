@@ -13,6 +13,7 @@ export interface SwissPair {
 export interface SwissPairingResult {
   pairs: SwissPair[]
   unpairedTeamId?: string
+  hasRematches: boolean
 }
 
 /**
@@ -85,10 +86,25 @@ export function createSwissPairings(
       return bRecord.wins - aRecord.wins || aRecord.losses - bRecord.losses || a.localeCompare(b)
     })
 
-  const pairs = pairTeams(active, records, played, false) ?? []
-  const paired = new Set(pairs.flatMap(pair => [pair.team1Id, pair.team2Id]))
-  const unpairedTeamId = active.find(teamId => !paired.has(teamId))
-  return unpairedTeamId ? { pairs, unpairedTeamId } : { pairs }
+  const byeCandidates = active.length % 2 === 0
+    ? [undefined]
+    : [...active].reverse()
+
+  for (const allowRematches of [false, true]) {
+    for (const unpairedTeamId of byeCandidates) {
+      const pairable = unpairedTeamId
+        ? active.filter(teamId => teamId !== unpairedTeamId)
+        : active
+      const pairs = pairTeams(pairable, records, played, allowRematches)
+      if (pairs) {
+        return unpairedTeamId
+          ? { pairs, unpairedTeamId, hasRematches: allowRematches }
+          : { pairs, hasRematches: allowRematches }
+      }
+    }
+  }
+
+  return { pairs: [], hasRematches: false }
 }
 
 export function getSwissRoundError(

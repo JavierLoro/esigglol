@@ -62,7 +62,8 @@ Los emparejamientos son deterministas y priorizan el mismo registro W-L. No se r
 enfrentamiento mientras exista una combinación válida sin revancha. El formato no permite
 empates: la validación los rechaza y la siguiente ronda solo puede generarse cuando todos
 los partidos tienen un resultado decisivo. Las rondas deben generarse y confirmarse en
-orden.
+orden. Si ningún emparejamiento completo evita una revancha, el generador usa de forma
+determinista la combinación con revancha que conserva los registros W-L más próximos.
 
 ### Visibilidad pública
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createSwissPairings, getSwissConfirmationError, getSwissRecords, getSwissRoundError } from '../swiss'
+import type { SwissRecord } from '../swiss'
 import type { Match } from '../types'
 
 function match(overrides: Partial<Match>): Match {
@@ -49,6 +50,41 @@ describe('Swiss pairings', () => {
     const result = createSwissPairings(['A', 'B', 'C'], [])
     expect(result.unpairedTeamId).toBeDefined()
     expect(result.pairs).toHaveLength(1)
+  })
+
+  it.each([8, 16])('pairs every team exactly once in a field of %i', teamCount => {
+    const teams = Array.from({ length: teamCount }, (_, index) => `T${String(index + 1).padStart(2, '0')}`)
+    const result = createSwissPairings(teams, [])
+
+    expect(result.unpairedTeamId).toBeUndefined()
+    expect(result.pairs).toHaveLength(teamCount / 2)
+    expect(new Set(result.pairs.flatMap(pair => [pair.team1Id, pair.team2Id])).size).toBe(teamCount)
+  })
+
+  it('floats teams between odd record buckets', () => {
+    const teams = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    const records: Record<string, SwissRecord> = {
+      A: { wins: 2, losses: 0 }, B: { wins: 2, losses: 0 }, C: { wins: 2, losses: 0 },
+      D: { wins: 1, losses: 1 }, E: { wins: 1, losses: 1 }, F: { wins: 1, losses: 1 },
+      G: { wins: 0, losses: 2 }, H: { wins: 0, losses: 2 },
+    }
+    const result = createSwissPairings(teams, [], records)
+
+    expect(result.pairs).toHaveLength(4)
+    expect(new Set(result.pairs.flatMap(pair => [pair.team1Id, pair.team2Id])).size).toBe(8)
+    expect(result.pairs.some(pair => records[pair.team1Id].wins !== records[pair.team2Id].wins)).toBe(true)
+  })
+
+  it('uses a rematch only when every complete pairing requires one', () => {
+    const previous = [
+      match({ id: 'm1', team1Id: 'A', team2Id: 'B' }),
+      match({ id: 'm2', team1Id: 'A', team2Id: 'C' }),
+      match({ id: 'm3', team1Id: 'A', team2Id: 'D' }),
+    ]
+    const result = createSwissPairings(['A', 'B', 'C', 'D'], previous)
+
+    expect(result.pairs).toHaveLength(2)
+    expect(result.hasRematches).toBe(true)
   })
 })
 
