@@ -1,6 +1,24 @@
+import type { Phase } from './types'
+
 export interface GroupsValidationInput {
   groups?: ReadonlyArray<{ id: string; teamIds: ReadonlyArray<string> }>
   advanceCount?: number
+}
+
+/** Returns the teams that may participate in matches for a configured phase. */
+export function getPhaseTeamIds(phase: Phase): string[] {
+  const config = phase.config
+  switch (phase.type) {
+    case 'groups': {
+      return [...new Set((config.groups ?? []).flatMap(group => group.teamIds))]
+    }
+    case 'swiss':
+      return config.swissTeamIds ?? []
+    case 'elimination':
+    case 'final-four':
+    case 'upper-lower':
+      return config.bracketTeamIds ?? []
+  }
 }
 
 /** Returns the configuration errors shared by the admin client and API. */

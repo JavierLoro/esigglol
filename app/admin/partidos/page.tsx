@@ -7,6 +7,7 @@ import { GameDataSchema } from '@/lib/schemas'
 import DateTimePicker from '@/components/admin/DateTimePicker'
 import clsx from 'clsx'
 import { getEffectiveBO } from '@/lib/match-validation'
+import { getPhaseTeamIds } from '@/lib/phase-validation'
 import { adminRequest, errorMessage, isArrayOfRecords, isEntity, isOk } from '@/lib/admin-client'
 
 export default function AdminPartidos() {
@@ -41,11 +42,19 @@ export default function AdminPartidos() {
   function notify(text: string) { setMsg(text); setTimeout(() => setMsg(''), 3000) }
 
   async function addMatch(phaseId: string) {
+    const phase = phases.find(candidate => candidate.id === phaseId)
+    const participants = (phase ? getPhaseTeamIds(phase) : [])
+      .map(teamId => teams.find(team => team.id === teamId))
+      .filter((team): team is Team => Boolean(team))
+    if (participants.length < 2) {
+      notify('La fase necesita al menos dos participantes válidos')
+      return
+    }
     try {
     const data = await adminRequest(fetch('/api/admin/partidos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phaseId, round: 1, team1Id: teams[0]?.id ?? '', team2Id: teams[1]?.id ?? '', result: null, riotMatchIds: [] }),
+      body: JSON.stringify({ phaseId, round: 1, team1Id: participants[0].id, team2Id: participants[1].id, result: null, riotMatchIds: [] }),
     }), isArrayOfRecords)
     const match = data[0]
     if (!isEntity(match)) throw new Error('Respuesta inválida')
@@ -272,6 +281,8 @@ export default function AdminPartidos() {
           const phaseMatches = matches.filter(m => m.phaseId === phase.id)
           const isCollapsed = collapsedPhases.has(phase.id)
           const completedCount = phaseMatches.filter(m => m.result !== null).length
+          const participantCount = getPhaseTeamIds(phase).filter(teamId => teams.some(team => team.id === teamId)).length
+          const canAddMatch = participantCount >= 2
 
           return (
             <div key={phase.id} className="flex flex-col gap-0">
@@ -297,7 +308,9 @@ export default function AdminPartidos() {
                 <button
                   type="button"
                   onClick={e => { e.stopPropagation(); addMatch(phase.id) }}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#0097D7]/20 border border-[#0097D7]/30 text-[#0097D7] text-xs font-bold hover:bg-[#0097D7]/30 transition-colors shrink-0"
+                  disabled={!canAddMatch}
+                  title={canAddMatch ? 'Añadir partido' : 'La fase necesita al menos dos participantes válidos'}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#0097D7]/20 border border-[#0097D7]/30 text-[#0097D7] text-xs font-bold hover:bg-[#0097D7]/30 transition-colors shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Plus size={12} /> Añadir
                 </button>
@@ -317,6 +330,13 @@ export default function AdminPartidos() {
                   {phaseMatches.map(match => {
                     const team1 = teams.find(t => t.id === match.team1Id)
                     const team2 = teams.find(t => t.id === match.team2Id)
+                    const phaseTeamIds = getPhaseTeamIds(phase)
+                    const selectableTeams = phaseTeamIds
+                      ? teams.filter(team => phaseTeamIds.includes(team.id))
+                      : teams
+                    const selectTeams = (teamId: string) => teamId === 'TBD' || selectableTeams.some(team => team.id === teamId)
+                      ? selectableTeams
+                      : [team1, team2].filter((team): team is Team => Boolean(team && team.id === teamId))
                     const isSelected = selected.has(match.id)
 
                     return (
@@ -357,7 +377,8 @@ export default function AdminPartidos() {
                     onChange={e => update(match.id, { team1Id: e.target.value, winnerId: undefined })}
                     className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
                   >
-                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    {match.team1Id === 'TBD' && <option value="TBD">Pendiente</option>}
+                    {selectTeams(match.team1Id).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                   {/* Botón ganador equipo 1 */}
                   {match.result !== null && (
@@ -432,7 +453,8 @@ export default function AdminPartidos() {
                     onChange={e => update(match.id, { team2Id: e.target.value, winnerId: undefined })}
                     className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
                   >
-                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    {match.team2Id === 'TBD' && <option value="TBD">Pendiente</option>}
+                    {selectTeams(match.team2Id).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                   {match.result !== null && (
                     <button
