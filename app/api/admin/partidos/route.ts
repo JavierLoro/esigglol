@@ -67,13 +67,17 @@ export async function PUT(req: NextRequest) {
   let matches = getMatches()
   const idx = matches.findIndex(m => m.id === body.id)
   if (idx === -1) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+  const existingMatch = matches[idx]
 
   const phase = getPhaseById(normalizedBody.phaseId)
   if (!phase) return NextResponse.json({ error: 'Fase no encontrada' }, { status: 404 })
   const validationError = validateMatchResult(phase, normalizedBody, normalizedBody.result)
   if (validationError) return NextResponse.json({ error: validationError }, { status: 422 })
 
-  const domainIssues = validateMatch(normalizedBody, getTeams(), getPhases())
+  const allowedTbdFields = new Set<'team1Id' | 'team2Id'>()
+  if (existingMatch.team1Id === 'TBD' && normalizedBody.team1Id === 'TBD') allowedTbdFields.add('team1Id')
+  if (existingMatch.team2Id === 'TBD' && normalizedBody.team2Id === 'TBD') allowedTbdFields.add('team2Id')
+  const domainIssues = validateMatch(normalizedBody, getTeams(), getPhases(), allowedTbdFields)
   if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
 
   matches[idx] = normalizedBody

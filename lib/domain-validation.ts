@@ -1,5 +1,6 @@
 import type { Match, Phase, Team } from './types'
 import { getEffectiveBO } from './match-validation'
+import { getPhaseTeamIds } from './phase-validation'
 
 export type DomainIssue = { path: (string | number)[]; message: string }
 
@@ -32,14 +33,26 @@ export function validateTeams(teams: Team[]): DomainIssue[] {
   return issues
 }
 
-export function validateMatch(match: Match, teams: Team[], phases: Phase[]): DomainIssue[] {
+export function validateMatch(
+  match: Match,
+  teams: Team[],
+  phases: Phase[],
+  allowedTbdFields: ReadonlySet<'team1Id' | 'team2Id'> = new Set(),
+): DomainIssue[] {
   const issues: DomainIssue[] = []
   const teamIds = new Set(teams.map(team => team.id))
   const phase = phases.find(candidate => candidate.id === match.phaseId)
 
   if (!phase) issues.push({ path: ['phaseId'], message: 'La fase no existe' })
-  for (const [path, teamId] of [['team1Id', match.team1Id], ['team2Id', match.team2Id] as const]) {
+  const phaseTeamIds = phase ? getPhaseTeamIds(phase) : []
+  for (const [path, teamId] of [['team1Id', match.team1Id], ['team2Id', match.team2Id]] as const) {
+    if (teamId === 'TBD' && !allowedTbdFields.has(path)) {
+      issues.push({ path: [path], message: 'TBD solo se permite en slots generados por el sistema' })
+    }
     if (teamId !== 'TBD' && !teamIds.has(teamId)) issues.push({ path: [path], message: 'El equipo no existe' })
+    if (teamId !== 'TBD' && phase && !phaseTeamIds.includes(teamId)) {
+      issues.push({ path: [path], message: 'El equipo no participa en esta fase' })
+    }
   }
   if (match.team1Id !== 'TBD' && match.team1Id === match.team2Id) {
     issues.push({ path: ['team2Id'], message: 'Un partido debe tener dos equipos distintos' })
