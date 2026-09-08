@@ -5,6 +5,7 @@ import { PhaseSchema, PhaseUpdateSchema, DeleteIdSchema } from '@/lib/schemas'
 import type { Phase } from '@/lib/types'
 import logger from '@/lib/logger'
 import { bracketSizeError } from '@/lib/bracket-sizes'
+import { getSwissConfirmationError } from '@/lib/swiss'
 
 const log = logger.child({ module: 'fases' })
 
@@ -56,6 +57,13 @@ export async function PUT(req: NextRequest) {
   if (sizeError) return NextResponse.json({ error: sizeError }, { status: 422 })
 
   const phases = getPhases()
+  if (parsed.data.type === 'swiss') {
+    const confirmationError = getSwissConfirmationError(
+      getMatches().filter(match => match.phaseId === parsed.data.id),
+      parsed.data.config.confirmedRounds ?? [],
+    )
+    if (confirmationError) return NextResponse.json({ error: confirmationError }, { status: 422 })
+  }
   const idx = phases.findIndex(p => p.id === parsed.data.id)
   if (idx === -1) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   phases[idx] = parsed.data as Phase

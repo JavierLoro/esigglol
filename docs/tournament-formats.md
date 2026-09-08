@@ -58,6 +58,13 @@ Cada ronda suiza se numera `1, 2, 3, ...`. Los partidos de la ronda N tienen `ro
 3. Admin revisa los emparejamientos y confirma: añade el número de ronda a `confirmedRounds`.
 4. La ronda confirmada pasa a ser visible para el público.
 
+Los emparejamientos son deterministas y priorizan el mismo registro W-L. No se repite un
+enfrentamiento mientras exista una combinación válida sin revancha. El formato no permite
+empates: la validación los rechaza y la siguiente ronda solo puede generarse cuando todos
+los partidos tienen un resultado decisivo. Las rondas deben generarse y confirmarse en
+orden. Si ningún emparejamiento completo evita una revancha, el generador usa de forma
+determinista la combinación con revancha que conserva los registros W-L más próximos.
+
 ### Visibilidad pública
 
 Solo las rondas en `confirmedRounds` son visibles. Rondas no confirmadas están ocultas al público.

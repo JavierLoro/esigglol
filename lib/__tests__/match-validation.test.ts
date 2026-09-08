@@ -25,10 +25,9 @@ describe('BO efectivo por ronda', () => {
       .toContain('no coincide')
   })
 
-  it('permite empates sin ganador y rechaza empates con ganador', () => {
-    expect(validateMatchResult(phase, { ...match, round: 1 }, { team1Score: 1, team2Score: 1 })).toBeNull()
-    expect(validateMatchResult(phase, { ...match, round: 1, winnerId: 'A' }, { team1Score: 1, team2Score: 1 }))
-      .toContain('empatado')
+  it('rechaza empates en el formato suizo', () => {
+    expect(validateMatchResult(phase, { ...match, round: 1 }, { team1Score: 1, team2Score: 1 }))
+      .toContain('suizo no permite')
   })
 
   it.each([

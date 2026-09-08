@@ -30,6 +30,7 @@ export function validateMatchResult(
   }
 
   if (result.team1Score === result.team2Score) {
+    if (phase.type === 'swiss') return 'El formato suizo no permite empates'
     if (match.winnerId !== undefined) return 'Un resultado empatado no puede tener ganador'
     return null
   }
