@@ -6,6 +6,7 @@ import type { Phase } from '@/lib/types'
 import logger from '@/lib/logger'
 import { bracketSizeError } from '@/lib/bracket-sizes'
 import { getSwissConfirmationError } from '@/lib/swiss'
+import { changedStructuralPhaseFields } from '@/lib/phase-structure'
 
 const log = logger.child({ module: 'fases' })
 
@@ -57,15 +58,24 @@ export async function PUT(req: NextRequest) {
   if (sizeError) return NextResponse.json({ error: sizeError }, { status: 422 })
 
   const phases = getPhases()
+  const idx = phases.findIndex(p => p.id === parsed.data.id)
+  if (idx === -1) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  const phaseMatches = getMatches().filter(match => match.phaseId === parsed.data.id)
+  const structuralChanges = changedStructuralPhaseFields(phases[idx], parsed.data as Phase)
+  if (phaseMatches.length > 0 && structuralChanges.length > 0) {
+    return NextResponse.json({
+      error: 'No se puede cambiar la estructura de una fase que ya tiene partidos',
+      fields: structuralChanges,
+    }, { status: 409 })
+  }
   if (parsed.data.type === 'swiss') {
     const confirmationError = getSwissConfirmationError(
-      getMatches().filter(match => match.phaseId === parsed.data.id),
+      phaseMatches,
       parsed.data.config.confirmedRounds ?? [],
     )
     if (confirmationError) return NextResponse.json({ error: confirmationError }, { status: 422 })
   }
-  const idx = phases.findIndex(p => p.id === parsed.data.id)
-  if (idx === -1) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   phases[idx] = parsed.data as Phase
   try { savePhases(phases) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json(parsed.data)
