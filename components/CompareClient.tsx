@@ -7,6 +7,7 @@ import type { PlayerRow } from '@/lib/types'
 import type { PlayerChampionData } from '@/components/ChampionBubbles'
 import { clsx } from 'clsx'
 import RefreshStatsButton from '@/components/RefreshStatsButton'
+import { isTeamSelectionAllowed } from '@/lib/compare'
 
 interface Props {
   teams: Team[]
@@ -352,14 +353,19 @@ export default function CompareClient({ teams, allStats, matches, lastUpdated, c
       {/* Selectores + Refresh */}
       <div className="flex flex-col sm:flex-row gap-4 items-start">
         <div className="grid grid-cols-2 gap-4 flex-1 w-full">
-          {[{ id: team1Id, set: setTeam1Id }, { id: team2Id, set: setTeam2Id }].map(({ id, set }, idx) => (
+          {[{ id: team1Id, set: setTeam1Id, otherId: team2Id }, { id: team2Id, set: setTeam2Id, otherId: team1Id }].map(({ id, set, otherId }, idx) => (
             <div key={idx}>
               <select
                 value={id}
-                onChange={e => set(e.target.value)}
+                onChange={e => {
+                  const nextId = e.target.value
+                  if (isTeamSelectionAllowed(nextId, otherId)) set(nextId)
+                }}
                 className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-[#0097D7]/50"
               >
-                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {teams.map(t => (
+                  <option key={t.id} value={t.id} disabled={!isTeamSelectionAllowed(t.id, otherId)}>{t.name}</option>
+                ))}
               </select>
             </div>
           ))}
