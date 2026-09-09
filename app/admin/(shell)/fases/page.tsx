@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { Phase, PhaseType, PhaseStatus, BOFormat, Team, Match } from '@/lib/types'
-import { validateGroupsConfig } from '@/lib/phase-validation'
+import { validatePhaseParticipants } from '@/lib/phase-validation'
 import { Plus, Trash2, Save, GripVertical, Zap, Check, Copy } from 'lucide-react'
 import { bracketSizeError } from '@/lib/bracket-sizes'
 import { adminRequest, errorMessage, isArrayOfRecords, isEntity, isOk } from '@/lib/admin-client'
@@ -66,37 +66,34 @@ export default function AdminFases() {
     notify('URL de overlay copiada')
   }
 
-  async function addPhase() {
-    try {
-    const phase = await adminRequest(fetch('/api/admin/fases', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'Nueva fase',
-        type: 'elimination',
-        status: 'upcoming',
-        order: phases.length + 1,
-        config: { bo: 1 },
-      }),
-    }), isEntity)
-    setPhases(prev => [...prev, phase as Phase])
-    } catch (error) { notify(errorMessage(error)) }
+  function addPhase() {
+    setPhases(prev => [...prev, {
+      id: `draft-${crypto.randomUUID()}`,
+      name: 'Nueva fase',
+      type: 'elimination',
+      status: 'upcoming',
+      order: prev.length + 1,
+      config: { bo: 1 },
+    }])
   }
 
   async function savePhase(phase: Phase) {
-    const count = phase.type === 'swiss' ? (phase.config.swissTeamIds?.length ?? 0) : (phase.config.bracketTeamIds?.length ?? 0)
-    if (count > 0) {
-      const sizeError = bracketSizeError(phase.type, count)
-      if (sizeError) { notify(sizeError); return }
-    }
+    const participantErrors = validatePhaseParticipants(phase.type, phase.config)
+    if (participantErrors.length > 0) { notify(participantErrors[0]); return }
     setSaving(phase.id)
     try {
-      await adminRequest(fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(phase) }), isEntity)
+      const isDraft = phase.id.startsWith('draft-')
+      const body = isDraft ? {
+        name: phase.name, type: phase.type, status: phase.status, order: phase.order, config: phase.config,
+      } : phase
+      const saved = await adminRequest(fetch('/api/admin/fases', { method: isDraft ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), isEntity) as Phase
+      if (isDraft) setPhases(prev => prev.map(candidate => candidate.id === phase.id ? saved : candidate))
       notify('Guardado')
     } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
   }
 
   async function deletePhase(id: string) {
+    if (id.startsWith('draft-')) { setPhases(prev => prev.filter(p => p.id !== id)); return }
     const matchCount = allMatches.filter(m => m.phaseId === id).length
     const msg = matchCount > 0
       ? `¿Eliminar esta fase? Se eliminarán también ${matchCount} partido${matchCount !== 1 ? 's' : ''} asociado${matchCount !== 1 ? 's' : ''}.`
@@ -167,7 +164,7 @@ export default function AdminFases() {
 
       {phases.map((phase, i) => {
         const maxRounds = (phase.config.advanceWins ?? 2) + (phase.config.eliminateLosses ?? 2) - 1
-        const groupValidationErrors = phase.type === 'groups' ? validateGroupsConfig(phase.config) : []
+        const participantErrors = validatePhaseParticipants(phase.type, phase.config)
         const structureLocked = allMatches.some(match => match.phaseId === phase.id)
 
         return (
@@ -297,9 +294,9 @@ export default function AdminFases() {
                     </div>
                   ))}
                 </div>
-                {groupValidationErrors.length > 0 && (
+                {participantErrors.length > 0 && (
                   <div className="mt-3 rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-xs text-red-300">
-                    {groupValidationErrors.map(error => <p key={error}>{error}</p>)}
+                    {participantErrors.map(error => <p key={error} role="alert">{error}</p>)}
                   </div>
                 )}
                 {(phase.config.groups ?? []).some(g => g.teamIds.length >= 2) && (() => {
@@ -311,7 +308,7 @@ export default function AdminFases() {
                   ) : (
                     <button
                       onClick={() => generateMatches(phase, 'groups')}
-                      disabled={generating === phase.id || groupValidationErrors.length > 0}
+                      disabled={generating === phase.id || participantErrors.length > 0}
                       className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#0097D7]/40 text-[#0097D7] text-xs font-bold hover:bg-[#0097D7]/10 transition-colors disabled:opacity-50"
                     >
                       <Zap size={13} />
@@ -424,9 +421,7 @@ export default function AdminFases() {
                   {(phase.config.swissTeamIds ?? []).length > 0 && (
                     <p className="text-xs text-white/30 mt-1">{(phase.config.swissTeamIds ?? []).length} equipos seleccionados</p>
                   )}
-                  {(phase.config.swissTeamIds ?? []).length > 0 && bracketSizeError('swiss', phase.config.swissTeamIds!.length) && (
-                    <p className="text-xs text-red-400 mt-1">{bracketSizeError('swiss', phase.config.swissTeamIds!.length)}</p>
-                  )}
+                  {participantErrors.map(error => <p key={error} className="text-xs text-red-400 mt-1" role="alert">{error}</p>)}
                 </div>
 
                 {/* Botones generar / confirmar rondas */}
@@ -505,9 +500,7 @@ export default function AdminFases() {
               {(phase.config.bracketTeamIds ?? []).length > 0 && (
                     <p className="text-xs text-white/30 mt-1">{(phase.config.bracketTeamIds ?? []).length} equipos seleccionados</p>
                   )}
-                  {phase.type !== 'groups' && phase.type !== 'swiss' && (phase.config.bracketTeamIds ?? []).length > 0 && bracketSizeError(phase.type, phase.config.bracketTeamIds!.length) && (
-                    <p className="text-xs text-red-400 mt-1">{bracketSizeError(phase.type, phase.config.bracketTeamIds!.length)}</p>
-                  )}
+                  {participantErrors.map(error => <p key={error} className="text-xs text-red-400 mt-1" role="alert">{error}</p>)}
                 </div>
 
                 {phase.type === 'final-four' && (
@@ -573,7 +566,7 @@ export default function AdminFases() {
               </button>
               <button
                 onClick={() => savePhase(phase)}
-                disabled={saving === phase.id || groupValidationErrors.length > 0}
+                disabled={saving === phase.id || participantErrors.length > 0}
                 className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
               >
                 <Save size={14} />

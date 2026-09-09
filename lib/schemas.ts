@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { validateGroupsConfig } from './phase-validation'
+import { validatePhaseParticipants } from './phase-validation'
 import { isValidRiotMatchId, normalizeRiotMatchId, RIOT_MATCH_ID_ERROR } from './riot-match-id'
 
 const RoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente'])
@@ -64,11 +64,10 @@ const PhaseSchemaBase = z.object({
   config: PhaseConfigSchema,
 })
 
-function addPhaseValidation(phase: { type: string; config: { groups?: ReadonlyArray<{ id: string; teamIds: ReadonlyArray<string> }>; advanceCount?: number } }, ctx: z.RefinementCtx) {
-  if (phase.type === 'groups') {
-    for (const message of validateGroupsConfig(phase.config)) {
-      ctx.addIssue({ code: 'custom', message, path: ['config', 'groups'] })
-    }
+function addPhaseValidation(phase: z.infer<typeof PhaseSchemaBase>, ctx: z.RefinementCtx) {
+  for (const message of validatePhaseParticipants(phase.type, phase.config)) {
+    const path = phase.type === 'groups' ? ['config', 'groups'] : phase.type === 'swiss' ? ['config', 'swissTeamIds'] : ['config', 'bracketTeamIds']
+    ctx.addIssue({ code: 'custom', message, path })
   }
 }
 

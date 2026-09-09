@@ -26,6 +26,7 @@ const phase: Phase = {
     swissTeamIds: ['team-1', 'team-2', 'team-3', 'team-4', 'team-5', 'team-6', 'team-7', 'team-8'],
     advanceWins: 2,
     eliminateLosses: 2,
+    bracketTeamIds: ['team-1', 'team-2'],
   },
 }
 const match: Match = {
@@ -36,10 +37,15 @@ function request(body: Phase) {
   return new NextRequest('http://localhost/api/admin/fases', { method: 'PUT', body: JSON.stringify(body) })
 }
 
+function postRequest(body: Omit<Phase, 'id'>) {
+  return new NextRequest('http://localhost/api/admin/fases', { method: 'POST', body: JSON.stringify(body) })
+}
+
 describe('PUT /api/admin/fases structural lock', () => {
   let PUT: typeof import('@/app/api/admin/fases/route').PUT
+  let POST: typeof import('@/app/api/admin/fases/route').POST
 
-  beforeAll(async () => { ({ PUT } = await import('@/app/api/admin/fases/route')) })
+  beforeAll(async () => { ({ PUT, POST } = await import('@/app/api/admin/fases/route')) })
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -60,7 +66,7 @@ describe('PUT /api/admin/fases structural lock', () => {
     ['config.advanceWins', { ...phase, config: { ...phase.config, advanceWins: 3 } }],
     ['config.eliminateLosses', { ...phase, config: { ...phase.config, eliminateLosses: 3 } }],
     ['config.roundBo', { ...phase, config: { ...phase.config, roundBo: { '1': 3 } } }],
-    ['config.bracketTeamIds', { ...phase, config: { ...phase.config, bracketTeamIds: ['team-1', 'team-2'] } }],
+    ['config.bracketTeamIds', { ...phase, config: { ...phase.config, bracketTeamIds: ['team-2', 'team-1'] } }],
     ['config.include3rdPlace', { ...phase, config: { ...phase.config, include3rdPlace: true } }],
   ] satisfies Array<[(typeof STRUCTURAL_PHASE_FIELDS)[number], Phase]>)('rejects %s when matches exist', async (field, updated) => {
     const response = await PUT(request(updated))
@@ -88,5 +94,15 @@ describe('PUT /api/admin/fases structural lock', () => {
 
     expect(response.status).toBe(200)
     expect(mocks.savePhases).toHaveBeenCalledWith([updated])
+  })
+
+  it('rechaza crear una fase sin participantes y no persiste nada', async () => {
+    const invalid = { name: phase.name, type: 'elimination' as const, status: phase.status, order: phase.order, config: { bo: 1 as const } }
+
+    const response = await POST(postRequest(invalid))
+
+    expect(response.status).toBe(422)
+    expect(await response.json()).toMatchObject({ error: expect.any(Object) })
+    expect(mocks.savePhases).not.toHaveBeenCalled()
   })
 })
