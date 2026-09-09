@@ -57,13 +57,19 @@ async function createPhase(request: APIRequestContext, name: string, teamIds: st
 }
 
 test('permite iniciar y cerrar sesión de administrador', async ({ page }) => {
-  await page.goto('/admin')
+  await page.goto('/admin/equipos')
   await expect(page).toHaveURL(/\/admin\/login$/)
+  await expect(page.getByRole('heading', { name: 'Acceso admin' })).toBeVisible()
+  await expect(page.getByText('Panel Admin')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Salir', exact: true })).toHaveCount(0)
 
   await page.getByPlaceholder('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Entrar' }).click()
   await expect(page).toHaveURL(/\/admin$/)
   await expect(page.getByText('Panel Admin')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Cerrar sesión' }).click()
   await expect(page).toHaveURL(/\/admin\/login$/)
