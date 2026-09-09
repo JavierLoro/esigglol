@@ -135,3 +135,53 @@ test('reporta y persiste el resultado de un partido', async ({ page }) => {
   expect(saved?.result).toEqual({ team1Score: 0, team2Score: 1 })
   expect(saved?.winnerId).toBe(team2.id)
 })
+
+test('expone nombres accesibles contextuales y tarjetas operables con teclado', async ({ page }) => {
+  await login(page)
+  const request = page.request
+  const teamResponse = await request.post('/api/admin/equipos', {
+    data: {
+      name: 'Accesible Alpha',
+      logo: '',
+      players: [{ id: 'a11y-player', summonerName: 'Teclado#EUW', primaryRole: 'Mid' }],
+    },
+  })
+  expect(teamResponse.ok()).toBeTruthy()
+  const team1 = await teamResponse.json() as Team
+  const team2 = await createTeam(request, 'Accesible Beta')
+  const phase = await createPhase(request, 'Fase accesible', [team1.id, team2.id])
+  const matchResponse = await request.post('/api/admin/partidos', {
+    data: {
+      phaseId: phase.id,
+      round: 1,
+      team1Id: team1.id,
+      team2Id: team2.id,
+      result: { team1Score: 0, team2Score: 0 },
+      riotMatchIds: [],
+    },
+  })
+  expect(matchResponse.ok()).toBeTruthy()
+
+  await page.goto('/admin/equipos')
+  const teamToggle = page.getByRole('button', { name: /Accesible Alpha.*1 jugadores/ })
+  await teamToggle.focus()
+  await page.keyboard.press('Enter')
+  await expect(teamToggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByRole('combobox', { name: /Rol principal de Teclado#EUW en Accesible Alpha/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Eliminar jugador Teclado#EUW de Accesible Alpha' })).toBeVisible()
+
+  await page.goto('/admin/fases')
+  await expect(page.locator('input[value="Fase accesible"]')).toHaveAccessibleName(/Nombre de la fase \d+: Fase accesible/)
+  await expect(page.getByRole('combobox', { name: 'Tipo de la fase Fase accesible' })).toBeVisible()
+
+  await page.goto('/admin/partidos')
+  await expect(page.getByRole('checkbox', { name: /Seleccionar partido de Accesible Alpha contra Accesible Beta/ })).toBeVisible()
+  await expect(page.getByRole('spinbutton', { name: /Marcador de Accesible Alpha en Fase accesible/ })).toBeVisible()
+
+  await page.goto(`/comparar?t1=${team1.id}&t2=${team2.id}`)
+  await expect(page.getByRole('combobox', { name: 'Equipo 1 para comparar' })).toBeVisible()
+  const playerCard = page.getByRole('button', { name: 'Seleccionar jugador Teclado#EUW' })
+  await playerCard.focus()
+  await page.keyboard.press('Enter')
+  await expect(playerCard).toHaveAttribute('aria-pressed', 'true')
+})

@@ -350,6 +350,7 @@ export default function AdminPartidos() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <input
                             type="checkbox"
+                            aria-label={`Seleccionar partido de ${team1?.name ?? 'equipo 1'} contra ${team2?.name ?? 'equipo 2'} en ${phase.name}`}
                             checked={isSelected}
                             onChange={() => toggleSelect(match.id)}
                             className="accent-[#0097D7] shrink-0"
@@ -359,6 +360,7 @@ export default function AdminPartidos() {
                             <span className="text-xs text-white/30">R</span>
                             <input
                               type="number"
+                              aria-label={`Ronda del partido de ${team1?.name ?? 'equipo 1'} contra ${team2?.name ?? 'equipo 2'} en ${phase.name}`}
                               min={1}
                               value={match.round}
                               onChange={e => update(match.id, { round: Number(e.target.value) })}
@@ -372,6 +374,7 @@ export default function AdminPartidos() {
                 {/* Equipo 1 */}
                 <div className="flex flex-col gap-1.5">
                   <select
+                    aria-label={`Equipo 1 del partido en ${phase.name}, ronda ${match.round}`}
                     value={match.team1Id}
                     onChange={e => update(match.id, { team1Id: e.target.value, winnerId: undefined })}
                     className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
@@ -412,6 +415,7 @@ export default function AdminPartidos() {
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
+                          aria-label={`Marcador de ${team1?.name ?? 'equipo 1'} en ${phase.name}, ronda ${match.round}`}
                           min={0}
                           max={phase ? Math.ceil(getEffectiveBO(phase, match.round) / 2) : 3}
                           value={match.result.team1Score}
@@ -424,6 +428,7 @@ export default function AdminPartidos() {
                         <span className="text-white/30 text-xs">-</span>
                         <input
                           type="number"
+                          aria-label={`Marcador de ${team2?.name ?? 'equipo 2'} en ${phase.name}, ronda ${match.round}`}
                           min={0}
                           max={phase ? Math.ceil(getEffectiveBO(phase, match.round) / 2) : 3}
                           value={match.result.team2Score}
@@ -448,6 +453,7 @@ export default function AdminPartidos() {
                 {/* Equipo 2 */}
                 <div className="flex flex-col gap-1.5">
                   <select
+                    aria-label={`Equipo 2 del partido en ${phase.name}, ronda ${match.round}`}
                     value={match.team2Id}
                     onChange={e => update(match.id, { team2Id: e.target.value, winnerId: undefined })}
                     className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
@@ -478,6 +484,7 @@ export default function AdminPartidos() {
                 <label className="text-xs text-white/30 mb-1 block">Fecha y hora</label>
                 <DateTimePicker
                   value={match.scheduledAt}
+                  label={`Fecha y hora del partido en ${phase.name}, ronda ${match.round}`}
                   onChange={iso => update(match.id, { scheduledAt: iso })}
                 />
               </div>
@@ -541,6 +548,7 @@ export default function AdminPartidos() {
                             {/* Botón de datos — abre modal */}
                             <button
                               type="button"
+                              aria-label={`${gameData ? 'Editar' : 'Añadir'} datos de la partida ${i + 1} del partido en ${phase.name}, ronda ${match.round}`}
                               onClick={() => setGameModal({ matchId: match.id, gameIndex: i })}
                               className={clsx(
                                 'flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors shrink-0',
@@ -559,6 +567,7 @@ export default function AdminPartidos() {
                             {gameData && (
                               <button
                                 type="button"
+                                aria-label={`Eliminar datos de la partida ${i + 1} del partido en ${phase.name}, ronda ${match.round}`}
                                 onClick={() => {
                                   const games = [...(match.games ?? [])]
                                   games.splice(i, 1, null)
@@ -573,6 +582,7 @@ export default function AdminPartidos() {
                             {/* Riot match ID — fallback para datos de Riot en página pública */}
                             <input
                               type="text"
+                              aria-label={`Código Riot de la partida ${i + 1} del partido en ${phase.name}, ronda ${match.round}`}
                               className={clsx(
                                 'flex-1 min-w-0 px-2 py-1 rounded-lg bg-black/30 border text-[11px] text-white/80 placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-[#0097D7]',
                                 match.riotMatchIds?.[i] && !isValidRiotMatchId(match.riotMatchIds[i]!)
@@ -678,7 +688,7 @@ function GameDataModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
           <h2 className="font-bold text-sm">{title}</h2>
-          <button type="button" onClick={onClose} className="text-white/30 hover:text-white transition-colors">
+          <button type="button" onClick={onClose} aria-label="Cerrar datos de partida" className="text-white/30 hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>

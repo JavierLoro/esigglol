@@ -126,29 +126,35 @@ export default function AdminEquipos() {
 
       {loadError ? <p className="text-red-400 text-sm">No se pudieron cargar los equipos.</p> : teams.map(team => (
         <div key={team.id} className="rounded-xl border border-white/10 overflow-hidden">
-          <div
-            className="flex items-center gap-3 px-4 py-3 bg-[#0d1321] cursor-pointer hover:bg-white/5"
-            onClick={() => setExpanded(e => e === team.id ? null : team.id)}
-          >
-            {expanded === team.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            <span className="font-medium flex-1">{team.name || 'Nuevo equipo'}</span>
-            <span className="text-xs text-white/30">{team.players.length} jugadores</span>
+          <div className="flex items-center gap-3 px-4 py-3 bg-[#0d1321] hover:bg-white/5">
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 items-center gap-3 text-left"
+              aria-expanded={expanded === team.id}
+              aria-controls={`team-details-${team.id}`}
+              onClick={() => setExpanded(e => e === team.id ? null : team.id)}
+            >
+              {expanded === team.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              <span className="font-medium flex-1">{team.name || 'Nuevo equipo'}</span>
+              <span className="text-xs text-white/30">{team.players.length} jugadores</span>
+            </button>
             <button onClick={e => {
               e.stopPropagation()
               if (draftIds.has(team.id)) cancelDraft(team.id)
               else deleteTeam(team.id)
-            }} className="text-white/20 hover:text-red-400 transition-colors ml-2">
+            }} aria-label={`${draftIds.has(team.id) ? 'Cancelar' : 'Eliminar'} equipo ${team.name || 'nuevo'}`} className="text-white/20 hover:text-red-400 transition-colors ml-2">
               <Trash2 size={15} />
             </button>
           </div>
 
           {expanded === team.id && (
-            <div className="p-4 border-t border-white/10 flex flex-col gap-4">
+            <div id={`team-details-${team.id}`} className="p-4 border-t border-white/10 flex flex-col gap-4">
               {/* Datos del equipo */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-white/40 mb-1 block">Nombre del equipo</label>
                   <input
+                    aria-label={`Nombre del equipo ${team.name || 'nuevo'}`}
                     value={team.name}
                     onChange={e => updateTeam(team.id, { name: e.target.value })}
                     className="w-full px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#0097D7]/50"
@@ -179,6 +185,7 @@ export default function AdminEquipos() {
                           e.target.value = ''
                         }}
                         disabled={uploading === team.id || draftIds.has(team.id)}
+                        aria-label={`Subir logo de ${team.name || 'nuevo equipo'}`}
                       />
                     </label>
                   </div>
@@ -197,6 +204,7 @@ export default function AdminEquipos() {
                   {team.players.map(p => (
                     <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded-lg bg-white/3 border border-white/5">
                       <input
+                        aria-label={`Nombre del jugador ${p.summonerName || 'nuevo'} de ${team.name || 'nuevo equipo'}`}
                         value={p.summonerName}
                         onChange={e => updatePlayer(team.id, p.id, { summonerName: e.target.value })}
                         placeholder="Nick#TAG"
@@ -204,6 +212,7 @@ export default function AdminEquipos() {
                       />
                       <div className="flex items-center gap-2">
                         <select
+                          aria-label={`Rol principal de ${p.summonerName || 'nuevo jugador'} en ${team.name || 'nuevo equipo'}`}
                           value={p.primaryRole}
                           onChange={e => updatePlayer(team.id, p.id, { primaryRole: e.target.value as Role })}
                           className="flex-1 sm:flex-none px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
@@ -211,6 +220,7 @@ export default function AdminEquipos() {
                           {PRIMARY_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                         <select
+                          aria-label={`Rol secundario de ${p.summonerName || 'nuevo jugador'} en ${team.name || 'nuevo equipo'}`}
                           value={p.secondaryRole ?? ''}
                           onChange={e => updatePlayer(team.id, p.id, { secondaryRole: e.target.value as Exclude<Role, 'Suplente'> || undefined })}
                           className="flex-1 sm:flex-none px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/60 focus:outline-none"
@@ -218,7 +228,7 @@ export default function AdminEquipos() {
                           <option value="">— 2º rol</option>
                           {SECONDARY_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
-                        <button onClick={() => removePlayer(team.id, p.id)} className="ml-auto sm:ml-0 text-white/20 hover:text-red-400 transition-colors">
+                        <button aria-label={`Eliminar jugador ${p.summonerName || 'nuevo'} de ${team.name || 'nuevo equipo'}`} onClick={() => removePlayer(team.id, p.id)} className="ml-auto sm:ml-0 text-white/20 hover:text-red-400 transition-colors">
                           <Trash2 size={14} />
                         </button>
                       </div>

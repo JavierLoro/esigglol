@@ -173,11 +173,12 @@ export default function AdminFases() {
               <GripVertical size={16} className="text-white/20" />
               <span className="text-xs text-white/30 w-6 text-center">{i + 1}</span>
               <input
+                aria-label={`Nombre de la fase ${i + 1}: ${phase.name}`}
                 value={phase.name}
                 onChange={e => update(phase.id, { name: e.target.value })}
                 className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-medium text-white focus:outline-none focus:border-[#0097D7]/50"
               />
-              <button onClick={() => deletePhase(phase.id)} className="text-white/20 hover:text-red-400 transition-colors ml-auto">
+              <button aria-label={`Eliminar fase ${phase.name}`} onClick={() => deletePhase(phase.id)} className="text-white/20 hover:text-red-400 transition-colors ml-auto">
                 <Trash2 size={15} />
               </button>
             </div>
@@ -186,6 +187,7 @@ export default function AdminFases() {
               <div>
                 <label className="text-xs text-white/40 mb-1 block">Tipo</label>
                 <select
+                  aria-label={`Tipo de la fase ${phase.name}`}
                   value={phase.type}
                   disabled={structureLocked}
                   onChange={e => update(phase.id, { type: e.target.value as PhaseType })}
@@ -197,6 +199,7 @@ export default function AdminFases() {
               <div>
                 <label className="text-xs text-white/40 mb-1 block">Estado</label>
                 <select
+                  aria-label={`Estado de la fase ${phase.name}`}
                   value={phase.status}
                   onChange={e => update(phase.id, { status: e.target.value as PhaseStatus })}
                   className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
@@ -210,6 +213,7 @@ export default function AdminFases() {
                 <div>
                   <label className="text-xs text-white/40 mb-1 block">Formato BO</label>
                   <select
+                    aria-label={`Formato de la fase ${phase.name}`}
                     value={phase.config.bo}
                     disabled={structureLocked}
                     onChange={e => updateConfig(phase.id, { bo: Number(e.target.value) as BOFormat })}
@@ -223,6 +227,7 @@ export default function AdminFases() {
                 <div>
                   <label className="text-xs text-white/40 mb-1 block">Pasan por grupo</label>
                   <input
+                    aria-label={`Equipos que pasan por grupo en la fase ${phase.name}`}
                     type="number"
                     disabled={structureLocked}
                     min={1}
@@ -255,6 +260,7 @@ export default function AdminFases() {
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-[#0097D7]">Grupo {g.id}</span>
                         <button
+                          aria-label={`Eliminar grupo ${g.id} de la fase ${phase.name}`}
                           disabled={structureLocked}
                           onClick={() => updateConfig(phase.id, { groups: (phase.config.groups ?? []).filter((_, i) => i !== gi) })}
                           className="text-white/20 hover:text-red-400"
@@ -269,6 +275,7 @@ export default function AdminFases() {
                             <label key={t.id} className="flex items-center gap-2 cursor-pointer px-2 py-1 rounded hover:bg-white/5">
                               <input
                                 type="checkbox"
+                                aria-label={`${t.name}, grupo ${g.id} de la fase ${phase.name}`}
                                 disabled={structureLocked}
                                 checked={checked}
                                 className="accent-[#0097D7]"
@@ -327,6 +334,7 @@ export default function AdminFases() {
                   <div>
                     <label className="text-xs text-white/40 mb-1 block">Tamaño</label>
                     <select
+                      aria-label={`Tamaño de la fase ${phase.name}`}
                       value={phase.config.swissSize ?? 8}
                       disabled={structureLocked}
                       onChange={e => updateConfig(phase.id, { swissSize: Number(e.target.value) as 8 | 16 })}
@@ -339,6 +347,7 @@ export default function AdminFases() {
                   <div>
                     <label className="text-xs text-white/40 mb-1 block">Victorias para clasificar</label>
                     <select
+                      aria-label={`Victorias para clasificar en la fase ${phase.name}`}
                       value={phase.config.advanceWins ?? 2}
                       disabled={structureLocked}
                       onChange={e => updateConfig(phase.id, { advanceWins: Number(e.target.value) })}
@@ -351,6 +360,7 @@ export default function AdminFases() {
                   <div>
                     <label className="text-xs text-white/40 mb-1 block">Derrotas para eliminar</label>
                     <select
+                      aria-label={`Derrotas para eliminar en la fase ${phase.name}`}
                       value={phase.config.eliminateLosses ?? 2}
                       disabled={structureLocked}
                       onChange={e => updateConfig(phase.id, { eliminateLosses: Number(e.target.value) })}
@@ -376,6 +386,7 @@ export default function AdminFases() {
                         <div key={r} className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5">
                           <span className="text-xs text-white/40">R{r}</span>
                           <select
+                            aria-label={`Formato de la ronda ${r} de la fase ${phase.name}`}
                             value={val}
                             disabled={structureLocked}
                             onChange={e => updateConfig(phase.id, {
@@ -401,6 +412,7 @@ export default function AdminFases() {
                         <label key={t.id} className="flex items-center gap-2 cursor-pointer px-2 py-1 rounded hover:bg-white/5">
                           <input
                             type="checkbox"
+                            aria-label={`${t.name}, equipos del suizo de la fase ${phase.name}`}
                             disabled={structureLocked}
                             checked={checked}
                             className="accent-[#0097D7]"
@@ -480,6 +492,7 @@ export default function AdminFases() {
                         <label key={t.id} className="flex items-center gap-2 cursor-pointer px-2 py-1 rounded hover:bg-white/5">
                           <input
                             type="checkbox"
+                            aria-label={`${t.name}, equipos del bracket de la fase ${phase.name}`}
                             disabled={structureLocked}
                             checked={checked}
                             className="accent-[#0097D7]"
@@ -507,6 +520,7 @@ export default function AdminFases() {
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
+                      aria-label={`Incluir partido por el tercer puesto en la fase ${phase.name}`}
                       disabled={structureLocked}
                       checked={phase.config.include3rdPlace ?? false}
                       className="accent-[#0097D7]"

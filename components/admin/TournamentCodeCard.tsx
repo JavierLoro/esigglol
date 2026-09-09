@@ -63,14 +63,14 @@ export default function TournamentCodeCard({ code, gameNumber, onCopy }: Tournam
   return (
     <div className="rounded-lg border border-white/10 bg-black/20">
       <div className="flex items-center gap-2 p-2">
-        <button type="button" onClick={toggle} className="text-white/40 hover:text-white" aria-expanded={expanded}>
+        <button type="button" onClick={toggle} className="text-white/40 hover:text-white" aria-expanded={expanded} aria-label={`${expanded ? 'Ocultar' : 'Mostrar'} detalles del código de la partida ${gameNumber}`}>
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
         <span className="text-[11px] text-white/30 w-14 shrink-0">Game {gameNumber}</span>
         <code className="flex-1 min-w-0 truncate rounded-md bg-white/5 px-2 py-1 text-xs text-[#0097D7] font-mono select-all" title={code}>
           {code}
         </code>
-        <button type="button" onClick={() => onCopy(code)} className="text-white/30 hover:text-[#0097D7]" title="Copiar código">
+        <button type="button" onClick={() => onCopy(code)} className="text-white/30 hover:text-[#0097D7]" aria-label={`Copiar código de la partida ${gameNumber}`} title="Copiar código">
           <Copy size={13} />
         </button>
       </div>
