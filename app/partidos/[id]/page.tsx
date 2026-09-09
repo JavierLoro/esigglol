@@ -4,7 +4,8 @@ import Image from 'next/image'
 import { ArrowLeft } from 'lucide-react'
 import { clsx } from 'clsx'
 import LocalDateTime from '@/components/LocalDateTime'
-import { getMatchById, getPhaseById, getTeamById } from '@/lib/data'
+import { getMatches, getPhases, getPhaseById, getTeamById } from '@/lib/data'
+import { getPublishedMatch } from '@/lib/publication'
 import { getMatchDetails } from '@/lib/riot'
 import { getVersion, buildChampionNameMap } from '@/lib/ddragon'
 import type { Team, GameData, GamePlayerData } from '@/lib/types'
@@ -308,7 +309,7 @@ export default async function PartidoPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const match = getMatchById(id)
+  const match = getPublishedMatch(id, getPhases(), getMatches())
   if (!match) notFound()
 
   if (match.result === null) {

@@ -13,7 +13,7 @@ interface Phase {
   type: 'elimination'
   status: 'upcoming'
   order: number
-  config: { bo: 1; bracketTeamIds: string[] }
+  config: { bo: 1; bracketTeamIds: string[]; confirmedBracket?: boolean }
 }
 
 interface Match {
@@ -99,6 +99,63 @@ test('genera un bracket desde el panel de fases', async ({ page }) => {
   expect(matchesResponse.ok()).toBeTruthy()
   const matches = await matchesResponse.json() as Match[]
   expect(matches.filter(match => match.phaseId === phase.id)).toHaveLength(2)
+})
+
+test('oculta el bracket en superficies públicas hasta confirmarlo y conserva acceso admin', async ({ page }) => {
+  await login(page)
+  const request = page.request
+  const teams = await Promise.all([
+    createTeam(request, 'Publicación Alpha'),
+    createTeam(request, 'Publicación Beta'),
+    createTeam(request, 'Publicación Gamma'),
+    createTeam(request, 'Publicación Delta'),
+  ])
+  const phase = await createPhase(request, 'Bracket publicación E2E', teams.map(team => team.id))
+
+  await page.goto('/admin/fases')
+  const phaseCard = page.locator(`input[value="${phase.name}"]`).locator('xpath=../..')
+  await phaseCard.getByRole('button', { name: 'Generar bracket' }).click()
+  await expect(page.getByText('2 partidos generados')).toBeVisible()
+
+  const adminMatchesResponse = await request.get('/api/admin/partidos')
+  expect(adminMatchesResponse.ok()).toBeTruthy()
+  const adminMatches = await adminMatchesResponse.json() as Match[]
+  const draftMatches = adminMatches.filter(match => match.phaseId === phase.id)
+  expect(draftMatches).toHaveLength(2)
+  const draftMatch = draftMatches[0]
+
+  const publicDraft = await request.get('/api/data/fases')
+  const publicDraftData = await publicDraft.json() as { phases: Phase[]; matches: Match[] }
+  expect(publicDraftData.phases.some(item => item.id === phase.id)).toBeFalsy()
+  expect(publicDraftData.matches.some(item => item.phaseId === phase.id)).toBeFalsy()
+  expect((await request.get(`/partidos/${draftMatch.id}`, { maxRedirects: 0 })).status()).toBe(404)
+  expect((await request.get(`/overlay/partidos/${draftMatch.id}`)).status()).toBe(404)
+
+  await page.goto('/')
+  await expect(page.getByText(teams[0].name)).toHaveCount(0)
+  await page.goto('/fases')
+  await expect(page.getByText(phase.name)).toHaveCount(0)
+  await page.goto(`/comparar?t1=${draftMatch.team1Id}&t2=${draftMatch.team2Id}`)
+  await expect(page.getByText('Sin enfrentamientos previos')).toBeVisible()
+
+  await page.goto('/admin/fases')
+  const refreshedPhaseCard = page.locator(`input[value="${phase.name}"]`).locator('xpath=../..')
+  await refreshedPhaseCard.getByRole('button', { name: 'Confirmar' }).click()
+  await expect(refreshedPhaseCard.getByText('Bracket confirmado')).toBeVisible()
+
+  const publicConfirmed = await request.get('/api/data/fases')
+  const publicConfirmedData = await publicConfirmed.json() as { phases: Phase[]; matches: Match[] }
+  expect(publicConfirmedData.phases.some(item => item.id === phase.id)).toBeTruthy()
+  expect(publicConfirmedData.matches.some(item => item.phaseId === phase.id)).toBeTruthy()
+  expect((await request.get(`/partidos/${draftMatch.id}`, { maxRedirects: 0 })).status()).toBe(307)
+  expect((await request.get(`/overlay/partidos/${draftMatch.id}`)).ok()).toBeTruthy()
+
+  await page.goto('/')
+  await expect(page.getByText(teams[0].name)).toBeVisible()
+  await page.goto('/fases')
+  await expect(page.getByText(phase.name)).toBeVisible()
+  await page.goto(`/comparar?t1=${draftMatch.team1Id}&t2=${draftMatch.team2Id}`)
+  await expect(page.getByText('1 enfrentamientos en el torneo')).toBeVisible()
 })
 
 test('reporta y persiste el resultado de un partido', async ({ page }) => {

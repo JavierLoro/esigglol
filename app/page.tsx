@@ -2,6 +2,7 @@ import LiveSection from '@/components/LiveSection'
 import MatchCard from '@/components/MatchCard'
 import { getMatches, getTeams, getPhases } from '@/lib/data'
 import { TWITCH_CHANNEL } from '@/lib/env'
+import { getPublishedTournamentData } from '@/lib/publication'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,8 +10,7 @@ function currentTimestamp() { return Date.now() }
 
 export default function HomePage() {
   const teams = getTeams()
-  const matches = getMatches()
-  const phases = getPhases()
+  const { matches, phases } = getPublishedTournamentData(getPhases(), getMatches())
 
   const now = currentTimestamp()
   const sortedMatches = [...matches].sort((a, b) => {

@@ -21,7 +21,7 @@ const statusColor: Record<string, string> = {
 }
 
 export default function FasesPage() {
-  const phases = getPhases()
+  const phases = getPhases().filter(isPhasePublished)
   const teams = getTeams()
 
   return (
@@ -32,7 +32,7 @@ export default function FasesPage() {
         <p className="text-white/40 text-sm">El torneo aún no tiene fases configuradas.</p>
       )}
 
-      {phases.filter(isPhasePublished).map(phase => {
+      {phases.map(phase => {
         const matches = getMatchesByPhase(phase.id)
 
         return (

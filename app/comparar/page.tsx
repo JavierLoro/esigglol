@@ -5,6 +5,8 @@ import { getSessionFromCookies } from '@/lib/auth'
 import CompareClient from '@/components/CompareClient'
 import type { PlayerRow } from '@/lib/types'
 import type { PlayerChampionData } from '@/components/ChampionBubbles'
+import { getPublishedMatches } from '@/lib/publication'
+import { getPhases } from '@/lib/data'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +20,7 @@ export default async function CompararPage({
   const { t1, t2 } = await searchParams
   const isAdmin = await getSessionFromCookies()
   const teams = getTeams()
-  const matches = getMatches()
+  const matches = getPublishedMatches(getPhases(), getMatches())
 
   const cache = getPlayerStatsCache()
   const allPlayers = cache.players
