@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import type { Team, Player, Role } from '@/lib/types'
 import Image from 'next/image'
-import { Plus, Trash2, Save, ChevronDown, ChevronRight, Upload } from 'lucide-react'
+import { Plus, Trash2, Save, ChevronDown, ChevronRight, Upload, X } from 'lucide-react'
 import { adminRequest, errorMessage, isArrayOfRecords, isEntity, isOk } from '@/lib/admin-client'
 
 const PRIMARY_ROLES: Role[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente']
@@ -10,8 +10,16 @@ const SECONDARY_ROLES: Exclude<Role, 'Suplente'>[] = ['Top', 'Jungle', 'Mid', 'B
 
 function genId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 6)}` }
 
+function isTeam(value: unknown): value is Team {
+  return isEntity(value)
+    && 'name' in value && typeof value.name === 'string'
+    && 'logo' in value && typeof value.logo === 'string'
+    && 'players' in value && Array.isArray(value.players)
+}
+
 export default function AdminEquipos() {
   const [teams, setTeams] = useState<Team[]>([])
+  const [draftIds, setDraftIds] = useState<Set<string>>(() => new Set())
   const [expanded, setExpanded] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
   const [uploading, setUploading] = useState<string | null>(null)
@@ -27,20 +35,41 @@ export default function AdminEquipos() {
   async function saveTeam(team: Team) {
     setSaving(team.id)
     try {
-      await adminRequest(fetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isEntity)
+      if (draftIds.has(team.id)) {
+        const created = await adminRequest<Team>(fetch('/api/admin/equipos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: team.name, logo: team.logo, players: team.players }),
+        }), isTeam)
+        setTeams(prev => prev.map(candidate => candidate.id === team.id ? created : candidate))
+        setDraftIds(prev => {
+          const next = new Set(prev)
+          next.delete(team.id)
+          return next
+        })
+        setExpanded(created.id)
+      } else {
+        await adminRequest(fetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isEntity)
+      }
       notify('Guardado')
     } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
   }
 
-  async function addTeam() {
-    try {
-    const team = await adminRequest(fetch('/api/admin/equipos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Nuevo equipo', logo: '', players: [] }),
-    }), isEntity)
-    setTeams(prev => [...prev, team as Team]); setExpanded(team.id)
-    } catch (error) { notify(errorMessage(error)) }
+  function addTeam() {
+    const team: Team = { id: `draft-${genId()}`, name: '', logo: '', players: [] }
+    setTeams(prev => [...prev, team])
+    setDraftIds(prev => new Set(prev).add(team.id))
+    setExpanded(team.id)
+  }
+
+  function cancelDraft(id: string) {
+    setTeams(prev => prev.filter(team => team.id !== id))
+    setDraftIds(prev => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+    setExpanded(current => current === id ? null : current)
   }
 
   async function deleteTeam(id: string) {
@@ -102,9 +131,13 @@ export default function AdminEquipos() {
             onClick={() => setExpanded(e => e === team.id ? null : team.id)}
           >
             {expanded === team.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            <span className="font-medium flex-1">{team.name}</span>
+            <span className="font-medium flex-1">{team.name || 'Nuevo equipo'}</span>
             <span className="text-xs text-white/30">{team.players.length} jugadores</span>
-            <button onClick={e => { e.stopPropagation(); deleteTeam(team.id) }} className="text-white/20 hover:text-red-400 transition-colors ml-2">
+            <button onClick={e => {
+              e.stopPropagation()
+              if (draftIds.has(team.id)) cancelDraft(team.id)
+              else deleteTeam(team.id)
+            }} className="text-white/20 hover:text-red-400 transition-colors ml-2">
               <Trash2 size={15} />
             </button>
           </div>
@@ -133,7 +166,7 @@ export default function AdminEquipos() {
                         className="rounded-lg object-contain bg-white/5"
                       />
                     )}
-                    <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/60 hover:border-[#0097D7]/50 cursor-pointer transition-colors">
+                    <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/60 transition-colors ${draftIds.has(team.id) ? 'cursor-not-allowed opacity-50' : 'hover:border-[#0097D7]/50 cursor-pointer'}`}>
                       <Upload size={14} />
                       {uploading === team.id ? 'Subiendo...' : 'Subir logo'}
                       <input
@@ -145,7 +178,7 @@ export default function AdminEquipos() {
                           if (file) uploadLogo(team.id, file)
                           e.target.value = ''
                         }}
-                        disabled={uploading === team.id}
+                        disabled={uploading === team.id || draftIds.has(team.id)}
                       />
                     </label>
                   </div>
@@ -194,14 +227,25 @@ export default function AdminEquipos() {
                 </div>
               </div>
 
-              <button
-                onClick={() => saveTeam(team)}
-                disabled={saving === team.id}
-                className="self-end flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
-              >
-                <Save size={14} />
-                {saving === team.id ? 'Guardando...' : 'Guardar'}
-              </button>
+              <div className="self-end flex items-center gap-2">
+                {draftIds.has(team.id) && (
+                  <button
+                    onClick={() => cancelDraft(team.id)}
+                    disabled={saving === team.id}
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-sm hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    <X size={14} /> Cancelar
+                  </button>
+                )}
+                <button
+                  onClick={() => saveTeam(team)}
+                  disabled={saving === team.id}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
+                >
+                  <Save size={14} />
+                  {saving === team.id ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
             </div>
           )}
         </div>
