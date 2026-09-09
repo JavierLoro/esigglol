@@ -10,6 +10,7 @@ import { getEffectiveBO } from '@/lib/match-validation'
 import { getPhaseTeamIds } from '@/lib/phase-validation'
 import { adminRequest, errorMessage, isArrayOfRecords, isEntity, isOk } from '@/lib/admin-client'
 import TournamentCodeCard from '@/components/admin/TournamentCodeCard'
+import { isValidRiotMatchId, normalizeRiotMatchId, RIOT_MATCH_ID_ERROR } from '@/lib/riot-match-id'
 
 export default function AdminPartidos() {
   const [matches, setMatches] = useState<Match[]>([])
@@ -72,6 +73,11 @@ export default function AdminPartidos() {
   }
 
   async function saveMatch(match: Match) {
+    const invalidIndex = (match.riotMatchIds ?? []).findIndex(id => id !== null && !isValidRiotMatchId(id))
+    if (invalidIndex !== -1) {
+      notify(`Error de validación: ${RIOT_MATCH_ID_ERROR} (Partida ${invalidIndex + 1})`)
+      return
+    }
     setSaving(match.id)
     try {
     const updated = await adminRequest<Match>(fetch('/api/admin/partidos', {
@@ -567,11 +573,17 @@ export default function AdminPartidos() {
                             {/* Riot match ID — fallback para datos de Riot en página pública */}
                             <input
                               type="text"
-                              className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-black/30 border border-white/10 text-[11px] text-white/80 placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-[#0097D7]"
+                              className={clsx(
+                                'flex-1 min-w-0 px-2 py-1 rounded-lg bg-black/30 border text-[11px] text-white/80 placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-[#0097D7]',
+                                match.riotMatchIds?.[i] && !isValidRiotMatchId(match.riotMatchIds[i]!)
+                                  ? 'border-red-500/70 focus:ring-red-500'
+                                  : 'border-white/10',
+                              )}
+                              aria-invalid={Boolean(match.riotMatchIds?.[i] && !isValidRiotMatchId(match.riotMatchIds[i]!))}
                               placeholder="EUW1_..."
                               value={match.riotMatchIds?.[i] ?? ''}
                               onChange={(e) => {
-                                const value = e.target.value.trim()
+                                const value = normalizeRiotMatchId(e.target.value)
                                 const riotMatchIds = [...(match.riotMatchIds ?? [])]
                                 riotMatchIds[i] = value || null
                                 while (riotMatchIds.length > 0 && riotMatchIds[riotMatchIds.length - 1] === null) {
@@ -583,6 +595,9 @@ export default function AdminPartidos() {
                               }}
                             />
                           </div>
+                          {match.riotMatchIds?.[i] && !isValidRiotMatchId(match.riotMatchIds[i]!) && (
+                            <p className="text-[10px] text-red-400" role="alert">{RIOT_MATCH_ID_ERROR}.</p>
+                          )}
                         </div>
                       )
                     }
