@@ -64,6 +64,8 @@ export const RIOT_API_KEY = process.env.RIOT_API_KEY ?? ''
 
 export const RIOT_REGION = process.env.RIOT_REGION || 'euw1'
 export const TWITCH_CHANNEL = process.env.TWITCH_CHANNEL ?? ''
+export const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID ?? ''
+export const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET ?? ''
 export const REFRESH_AUTO_INTERVAL_MS = optionalNonNegativeInt('REFRESH_AUTO_INTERVAL_MS', 6 * 60 * 60 * 1000)
 export const REFRESH_BATCH_SIZE = optionalPositiveInt('REFRESH_BATCH_SIZE', 3)
 export const REFRESH_BATCH_DELAY_MS = optionalNonNegativeInt('REFRESH_BATCH_DELAY_MS', 30_000)
