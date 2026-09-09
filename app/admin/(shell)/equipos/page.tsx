@@ -51,7 +51,7 @@ export default function AdminEquipos() {
       } else {
         await adminRequest(fetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isEntity)
       }
-      notify('Guardado')
+      notify('Cambios guardados')
     } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
   }
 
@@ -86,12 +86,13 @@ export default function AdminEquipos() {
 
   async function uploadLogo(teamId: string, file: File) {
     setUploading(teamId)
+    setMsg('Subiendo logo...')
     const formData = new FormData()
     formData.append('file', file)
     formData.append('teamId', teamId)
     try {
       const data = await adminRequest<{ path: string }>(fetch('/api/admin/equipos/upload-logo', { method: 'POST', body: formData }), (value): value is { path: string } => Boolean(value && typeof value === 'object' && 'path' in value && typeof value.path === 'string'))
-      updateTeam(teamId, { logo: (data as { path: string }).path }); notify('Logo subido')
+      updateTeam(teamId, { logo: data.path }); notify('Logo guardado')
     } catch (error) { notify(errorMessage(error)) } finally { setUploading(null) }
   }
 

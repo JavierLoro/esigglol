@@ -45,6 +45,21 @@ export function getTeamById(id: string): Team | undefined {
   return team
 }
 
+/** Updates only the persisted logo for an existing team. */
+export function updateTeamLogo(teamId: string, logo: string): Team | undefined {
+  const update = db.transaction(() => {
+    const team = getTeamById(teamId)
+    if (!team) return undefined
+
+    const updated = { ...team, logo }
+    const result = db.prepare('UPDATE teams SET data = ? WHERE id = ?')
+      .run(JSON.stringify(updated), teamId)
+    return result.changes === 1 ? updated : undefined
+  })
+
+  return update()
+}
+
 export interface TeamReferences {
   phaseIds: string[]
   matchIds: string[]
