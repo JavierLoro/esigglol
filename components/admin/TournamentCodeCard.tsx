@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Copy, Loader2, RefreshCw, Users } from 'lucide-react'
-import { adminRequest, errorMessage, isArrayOfRecords, isRecord } from '@/lib/admin-client'
+import { adminRequest, errorMessage, isLobbyEventArray, isRecord } from '@/lib/admin-client'
 import type { LobbyEvent, TournamentCodeDetails } from '@/lib/types'
 
 interface TournamentCodeCardProps {
@@ -13,9 +13,20 @@ interface TournamentCodeCardProps {
 
 function isCodeDetails(value: unknown): value is TournamentCodeDetails {
   return isRecord(value)
+    && typeof value.id === 'number'
+    && typeof value.providerId === 'number'
+    && typeof value.tournamentId === 'number'
     && typeof value.code === 'string'
+    && typeof value.region === 'string'
     && typeof value.map === 'string'
+    && typeof value.teamSize === 'number'
+    && typeof value.spectators === 'string'
     && typeof value.pickType === 'string'
+    && typeof value.lobbyName === 'string'
+    && typeof value.password === 'string'
+    && typeof value.metaData === 'string'
+    && Array.isArray(value.participants)
+    && value.participants.every(participant => typeof participant === 'string')
 }
 
 function formatTimestamp(value: string): string {
@@ -42,7 +53,7 @@ export default function TournamentCodeCard({ code, gameNumber, onCopy }: Tournam
         ),
         adminRequest<LobbyEvent[]>(
           fetch(`/api/admin/partidos/lobby?code=${encodeURIComponent(code)}`),
-          isArrayOfRecords,
+          isLobbyEventArray,
         ),
       ])
       setDetails(codeDetails)

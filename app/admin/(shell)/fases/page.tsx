@@ -4,7 +4,16 @@ import type { Phase, PhaseType, PhaseStatus, BOFormat, Team, Match } from '@/lib
 import { validatePhaseParticipants } from '@/lib/phase-validation'
 import { Plus, Trash2, Save, GripVertical, Zap, Check, Copy } from 'lucide-react'
 import { bracketSizeError } from '@/lib/bracket-sizes'
-import { adminRequest, errorMessage, isArrayOfRecords, isEntity, isOk } from '@/lib/admin-client'
+import {
+  adminRequest,
+  errorMessage,
+  isGeneratedMatchesResponse,
+  isMatchArray,
+  isOk,
+  isPhase,
+  isPhaseArray,
+  isTeamArray,
+} from '@/lib/admin-client'
 
 const PHASE_TYPES: { value: PhaseType; label: string }[] = [
   { value: 'groups', label: 'Fase de Grupos' },
@@ -34,36 +43,42 @@ export default function AdminFases() {
   const [teams, setTeams] = useState<Team[]>([])
   const [allMatches, setAllMatches] = useState<Match[]>([])
   const [saving, setSaving] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [generating, setGenerating] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
   const [loadError, setLoadError] = useState('')
 
   function loadMatches() {
-    return adminRequest<Match[]>(fetch('/api/admin/partidos'), isArrayOfRecords).then(setAllMatches)
+    return adminRequest<Match[]>(fetch('/api/admin/partidos'), isMatchArray).then(setAllMatches)
   }
 
   useEffect(() => {
     Promise.all([
-      adminRequest<Phase[]>(fetch('/api/admin/fases'), isArrayOfRecords),
-      adminRequest<Team[]>(fetch('/api/admin/equipos'), isArrayOfRecords), loadMatches(),
+      adminRequest<Phase[]>(fetch('/api/admin/fases'), isPhaseArray),
+      adminRequest<Team[]>(fetch('/api/admin/equipos'), isTeamArray), loadMatches(),
     ]).then(([p, t]) => { setPhases(p); setTeams(t) }).catch(error => setLoadError(errorMessage(error)))
   }, [])
 
   function notify(text: string) { setMsg(text); setTimeout(() => setMsg(''), 3000) }
 
-  function copyOverlayUrl(phaseId: string) {
-    const url = `${window.location.origin}/overlay/fases/${phaseId}`
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(url)
-    } else {
-      const el = document.createElement('textarea')
-      el.value = url
-      document.body.appendChild(el)
-      el.select()
-      document.execCommand('copy')
-      document.body.removeChild(el)
+  async function copyOverlayUrl(phaseId: string) {
+    try {
+      const url = `${window.location.origin}/overlay/fases/${phaseId}`
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url)
+      } else {
+        const el = document.createElement('textarea')
+        el.value = url
+        document.body.appendChild(el)
+        el.select()
+        const copied = document.execCommand('copy')
+        document.body.removeChild(el)
+        if (!copied) throw new Error('No se pudo copiar')
+      }
+      notify('URL de overlay copiada')
+    } catch (error) {
+      notify(errorMessage(error))
     }
-    notify('URL de overlay copiada')
   }
 
   function addPhase() {
@@ -80,16 +95,21 @@ export default function AdminFases() {
   async function savePhase(phase: Phase) {
     const participantErrors = validatePhaseParticipants(phase.type, phase.config)
     if (participantErrors.length > 0) { notify(participantErrors[0]); return }
+    const isDraft = phase.id.startsWith('draft-')
     setSaving(phase.id)
     try {
-      const isDraft = phase.id.startsWith('draft-')
       const body = isDraft ? {
         name: phase.name, type: phase.type, status: phase.status, order: phase.order, config: phase.config,
       } : phase
-      const saved = await adminRequest(fetch('/api/admin/fases', { method: isDraft ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), isEntity) as Phase
-      if (isDraft) setPhases(prev => prev.map(candidate => candidate.id === phase.id ? saved : candidate))
+      const saved = await adminRequest<Phase>(fetch('/api/admin/fases', { method: isDraft ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), isPhase)
+      setPhases(prev => prev.map(candidate => candidate.id === phase.id ? saved : candidate))
       notify('Guardado')
-    } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
+    } catch (error) {
+      // Drafts have no persisted counterpart; remove a rejected preview so it
+      // cannot be mistaken for a phase that was saved on the server.
+      if (isDraft) setPhases(prev => prev.filter(candidate => candidate.id !== phase.id))
+      notify(errorMessage(error))
+    } finally { setSaving(null) }
   }
 
   async function deletePhase(id: string) {
@@ -99,10 +119,11 @@ export default function AdminFases() {
       ? `¿Eliminar esta fase? Se eliminarán también ${matchCount} partido${matchCount !== 1 ? 's' : ''} asociado${matchCount !== 1 ? 's' : ''}.`
       : '¿Eliminar esta fase?'
     if (!confirm(msg)) return
+    setDeleting(id)
     try {
       await adminRequest(fetch('/api/admin/fases', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }), isOk)
       setPhases(prev => prev.filter(p => p.id !== id)); setAllMatches(prev => prev.filter(m => m.phaseId !== id)); notify('Fase eliminada')
-    } catch (error) { notify(errorMessage(error)) }
+    } catch (error) { notify(errorMessage(error)) } finally { setDeleting(null) }
   }
 
   async function generateMatches(phase: Phase, type: 'groups' | 'swiss' | 'elimination' | 'final-four' | 'upper-lower', round?: number) {
@@ -111,15 +132,15 @@ export default function AdminFases() {
     if (sizeError) { notify(sizeError); return }
     setGenerating(phase.id)
     try {
-    // Guardar primero para que el endpoint tenga la config actualizada
-    await adminRequest(fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(phase) }), isEntity)
-    const data = await adminRequest<{ created: number }>(fetch('/api/admin/fases/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phaseId: phase.id, round }),
-    }), (value): value is { created: number } => typeof value === 'object' && value !== null && 'created' in value && typeof value.created === 'number')
-    await loadMatches()
-    notify(data.created > 0 ? `${data.created} partido${data.created !== 1 ? 's' : ''} generado${data.created !== 1 ? 's' : ''}` : 'No hay partidos nuevos que generar')
+      // Guardar primero para que el endpoint tenga la config actualizada
+      await adminRequest(fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(phase) }), isPhase)
+      const data = await adminRequest<{ created: number }>(fetch('/api/admin/fases/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phaseId: phase.id, round }),
+      }), isGeneratedMatchesResponse)
+      await loadMatches()
+      notify(data.created > 0 ? `${data.created} partido${data.created !== 1 ? 's' : ''} generado${data.created !== 1 ? 's' : ''}` : 'No hay partidos nuevos que generar')
     } catch (error) { notify(errorMessage(error)) } finally { setGenerating(null) }
   }
 
@@ -133,19 +154,21 @@ export default function AdminFases() {
 
   async function confirmBracket(phase: Phase) {
     const updated = { ...phase, config: { ...phase.config, confirmedBracket: true } }
+    setSaving(phase.id)
     try {
-      await adminRequest(fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) }), isEntity)
-      setPhases(prev => prev.map(p => p.id === phase.id ? updated : p)); notify('Bracket confirmado')
-    } catch (error) { notify(errorMessage(error)) }
+      const saved = await adminRequest<Phase>(fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) }), isPhase)
+      setPhases(prev => prev.map(p => p.id === phase.id ? saved : p)); notify('Bracket confirmado')
+    } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
   }
 
   async function confirmRound(phase: Phase, round: number) {
     const confirmed = [...new Set([...(phase.config.confirmedRounds ?? []), round])]
     const updated = { ...phase, config: { ...phase.config, confirmedRounds: confirmed } }
+    setSaving(phase.id)
     try {
-      await adminRequest(fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) }), isEntity)
-      setPhases(prev => prev.map(p => p.id === phase.id ? updated : p)); notify(`Ronda ${round} confirmada`)
-    } catch (error) { notify(errorMessage(error)) }
+      const saved = await adminRequest<Phase>(fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) }), isPhase)
+      setPhases(prev => prev.map(p => p.id === phase.id ? saved : p)); notify(`Ronda ${round} confirmada`)
+    } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
   }
 
   return (
@@ -178,7 +201,7 @@ export default function AdminFases() {
                 onChange={e => update(phase.id, { name: e.target.value })}
                 className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-medium text-white focus:outline-none focus:border-[#0097D7]/50"
               />
-              <button aria-label={`Eliminar fase ${phase.name}`} onClick={() => deletePhase(phase.id)} className="text-white/20 hover:text-red-400 transition-colors ml-auto">
+              <button aria-label={`Eliminar fase ${phase.name}`} onClick={() => deletePhase(phase.id)} disabled={deleting === phase.id || saving === phase.id} className="text-white/20 hover:text-red-400 transition-colors ml-auto disabled:opacity-50">
                 <Trash2 size={15} />
               </button>
             </div>
@@ -463,7 +486,8 @@ export default function AdminFases() {
                           ) : (
                             <button
                               onClick={() => confirmRound(phase, r)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-green-400/40 text-green-400 text-xs font-bold hover:bg-green-400/10 transition-colors"
+                              disabled={saving === phase.id}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-green-400/40 text-green-400 text-xs font-bold hover:bg-green-400/10 transition-colors disabled:opacity-50"
                             >
                               <Check size={13} /> Confirmar
                             </button>
@@ -557,7 +581,8 @@ export default function AdminFases() {
                       ) : hasMatches ? (
                         <button
                           onClick={() => confirmBracket(phase)}
-                          className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-green-400/40 text-green-400 text-xs font-bold hover:bg-green-400/10 transition-colors"
+                          disabled={saving === phase.id}
+                          className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-green-400/40 text-green-400 text-xs font-bold hover:bg-green-400/10 transition-colors disabled:opacity-50"
                         >
                           <Check size={13} /> Confirmar
                         </button>

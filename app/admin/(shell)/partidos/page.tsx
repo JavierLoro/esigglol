@@ -8,7 +8,18 @@ import DateTimePicker from '@/components/admin/DateTimePicker'
 import clsx from 'clsx'
 import { getEffectiveBO } from '@/lib/match-validation'
 import { getPhaseTeamIds } from '@/lib/phase-validation'
-import { adminRequest, errorMessage, isArrayOfRecords, isEntity, isOk } from '@/lib/admin-client'
+import {
+  adminRequest,
+  errorMessage,
+  isMatch,
+  isMatchArray,
+  isNonEmptyMatchArray,
+  isOk,
+  isPhaseArray,
+  isTeamArray,
+  isTournamentCodesResponse,
+  isTournamentStatus,
+} from '@/lib/admin-client'
 import TournamentCodeCard from '@/components/admin/TournamentCodeCard'
 import { isValidRiotMatchId, normalizeRiotMatchId, RIOT_MATCH_ID_ERROR } from '@/lib/riot-match-id'
 
@@ -17,6 +28,7 @@ export default function AdminPartidos() {
   const [teams, setTeams] = useState<Team[]>([])
   const [phases, setPhases] = useState<Phase[]>([])
   const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set())
+  const [adding, setAdding] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -28,14 +40,14 @@ export default function AdminPartidos() {
 
   useEffect(() => {
     Promise.all([
-      adminRequest<Match[]>(fetch('/api/admin/partidos'), isArrayOfRecords),
+      adminRequest<Match[]>(fetch('/api/admin/partidos'), isMatchArray),
       // The public endpoint is intentionally cached for visitors. Admin data
       // must come from the authenticated endpoint so edits are visible
       // immediately and never leak through a shared cache.
-      adminRequest<Team[]>(fetch('/api/admin/equipos', { cache: 'no-store' }), isArrayOfRecords),
-      adminRequest<Phase[]>(fetch('/api/admin/fases'), isArrayOfRecords),
+      adminRequest<Team[]>(fetch('/api/admin/equipos', { cache: 'no-store' }), isTeamArray),
+      adminRequest<Phase[]>(fetch('/api/admin/fases'), isPhaseArray),
     ]).then(([m, t, p]) => { setMatches(m); setTeams(t); setPhases(p) }).catch(error => setLoadError(errorMessage(error)))
-    adminRequest<{ providerId?: number; configured?: boolean }>(fetch('/api/admin/tournament'), value => typeof value === 'object' && value !== null).then(data => {
+    adminRequest<{ providerId?: number; configured?: boolean }>(fetch('/api/admin/tournament'), isTournamentStatus).then(data => {
       setHasTournamentConfig(data.configured === true && typeof data.providerId === 'number')
     }).catch(error => setLoadError(errorMessage(error)))
   }, [])
@@ -51,17 +63,17 @@ export default function AdminPartidos() {
       notify('La fase necesita al menos dos participantes válidos')
       return
     }
+    setAdding(phaseId)
     try {
-    const data = await adminRequest(fetch('/api/admin/partidos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phaseId, round: 1, team1Id: participants[0].id, team2Id: participants[1].id, result: null, riotMatchIds: [] }),
-    }), isArrayOfRecords)
-    const match = data[0]
-    if (!isEntity(match)) throw new Error('Respuesta inválida')
-    setMatches(prev => [...prev, match as Match])
-    setCollapsedPhases(prev => { const next = new Set(prev); next.delete(phaseId); return next })
-    } catch (error) { notify(errorMessage(error)) }
+      const data = await adminRequest(fetch('/api/admin/partidos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phaseId, round: 1, team1Id: participants[0].id, team2Id: participants[1].id, result: null, riotMatchIds: [] }),
+      }), isNonEmptyMatchArray)
+      const match = data[0]
+      setMatches(prev => [...prev, match])
+      setCollapsedPhases(prev => { const next = new Set(prev); next.delete(phaseId); return next })
+    } catch (error) { notify(errorMessage(error)) } finally { setAdding(null) }
   }
 
   function togglePhaseCollapse(phaseId: string) {
@@ -80,18 +92,18 @@ export default function AdminPartidos() {
     }
     setSaving(match.id)
     try {
-    const updated = await adminRequest<Match>(fetch('/api/admin/partidos', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(match),
-    }), (value): value is Match => isEntity(value))
-    // Refrescar todos los matches para ver avances de bracket
-    const all = await adminRequest<Match[]>(fetch('/api/admin/partidos'), isArrayOfRecords)
-    setMatches(all)
-    // Refrescar fases por si cambió el estado
-    const allPhases = await adminRequest<Phase[]>(fetch('/api/admin/fases'), isArrayOfRecords)
-    setPhases(allPhases)
-    notify(updated.winnerId ? '¡Guardado — bracket actualizado!' : 'Guardado')
+      const updated = await adminRequest<Match>(fetch('/api/admin/partidos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(match),
+      }), isMatch)
+      // Refrescar todos los matches para ver avances de bracket
+      const all = await adminRequest<Match[]>(fetch('/api/admin/partidos'), isMatchArray)
+      setMatches(all)
+      // Refrescar fases por si cambió el estado
+      const allPhases = await adminRequest<Phase[]>(fetch('/api/admin/fases'), isPhaseArray)
+      setPhases(allPhases)
+      notify(updated.winnerId ? '¡Guardado — bracket actualizado!' : 'Guardado')
     } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
   }
 
@@ -101,14 +113,14 @@ export default function AdminPartidos() {
     setDeleting(true)
     const count = selected.size
     try {
-    await adminRequest(fetch('/api/admin/partidos', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: [...selected] }),
-    }), isOk)
-    setMatches(prev => prev.filter(m => !selected.has(m.id)))
-    setSelected(new Set())
-    notify(`${count} partido(s) eliminado(s)`)
+      await adminRequest(fetch('/api/admin/partidos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [...selected] }),
+      }), isOk)
+      setMatches(prev => prev.filter(m => !selected.has(m.id)))
+      setSelected(new Set())
+      notify(`${count} partido(s) eliminado(s)`)
     } catch (error) { notify(errorMessage(error)) } finally { setDeleting(false) }
   }
 
@@ -188,38 +200,38 @@ export default function AdminPartidos() {
   async function generateTournamentCodes(matchId: string) {
     setGeneratingCodes(matchId)
     try {
-      const res = await fetch('/api/admin/partidos/codes', {
+      const data = await adminRequest<{ codes: string[]; regenerated: boolean }>(fetch('/api/admin/partidos/codes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ matchId }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        notify(data.error || 'Error al generar codes')
-        return
-      }
+      }), isTournamentCodesResponse)
       setMatches(prev => prev.map(m =>
         m.id === matchId ? { ...m, tournamentCodes: data.codes, tournamentCodesGeneratedAt: new Date().toISOString() } : m
       ))
       notify(data.regenerated ? 'Tournament codes expirados: regenerados' : 'Tournament codes generados')
-    } catch {
-      notify('Error de conexion')
+    } catch (error) {
+      notify(errorMessage(error))
     } finally {
       setGeneratingCodes(null)
     }
   }
 
-  function copyToClipboard(text: string) {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => notify('Copiado'))
-    } else {
-      const el = document.createElement('textarea')
-      el.value = text
-      document.body.appendChild(el)
-      el.select()
-      document.execCommand('copy')
-      document.body.removeChild(el)
+  async function copyToClipboard(text: string) {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        const el = document.createElement('textarea')
+        el.value = text
+        document.body.appendChild(el)
+        el.select()
+        const copied = document.execCommand('copy')
+        document.body.removeChild(el)
+        if (!copied) throw new Error('No se pudo copiar')
+      }
       notify('Copiado')
+    } catch (error) {
+      notify(errorMessage(error))
     }
   }
 
@@ -307,11 +319,11 @@ export default function AdminPartidos() {
                 <button
                   type="button"
                   onClick={e => { e.stopPropagation(); addMatch(phase.id) }}
-                  disabled={!canAddMatch}
+                  disabled={!canAddMatch || adding === phase.id}
                   title={canAddMatch ? 'Añadir partido' : 'La fase necesita al menos dos participantes válidos'}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#0097D7]/20 border border-[#0097D7]/30 text-[#0097D7] text-xs font-bold hover:bg-[#0097D7]/30 transition-colors shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <Plus size={12} /> Añadir
+                  <Plus size={12} /> {adding === phase.id ? 'Añadiendo...' : 'Añadir'}
                 </button>
               </div>
 

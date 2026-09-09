@@ -3,39 +3,34 @@ import { useState, useEffect } from 'react'
 import type { Team, Player, Role } from '@/lib/types'
 import Image from 'next/image'
 import { Plus, Trash2, Save, ChevronDown, ChevronRight, Upload, X } from 'lucide-react'
-import { adminRequest, errorMessage, isArrayOfRecords, isEntity, isOk } from '@/lib/admin-client'
+import { adminRequest, errorMessage, isOk, isPathResponse, isTeam, isTeamArray } from '@/lib/admin-client'
 
 const PRIMARY_ROLES: Role[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente']
 const SECONDARY_ROLES: Exclude<Role, 'Suplente'>[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill']
 
 function genId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 6)}` }
 
-function isTeam(value: unknown): value is Team {
-  return isEntity(value)
-    && 'name' in value && typeof value.name === 'string'
-    && 'logo' in value && typeof value.logo === 'string'
-    && 'players' in value && Array.isArray(value.players)
-}
-
 export default function AdminEquipos() {
   const [teams, setTeams] = useState<Team[]>([])
   const [draftIds, setDraftIds] = useState<Set<string>>(() => new Set())
   const [expanded, setExpanded] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [uploading, setUploading] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
   const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    adminRequest<Team[]>(fetch('/api/admin/equipos'), isArrayOfRecords).then(setTeams).catch(error => setLoadError(errorMessage(error)))
+    adminRequest<Team[]>(fetch('/api/admin/equipos'), isTeamArray).then(setTeams).catch(error => setLoadError(errorMessage(error)))
   }, [])
 
   function notify(text: string) { setMsg(text); setTimeout(() => setMsg(''), 3000) }
 
   async function saveTeam(team: Team) {
+    const isDraft = draftIds.has(team.id)
     setSaving(team.id)
     try {
-      if (draftIds.has(team.id)) {
+      if (isDraft) {
         const created = await adminRequest<Team>(fetch('/api/admin/equipos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -49,10 +44,15 @@ export default function AdminEquipos() {
         })
         setExpanded(created.id)
       } else {
-        await adminRequest(fetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isEntity)
+        await adminRequest(fetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isTeam)
       }
       notify('Cambios guardados')
-    } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
+    } catch (error) {
+      // A draft is only a client-side preview. Remove it when the server did
+      // not accept the create request so a rejected entity cannot look saved.
+      if (isDraft) cancelDraft(team.id)
+      notify(errorMessage(error))
+    } finally { setSaving(null) }
   }
 
   function addTeam() {
@@ -74,10 +74,11 @@ export default function AdminEquipos() {
 
   async function deleteTeam(id: string) {
     if (!confirm('¿Eliminar este equipo?')) return
+    setDeleting(id)
     try {
       await adminRequest(fetch('/api/admin/equipos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }), isOk)
       setTeams(prev => prev.filter(t => t.id !== id)); notify('Equipo eliminado')
-    } catch (error) { notify(errorMessage(error)) }
+    } catch (error) { notify(errorMessage(error)) } finally { setDeleting(null) }
   }
 
   function updateTeam(id: string, patch: Partial<Team>) {
@@ -91,7 +92,7 @@ export default function AdminEquipos() {
     formData.append('file', file)
     formData.append('teamId', teamId)
     try {
-      const data = await adminRequest<{ path: string }>(fetch('/api/admin/equipos/upload-logo', { method: 'POST', body: formData }), (value): value is { path: string } => Boolean(value && typeof value === 'object' && 'path' in value && typeof value.path === 'string'))
+      const data = await adminRequest<{ path: string }>(fetch('/api/admin/equipos/upload-logo', { method: 'POST', body: formData }), isPathResponse)
       updateTeam(teamId, { logo: data.path }); notify('Logo guardado')
     } catch (error) { notify(errorMessage(error)) } finally { setUploading(null) }
   }
@@ -143,7 +144,7 @@ export default function AdminEquipos() {
               e.stopPropagation()
               if (draftIds.has(team.id)) cancelDraft(team.id)
               else deleteTeam(team.id)
-            }} aria-label={`${draftIds.has(team.id) ? 'Cancelar' : 'Eliminar'} equipo ${team.name || 'nuevo'}`} className="text-white/20 hover:text-red-400 transition-colors ml-2">
+            }} disabled={saving === team.id || deleting === team.id} aria-label={`${draftIds.has(team.id) ? 'Cancelar' : 'Eliminar'} equipo ${team.name || 'nuevo'}`} className="text-white/20 hover:text-red-400 transition-colors ml-2 disabled:opacity-50">
               <Trash2 size={15} />
             </button>
           </div>
