@@ -107,6 +107,7 @@ export const GameDataSchema = z.object({
 export const MatchSchema = z.object({
   phaseId: z.string().min(1),
   round: z.number().int(),
+  bracketPosition: z.number().int().nonnegative().optional(),
   team1Id: z.string().min(1),
   team2Id: z.string().min(1),
   result: MatchResultSchema.nullable().default(null),
