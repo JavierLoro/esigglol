@@ -95,6 +95,8 @@ npm run dev
 | `RIOT_API_KEY` | No | Riot Games API key (can also be set from admin panel) |
 | `RIOT_REGION` | No | Riot API region (default: `euw1`) |
 | `TWITCH_CHANNEL` | No | Twitch channel name for embed |
+| `TWITCH_CLIENT_ID` | No | Twitch application client ID used server-side to verify live status |
+| `TWITCH_CLIENT_SECRET` | No | Twitch application secret used server-side; keep it in the deployment secret manager |
 | `DB_PATH` | No | SQLite database path (default: `./data/esigglol.db`) |
 | `REFRESH_AUTO_INTERVAL_MS` | No | Min age for auto refresh in ms (default: `21600000`) |
 | `REFRESH_BATCH_SIZE` | No | Players processed per refresh batch (default: `3`) |
@@ -308,6 +310,8 @@ npm run dev
 | `RIOT_API_KEY` | No | API key de Riot Games (tambien configurable desde el panel admin) |
 | `RIOT_REGION` | No | Region de Riot API (default: `euw1`) |
 | `TWITCH_CHANNEL` | No | Canal de Twitch para el embed |
+| `TWITCH_CLIENT_ID` | No | Client ID de la aplicación de Twitch usado en servidor para verificar el directo |
+| `TWITCH_CLIENT_SECRET` | No | Secreto de la aplicación de Twitch; guardarlo en el gestor de secretos del despliegue |
 | `DB_PATH` | No | Ruta de la BD SQLite (default: `./data/esigglol.db`) |
 | `REFRESH_AUTO_INTERVAL_MS` | No | Edad mínima (ms) para auto refresh (default: `21600000`) |
 | `REFRESH_BATCH_SIZE` | No | Jugadores procesados por batch de refresh (default: `3`) |

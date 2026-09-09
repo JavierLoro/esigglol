@@ -21,9 +21,10 @@ interface Props {
   value?: string        // ISO date string o undefined
   onChange: (iso: string | undefined) => void
   className?: string
+  label?: string
 }
 
-export default function DateTimePicker({ value, onChange, className }: Props) {
+export default function DateTimePicker({ value, onChange, className, label = 'Fecha y hora' }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -61,6 +62,7 @@ export default function DateTimePicker({ value, onChange, className }: Props) {
       <div className="flex items-center gap-2">
         <button
           type="button"
+          aria-label={label}
           onClick={() => setOpen(p => !p)}
           className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white hover:border-white/20 transition-colors text-left"
         >
@@ -130,6 +132,7 @@ export default function DateTimePicker({ value, onChange, className }: Props) {
             <span className="text-xs text-white/40 shrink-0">Hora</span>
             <input
               type="time"
+              aria-label={`Hora de ${label.toLocaleLowerCase('es')}`}
               value={timeStr}
               onChange={handleTimeChange}
               className="flex-1 px-2 py-1 rounded bg-white/5 border border-white/10 text-xs text-white focus:outline-none [color-scheme:dark]"

@@ -1,12 +1,68 @@
 'use client'
 import Image from 'next/image'
+import { useEffect, useState } from 'react'
 import TwitchEmbed from './TwitchEmbed'
+import type { TwitchStatus } from '@/lib/twitch'
 
 interface Props {
   channel: string
 }
 
+export function TwitchStatusBadge({ status }: { status: TwitchStatus }) {
+  if (status === 'live') {
+    return (
+      <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#B30133]/15 border border-[#B30133]/30">
+        <span className="h-2 w-2 rounded-full bg-[#B30133] animate-pulse" />
+        <span className="text-xs font-bold text-[#B30133]/90 uppercase tracking-[0.2em]">En directo</span>
+      </div>
+    )
+  }
+
+  if (status === 'offline') {
+    return (
+      <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10">
+        <span className="h-2 w-2 rounded-full bg-white/35" />
+        <span className="text-xs font-bold text-white/50 uppercase tracking-[0.2em]">Ahora sin emisión</span>
+      </div>
+    )
+  }
+
+  return null
+}
+
 export default function LiveSection({ channel }: Props) {
+  const [status, setStatus] = useState<TwitchStatus>('unknown')
+
+  useEffect(() => {
+    if (!channel) return
+
+    let active = true
+    const controller = new AbortController()
+    const refresh = async () => {
+      try {
+        const response = await fetch('/api/twitch/status', {
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+        if (!response.ok) throw new Error('Twitch status request failed')
+        const payload = await response.json() as { status?: unknown }
+        if (active) {
+          setStatus(payload.status === 'live' || payload.status === 'offline' ? payload.status : 'unknown')
+        }
+      } catch {
+        if (active) setStatus('unknown')
+      }
+    }
+
+    void refresh()
+    const interval = window.setInterval(refresh, 60_000)
+    return () => {
+      active = false
+      controller.abort()
+      window.clearInterval(interval)
+    }
+  }, [channel])
+
   return (
     <>
       {/* Hero épico */}
@@ -46,12 +102,7 @@ export default function LiveSection({ channel }: Props) {
           </div>
           <div className="mt-5 h-px w-40 mx-auto bg-gradient-to-r from-transparent via-[#0097D7]/50 to-transparent" />
 
-          {channel && (
-            <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#B30133]/15 border border-[#B30133]/30">
-              <span className="h-2 w-2 rounded-full bg-[#B30133] animate-pulse" />
-              <span className="text-xs font-bold text-[#B30133]/90 uppercase tracking-[0.2em]">En directo</span>
-            </div>
-          )}
+          {channel && <TwitchStatusBadge status={status} />}
         </div>
       </div>
 

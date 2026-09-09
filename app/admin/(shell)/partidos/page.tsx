@@ -8,7 +8,18 @@ import DateTimePicker from '@/components/admin/DateTimePicker'
 import clsx from 'clsx'
 import { getEffectiveBO } from '@/lib/match-validation'
 import { getPhaseTeamIds } from '@/lib/phase-validation'
-import { adminRequest, errorMessage, isArrayOfRecords, isEntity, isOk } from '@/lib/admin-client'
+import {
+  adminRequest,
+  errorMessage,
+  isMatch,
+  isMatchArray,
+  isNonEmptyMatchArray,
+  isOk,
+  isPhaseArray,
+  isTeamArray,
+  isTournamentCodesResponse,
+  isTournamentStatus,
+} from '@/lib/admin-client'
 import TournamentCodeCard from '@/components/admin/TournamentCodeCard'
 import { isValidRiotMatchId, normalizeRiotMatchId, RIOT_MATCH_ID_ERROR } from '@/lib/riot-match-id'
 
@@ -17,6 +28,7 @@ export default function AdminPartidos() {
   const [teams, setTeams] = useState<Team[]>([])
   const [phases, setPhases] = useState<Phase[]>([])
   const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set())
+  const [adding, setAdding] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -28,14 +40,14 @@ export default function AdminPartidos() {
 
   useEffect(() => {
     Promise.all([
-      adminRequest<Match[]>(fetch('/api/admin/partidos'), isArrayOfRecords),
+      adminRequest<Match[]>(fetch('/api/admin/partidos'), isMatchArray),
       // The public endpoint is intentionally cached for visitors. Admin data
       // must come from the authenticated endpoint so edits are visible
       // immediately and never leak through a shared cache.
-      adminRequest<Team[]>(fetch('/api/admin/equipos', { cache: 'no-store' }), isArrayOfRecords),
-      adminRequest<Phase[]>(fetch('/api/admin/fases'), isArrayOfRecords),
+      adminRequest<Team[]>(fetch('/api/admin/equipos', { cache: 'no-store' }), isTeamArray),
+      adminRequest<Phase[]>(fetch('/api/admin/fases'), isPhaseArray),
     ]).then(([m, t, p]) => { setMatches(m); setTeams(t); setPhases(p) }).catch(error => setLoadError(errorMessage(error)))
-    adminRequest<{ providerId?: number; configured?: boolean }>(fetch('/api/admin/tournament'), value => typeof value === 'object' && value !== null).then(data => {
+    adminRequest<{ providerId?: number; configured?: boolean }>(fetch('/api/admin/tournament'), isTournamentStatus).then(data => {
       setHasTournamentConfig(data.configured === true && typeof data.providerId === 'number')
     }).catch(error => setLoadError(errorMessage(error)))
   }, [])
@@ -51,17 +63,17 @@ export default function AdminPartidos() {
       notify('La fase necesita al menos dos participantes válidos')
       return
     }
+    setAdding(phaseId)
     try {
-    const data = await adminRequest(fetch('/api/admin/partidos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phaseId, round: 1, team1Id: participants[0].id, team2Id: participants[1].id, result: null, riotMatchIds: [] }),
-    }), isArrayOfRecords)
-    const match = data[0]
-    if (!isEntity(match)) throw new Error('Respuesta inválida')
-    setMatches(prev => [...prev, match as Match])
-    setCollapsedPhases(prev => { const next = new Set(prev); next.delete(phaseId); return next })
-    } catch (error) { notify(errorMessage(error)) }
+      const data = await adminRequest(fetch('/api/admin/partidos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phaseId, round: 1, team1Id: participants[0].id, team2Id: participants[1].id, result: null, riotMatchIds: [] }),
+      }), isNonEmptyMatchArray)
+      const match = data[0]
+      setMatches(prev => [...prev, match])
+      setCollapsedPhases(prev => { const next = new Set(prev); next.delete(phaseId); return next })
+    } catch (error) { notify(errorMessage(error)) } finally { setAdding(null) }
   }
 
   function togglePhaseCollapse(phaseId: string) {
@@ -80,18 +92,18 @@ export default function AdminPartidos() {
     }
     setSaving(match.id)
     try {
-    const updated = await adminRequest<Match>(fetch('/api/admin/partidos', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(match),
-    }), (value): value is Match => isEntity(value))
-    // Refrescar todos los matches para ver avances de bracket
-    const all = await adminRequest<Match[]>(fetch('/api/admin/partidos'), isArrayOfRecords)
-    setMatches(all)
-    // Refrescar fases por si cambió el estado
-    const allPhases = await adminRequest<Phase[]>(fetch('/api/admin/fases'), isArrayOfRecords)
-    setPhases(allPhases)
-    notify(updated.winnerId ? '¡Guardado — bracket actualizado!' : 'Guardado')
+      const updated = await adminRequest<Match>(fetch('/api/admin/partidos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(match),
+      }), isMatch)
+      // Refrescar todos los matches para ver avances de bracket
+      const all = await adminRequest<Match[]>(fetch('/api/admin/partidos'), isMatchArray)
+      setMatches(all)
+      // Refrescar fases por si cambió el estado
+      const allPhases = await adminRequest<Phase[]>(fetch('/api/admin/fases'), isPhaseArray)
+      setPhases(allPhases)
+      notify(updated.winnerId ? '¡Guardado — bracket actualizado!' : 'Guardado')
     } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
   }
 
@@ -101,14 +113,14 @@ export default function AdminPartidos() {
     setDeleting(true)
     const count = selected.size
     try {
-    await adminRequest(fetch('/api/admin/partidos', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: [...selected] }),
-    }), isOk)
-    setMatches(prev => prev.filter(m => !selected.has(m.id)))
-    setSelected(new Set())
-    notify(`${count} partido(s) eliminado(s)`)
+      await adminRequest(fetch('/api/admin/partidos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [...selected] }),
+      }), isOk)
+      setMatches(prev => prev.filter(m => !selected.has(m.id)))
+      setSelected(new Set())
+      notify(`${count} partido(s) eliminado(s)`)
     } catch (error) { notify(errorMessage(error)) } finally { setDeleting(false) }
   }
 
@@ -188,38 +200,38 @@ export default function AdminPartidos() {
   async function generateTournamentCodes(matchId: string) {
     setGeneratingCodes(matchId)
     try {
-      const res = await fetch('/api/admin/partidos/codes', {
+      const data = await adminRequest<{ codes: string[]; regenerated: boolean }>(fetch('/api/admin/partidos/codes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ matchId }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        notify(data.error || 'Error al generar codes')
-        return
-      }
+      }), isTournamentCodesResponse)
       setMatches(prev => prev.map(m =>
         m.id === matchId ? { ...m, tournamentCodes: data.codes, tournamentCodesGeneratedAt: new Date().toISOString() } : m
       ))
       notify(data.regenerated ? 'Tournament codes expirados: regenerados' : 'Tournament codes generados')
-    } catch {
-      notify('Error de conexion')
+    } catch (error) {
+      notify(errorMessage(error))
     } finally {
       setGeneratingCodes(null)
     }
   }
 
-  function copyToClipboard(text: string) {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => notify('Copiado'))
-    } else {
-      const el = document.createElement('textarea')
-      el.value = text
-      document.body.appendChild(el)
-      el.select()
-      document.execCommand('copy')
-      document.body.removeChild(el)
+  async function copyToClipboard(text: string) {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        const el = document.createElement('textarea')
+        el.value = text
+        document.body.appendChild(el)
+        el.select()
+        const copied = document.execCommand('copy')
+        document.body.removeChild(el)
+        if (!copied) throw new Error('No se pudo copiar')
+      }
       notify('Copiado')
+    } catch (error) {
+      notify(errorMessage(error))
     }
   }
 
@@ -307,11 +319,11 @@ export default function AdminPartidos() {
                 <button
                   type="button"
                   onClick={e => { e.stopPropagation(); addMatch(phase.id) }}
-                  disabled={!canAddMatch}
+                  disabled={!canAddMatch || adding === phase.id}
                   title={canAddMatch ? 'Añadir partido' : 'La fase necesita al menos dos participantes válidos'}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#0097D7]/20 border border-[#0097D7]/30 text-[#0097D7] text-xs font-bold hover:bg-[#0097D7]/30 transition-colors shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <Plus size={12} /> Añadir
+                  <Plus size={12} /> {adding === phase.id ? 'Añadiendo...' : 'Añadir'}
                 </button>
               </div>
 
@@ -350,6 +362,7 @@ export default function AdminPartidos() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <input
                             type="checkbox"
+                            aria-label={`Seleccionar partido de ${team1?.name ?? 'equipo 1'} contra ${team2?.name ?? 'equipo 2'} en ${phase.name}`}
                             checked={isSelected}
                             onChange={() => toggleSelect(match.id)}
                             className="accent-[#0097D7] shrink-0"
@@ -359,6 +372,7 @@ export default function AdminPartidos() {
                             <span className="text-xs text-white/30">R</span>
                             <input
                               type="number"
+                              aria-label={`Ronda del partido de ${team1?.name ?? 'equipo 1'} contra ${team2?.name ?? 'equipo 2'} en ${phase.name}`}
                               min={1}
                               value={match.round}
                               onChange={e => update(match.id, { round: Number(e.target.value) })}
@@ -372,6 +386,7 @@ export default function AdminPartidos() {
                 {/* Equipo 1 */}
                 <div className="flex flex-col gap-1.5">
                   <select
+                    aria-label={`Equipo 1 del partido en ${phase.name}, ronda ${match.round}`}
                     value={match.team1Id}
                     onChange={e => update(match.id, { team1Id: e.target.value, winnerId: undefined })}
                     className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
@@ -412,6 +427,7 @@ export default function AdminPartidos() {
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
+                          aria-label={`Marcador de ${team1?.name ?? 'equipo 1'} en ${phase.name}, ronda ${match.round}`}
                           min={0}
                           max={phase ? Math.ceil(getEffectiveBO(phase, match.round) / 2) : 3}
                           value={match.result.team1Score}
@@ -424,6 +440,7 @@ export default function AdminPartidos() {
                         <span className="text-white/30 text-xs">-</span>
                         <input
                           type="number"
+                          aria-label={`Marcador de ${team2?.name ?? 'equipo 2'} en ${phase.name}, ronda ${match.round}`}
                           min={0}
                           max={phase ? Math.ceil(getEffectiveBO(phase, match.round) / 2) : 3}
                           value={match.result.team2Score}
@@ -448,6 +465,7 @@ export default function AdminPartidos() {
                 {/* Equipo 2 */}
                 <div className="flex flex-col gap-1.5">
                   <select
+                    aria-label={`Equipo 2 del partido en ${phase.name}, ronda ${match.round}`}
                     value={match.team2Id}
                     onChange={e => update(match.id, { team2Id: e.target.value, winnerId: undefined })}
                     className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
@@ -478,6 +496,7 @@ export default function AdminPartidos() {
                 <label className="text-xs text-white/30 mb-1 block">Fecha y hora</label>
                 <DateTimePicker
                   value={match.scheduledAt}
+                  label={`Fecha y hora del partido en ${phase.name}, ronda ${match.round}`}
                   onChange={iso => update(match.id, { scheduledAt: iso })}
                 />
               </div>
@@ -541,6 +560,7 @@ export default function AdminPartidos() {
                             {/* Botón de datos — abre modal */}
                             <button
                               type="button"
+                              aria-label={`${gameData ? 'Editar' : 'Añadir'} datos de la partida ${i + 1} del partido en ${phase.name}, ronda ${match.round}`}
                               onClick={() => setGameModal({ matchId: match.id, gameIndex: i })}
                               className={clsx(
                                 'flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors shrink-0',
@@ -559,6 +579,7 @@ export default function AdminPartidos() {
                             {gameData && (
                               <button
                                 type="button"
+                                aria-label={`Eliminar datos de la partida ${i + 1} del partido en ${phase.name}, ronda ${match.round}`}
                                 onClick={() => {
                                   const games = [...(match.games ?? [])]
                                   games.splice(i, 1, null)
@@ -573,6 +594,7 @@ export default function AdminPartidos() {
                             {/* Riot match ID — fallback para datos de Riot en página pública */}
                             <input
                               type="text"
+                              aria-label={`Código Riot de la partida ${i + 1} del partido en ${phase.name}, ronda ${match.round}`}
                               className={clsx(
                                 'flex-1 min-w-0 px-2 py-1 rounded-lg bg-black/30 border text-[11px] text-white/80 placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-[#0097D7]',
                                 match.riotMatchIds?.[i] && !isValidRiotMatchId(match.riotMatchIds[i]!)
@@ -678,7 +700,7 @@ function GameDataModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
           <h2 className="font-bold text-sm">{title}</h2>
-          <button type="button" onClick={onClose} className="text-white/30 hover:text-white transition-colors">
+          <button type="button" onClick={onClose} aria-label="Cerrar datos de partida" className="text-white/30 hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { UPLOADS_DIR } from '@/lib/env'
+import { getUploadFilename, resolveUploadPath } from '@/lib/upload-files'
 import { readFile } from 'fs/promises'
-import path from 'path'
+
+export const runtime = 'nodejs'
 
 const MIME_TYPES: Record<string, string> = {
   png: 'image/png',
@@ -17,18 +18,21 @@ export async function GET(
 ) {
   const { filename } = await params
 
-  // Prevent path traversal
-  if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+  const safeFilename = getUploadFilename(`/api/uploads/${filename}`)
+  if (!safeFilename) {
     return NextResponse.json({ error: 'Nombre de archivo no válido' }, { status: 400 })
   }
 
-  const ext = filename.split('.').pop()?.toLowerCase() ?? ''
+  const ext = safeFilename.split('.').pop()?.toLowerCase() ?? ''
   const contentType = MIME_TYPES[ext]
   if (!contentType) {
     return NextResponse.json({ error: 'Tipo de archivo no soportado' }, { status: 400 })
   }
 
-  const filePath = path.join(UPLOADS_DIR, filename)
+  const filePath = resolveUploadPath(safeFilename)
+  if (!filePath) {
+    return NextResponse.json({ error: 'Nombre de archivo no válido' }, { status: 400 })
+  }
 
   try {
     const buffer = await readFile(filePath)

@@ -180,12 +180,22 @@ function PlayerCard({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      aria-label={`Seleccionar jugador ${player.summonerName}`}
       className={clsx(
         'px-3 py-3 flex items-center gap-2 cursor-pointer transition-all select-none',
         mirrored && 'flex-row-reverse',
         selected && 'bg-[#0097D7]/10 ring-1 ring-[#0097D7]/40 rounded-lg',
       )}
       onClick={onSelect}
+      onKeyDown={event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onSelect()
+        }
+      }}
       draggable={dragHandlers.draggable}
       onDragStart={dragHandlers.onDragStart}
       onDragOver={dragHandlers.onDragOver}
@@ -356,6 +366,7 @@ export default function CompareClient({ teams, allStats, matches, lastUpdated, c
           {[{ id: team1Id, set: setTeam1Id, otherId: team2Id }, { id: team2Id, set: setTeam2Id, otherId: team1Id }].map(({ id, set, otherId }, idx) => (
             <div key={idx}>
               <select
+                aria-label={`Equipo ${idx + 1} para comparar`}
                 value={id}
                 onChange={e => {
                   const nextId = e.target.value

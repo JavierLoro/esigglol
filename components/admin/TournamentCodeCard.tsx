@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Copy, Loader2, RefreshCw, Users } from 'lucide-react'
-import { adminRequest, errorMessage, isArrayOfRecords, isRecord } from '@/lib/admin-client'
+import { adminRequest, errorMessage, isLobbyEventArray, isRecord } from '@/lib/admin-client'
 import type { LobbyEvent, TournamentCodeDetails } from '@/lib/types'
 
 interface TournamentCodeCardProps {
@@ -13,9 +13,20 @@ interface TournamentCodeCardProps {
 
 function isCodeDetails(value: unknown): value is TournamentCodeDetails {
   return isRecord(value)
+    && typeof value.id === 'number'
+    && typeof value.providerId === 'number'
+    && typeof value.tournamentId === 'number'
     && typeof value.code === 'string'
+    && typeof value.region === 'string'
     && typeof value.map === 'string'
+    && typeof value.teamSize === 'number'
+    && typeof value.spectators === 'string'
     && typeof value.pickType === 'string'
+    && typeof value.lobbyName === 'string'
+    && typeof value.password === 'string'
+    && typeof value.metaData === 'string'
+    && Array.isArray(value.participants)
+    && value.participants.every(participant => typeof participant === 'string')
 }
 
 function formatTimestamp(value: string): string {
@@ -42,7 +53,7 @@ export default function TournamentCodeCard({ code, gameNumber, onCopy }: Tournam
         ),
         adminRequest<LobbyEvent[]>(
           fetch(`/api/admin/partidos/lobby?code=${encodeURIComponent(code)}`),
-          isArrayOfRecords,
+          isLobbyEventArray,
         ),
       ])
       setDetails(codeDetails)
@@ -63,14 +74,14 @@ export default function TournamentCodeCard({ code, gameNumber, onCopy }: Tournam
   return (
     <div className="rounded-lg border border-white/10 bg-black/20">
       <div className="flex items-center gap-2 p-2">
-        <button type="button" onClick={toggle} className="text-white/40 hover:text-white" aria-expanded={expanded}>
+        <button type="button" onClick={toggle} className="text-white/40 hover:text-white" aria-expanded={expanded} aria-label={`${expanded ? 'Ocultar' : 'Mostrar'} detalles del código de la partida ${gameNumber}`}>
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
         <span className="text-[11px] text-white/30 w-14 shrink-0">Game {gameNumber}</span>
         <code className="flex-1 min-w-0 truncate rounded-md bg-white/5 px-2 py-1 text-xs text-[#0097D7] font-mono select-all" title={code}>
           {code}
         </code>
-        <button type="button" onClick={() => onCopy(code)} className="text-white/30 hover:text-[#0097D7]" title="Copiar código">
+        <button type="button" onClick={() => onCopy(code)} className="text-white/30 hover:text-[#0097D7]" aria-label={`Copiar código de la partida ${gameNumber}`} title="Copiar código">
           <Copy size={13} />
         </button>
       </div>

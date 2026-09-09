@@ -3,39 +3,34 @@ import { useState, useEffect } from 'react'
 import type { Team, Player, Role } from '@/lib/types'
 import Image from 'next/image'
 import { Plus, Trash2, Save, ChevronDown, ChevronRight, Upload, X } from 'lucide-react'
-import { adminRequest, errorMessage, isArrayOfRecords, isEntity, isOk } from '@/lib/admin-client'
+import { adminRequest, errorMessage, isOk, isPathResponse, isTeam, isTeamArray } from '@/lib/admin-client'
 
 const PRIMARY_ROLES: Role[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente']
 const SECONDARY_ROLES: Exclude<Role, 'Suplente'>[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill']
 
 function genId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 6)}` }
 
-function isTeam(value: unknown): value is Team {
-  return isEntity(value)
-    && 'name' in value && typeof value.name === 'string'
-    && 'logo' in value && typeof value.logo === 'string'
-    && 'players' in value && Array.isArray(value.players)
-}
-
 export default function AdminEquipos() {
   const [teams, setTeams] = useState<Team[]>([])
   const [draftIds, setDraftIds] = useState<Set<string>>(() => new Set())
   const [expanded, setExpanded] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [uploading, setUploading] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
   const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    adminRequest<Team[]>(fetch('/api/admin/equipos'), isArrayOfRecords).then(setTeams).catch(error => setLoadError(errorMessage(error)))
+    adminRequest<Team[]>(fetch('/api/admin/equipos'), isTeamArray).then(setTeams).catch(error => setLoadError(errorMessage(error)))
   }, [])
 
   function notify(text: string) { setMsg(text); setTimeout(() => setMsg(''), 3000) }
 
   async function saveTeam(team: Team) {
+    const isDraft = draftIds.has(team.id)
     setSaving(team.id)
     try {
-      if (draftIds.has(team.id)) {
+      if (isDraft) {
         const created = await adminRequest<Team>(fetch('/api/admin/equipos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -49,10 +44,15 @@ export default function AdminEquipos() {
         })
         setExpanded(created.id)
       } else {
-        await adminRequest(fetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isEntity)
+        await adminRequest(fetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isTeam)
       }
-      notify('Guardado')
-    } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
+      notify('Cambios guardados')
+    } catch (error) {
+      // A draft is only a client-side preview. Remove it when the server did
+      // not accept the create request so a rejected entity cannot look saved.
+      if (isDraft) cancelDraft(team.id)
+      notify(errorMessage(error))
+    } finally { setSaving(null) }
   }
 
   function addTeam() {
@@ -74,10 +74,11 @@ export default function AdminEquipos() {
 
   async function deleteTeam(id: string) {
     if (!confirm('¿Eliminar este equipo?')) return
+    setDeleting(id)
     try {
       await adminRequest(fetch('/api/admin/equipos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }), isOk)
       setTeams(prev => prev.filter(t => t.id !== id)); notify('Equipo eliminado')
-    } catch (error) { notify(errorMessage(error)) }
+    } catch (error) { notify(errorMessage(error)) } finally { setDeleting(null) }
   }
 
   function updateTeam(id: string, patch: Partial<Team>) {
@@ -86,12 +87,13 @@ export default function AdminEquipos() {
 
   async function uploadLogo(teamId: string, file: File) {
     setUploading(teamId)
+    setMsg('Subiendo logo...')
     const formData = new FormData()
     formData.append('file', file)
     formData.append('teamId', teamId)
     try {
-      const data = await adminRequest<{ path: string }>(fetch('/api/admin/equipos/upload-logo', { method: 'POST', body: formData }), (value): value is { path: string } => Boolean(value && typeof value === 'object' && 'path' in value && typeof value.path === 'string'))
-      updateTeam(teamId, { logo: (data as { path: string }).path }); notify('Logo subido')
+      const data = await adminRequest<{ path: string }>(fetch('/api/admin/equipos/upload-logo', { method: 'POST', body: formData }), isPathResponse)
+      updateTeam(teamId, { logo: data.path }); notify('Logo guardado')
     } catch (error) { notify(errorMessage(error)) } finally { setUploading(null) }
   }
 
@@ -126,29 +128,35 @@ export default function AdminEquipos() {
 
       {loadError ? <p className="text-red-400 text-sm">No se pudieron cargar los equipos.</p> : teams.map(team => (
         <div key={team.id} className="rounded-xl border border-white/10 overflow-hidden">
-          <div
-            className="flex items-center gap-3 px-4 py-3 bg-[#0d1321] cursor-pointer hover:bg-white/5"
-            onClick={() => setExpanded(e => e === team.id ? null : team.id)}
-          >
-            {expanded === team.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            <span className="font-medium flex-1">{team.name || 'Nuevo equipo'}</span>
-            <span className="text-xs text-white/30">{team.players.length} jugadores</span>
+          <div className="flex items-center gap-3 px-4 py-3 bg-[#0d1321] hover:bg-white/5">
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 items-center gap-3 text-left"
+              aria-expanded={expanded === team.id}
+              aria-controls={`team-details-${team.id}`}
+              onClick={() => setExpanded(e => e === team.id ? null : team.id)}
+            >
+              {expanded === team.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              <span className="font-medium flex-1">{team.name || 'Nuevo equipo'}</span>
+              <span className="text-xs text-white/30">{team.players.length} jugadores</span>
+            </button>
             <button onClick={e => {
               e.stopPropagation()
               if (draftIds.has(team.id)) cancelDraft(team.id)
               else deleteTeam(team.id)
-            }} className="text-white/20 hover:text-red-400 transition-colors ml-2">
+            }} disabled={saving === team.id || deleting === team.id} aria-label={`${draftIds.has(team.id) ? 'Cancelar' : 'Eliminar'} equipo ${team.name || 'nuevo'}`} className="text-white/20 hover:text-red-400 transition-colors ml-2 disabled:opacity-50">
               <Trash2 size={15} />
             </button>
           </div>
 
           {expanded === team.id && (
-            <div className="p-4 border-t border-white/10 flex flex-col gap-4">
+            <div id={`team-details-${team.id}`} className="p-4 border-t border-white/10 flex flex-col gap-4">
               {/* Datos del equipo */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-white/40 mb-1 block">Nombre del equipo</label>
                   <input
+                    aria-label={`Nombre del equipo ${team.name || 'nuevo'}`}
                     value={team.name}
                     onChange={e => updateTeam(team.id, { name: e.target.value })}
                     className="w-full px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#0097D7]/50"
@@ -179,6 +187,7 @@ export default function AdminEquipos() {
                           e.target.value = ''
                         }}
                         disabled={uploading === team.id || draftIds.has(team.id)}
+                        aria-label={`Subir logo de ${team.name || 'nuevo equipo'}`}
                       />
                     </label>
                   </div>
@@ -197,6 +206,7 @@ export default function AdminEquipos() {
                   {team.players.map(p => (
                     <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded-lg bg-white/3 border border-white/5">
                       <input
+                        aria-label={`Nombre del jugador ${p.summonerName || 'nuevo'} de ${team.name || 'nuevo equipo'}`}
                         value={p.summonerName}
                         onChange={e => updatePlayer(team.id, p.id, { summonerName: e.target.value })}
                         placeholder="Nick#TAG"
@@ -204,6 +214,7 @@ export default function AdminEquipos() {
                       />
                       <div className="flex items-center gap-2">
                         <select
+                          aria-label={`Rol principal de ${p.summonerName || 'nuevo jugador'} en ${team.name || 'nuevo equipo'}`}
                           value={p.primaryRole}
                           onChange={e => updatePlayer(team.id, p.id, { primaryRole: e.target.value as Role })}
                           className="flex-1 sm:flex-none px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
@@ -211,6 +222,7 @@ export default function AdminEquipos() {
                           {PRIMARY_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                         <select
+                          aria-label={`Rol secundario de ${p.summonerName || 'nuevo jugador'} en ${team.name || 'nuevo equipo'}`}
                           value={p.secondaryRole ?? ''}
                           onChange={e => updatePlayer(team.id, p.id, { secondaryRole: e.target.value as Exclude<Role, 'Suplente'> || undefined })}
                           className="flex-1 sm:flex-none px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/60 focus:outline-none"
@@ -218,7 +230,7 @@ export default function AdminEquipos() {
                           <option value="">— 2º rol</option>
                           {SECONDARY_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
-                        <button onClick={() => removePlayer(team.id, p.id)} className="ml-auto sm:ml-0 text-white/20 hover:text-red-400 transition-colors">
+                        <button aria-label={`Eliminar jugador ${p.summonerName || 'nuevo'} de ${team.name || 'nuevo equipo'}`} onClick={() => removePlayer(team.id, p.id)} className="ml-auto sm:ml-0 text-white/20 hover:text-red-400 transition-colors">
                           <Trash2 size={14} />
                         </button>
                       </div>

@@ -4,7 +4,6 @@ import { requireAdminSession } from '@/lib/auth'
 import { PhaseSchema, PhaseUpdateSchema, DeleteIdSchema } from '@/lib/schemas'
 import type { Phase } from '@/lib/types'
 import logger from '@/lib/logger'
-import { bracketSizeError } from '@/lib/bracket-sizes'
 import { getSwissConfirmationError } from '@/lib/swiss'
 import { changedStructuralPhaseFields } from '@/lib/phase-structure'
 
@@ -25,13 +24,6 @@ export async function POST(req: NextRequest) {
 
   const parsed = PhaseSchema.safeParse(raw)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
-  const configuredCount = parsed.data.type === 'swiss'
-    ? parsed.data.config.swissTeamIds?.length
-    : parsed.data.type === 'groups' ? undefined : parsed.data.config.bracketTeamIds?.length
-  const sizeError = configuredCount
-    ? bracketSizeError(parsed.data.type, configuredCount)
-    : null
-  if (sizeError) return NextResponse.json({ error: sizeError }, { status: 422 })
 
   const phases = getPhases()
   const phase: Phase = { id: generateId('phase'), ...parsed.data }
@@ -49,13 +41,6 @@ export async function PUT(req: NextRequest) {
 
   const parsed = PhaseUpdateSchema.safeParse(raw)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
-  const configuredCount = parsed.data.type === 'swiss'
-    ? parsed.data.config.swissTeamIds?.length
-    : parsed.data.type === 'groups' ? undefined : parsed.data.config.bracketTeamIds?.length
-  const sizeError = configuredCount
-    ? bracketSizeError(parsed.data.type, configuredCount)
-    : null
-  if (sizeError) return NextResponse.json({ error: sizeError }, { status: 422 })
 
   const phases = getPhases()
   const idx = phases.findIndex(p => p.id === parsed.data.id)

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
-import { getMatchById, getTeams, getMatches, getPlayerStatsCache } from '@/lib/data'
+import { getTeams, getMatches, getPhases, getPlayerStatsCache } from '@/lib/data'
+import { getPublishedMatch, getPublishedMatches } from '@/lib/publication'
 import { getPlayerMastery, getChampionStats, getTopRecentChampions } from '@/lib/data-riot'
 import { getVersion } from '@/lib/ddragon'
 import CompareClient from '@/components/CompareClient'
@@ -12,12 +13,14 @@ function currentTimestamp() { return Date.now() }
 
 export default async function OverlayPartidoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const match = getMatchById(id)
+  const phases = getPhases()
+  const allMatches = getMatches()
+  const match = getPublishedMatch(id, phases, allMatches)
   if (!match) notFound()
 
   const allTeams = getTeams()
   const teams = allTeams.filter(t => t.id === match.team1Id || t.id === match.team2Id)
-  const matches = getMatches()
+  const matches = getPublishedMatches(phases, allMatches)
 
   const cache = getPlayerStatsCache()
   const playerMap = new Map(cache.players.map(p => [p.summonerName, p]))
