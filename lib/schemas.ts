@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { validateGroupsConfig } from './phase-validation'
+import { isValidRiotMatchId, normalizeRiotMatchId, RIOT_MATCH_ID_ERROR } from './riot-match-id'
 
 const RoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente'])
 
@@ -112,7 +113,9 @@ export const MatchSchema = z.object({
   winnerId: z.string().optional(),
   // null is an explicit empty slot, so deleting game 2 does not create an
   // invalid sparse array when the payload is serialized as JSON.
-  riotMatchIds: z.array(z.string().nullable()).default([]),
+  riotMatchIds: z.array(
+    z.string().transform(normalizeRiotMatchId).refine(isValidRiotMatchId, { message: RIOT_MATCH_ID_ERROR }).nullable(),
+  ).default([]),
   games: z.array(GameDataSchema.nullable()).optional(),
   scheduledAt: z.string().optional(),
   tournamentCodes: z.array(z.string()).optional(),

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   try { raw = await req.json() } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }
 
   const parsed = z.union([MatchSchema, z.array(MatchSchema)]).safeParse(raw)
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ') }, { status: 422 })
 
   const matches = getMatches()
   const items = Array.isArray(parsed.data) ? parsed.data : [parsed.data]
@@ -58,7 +58,7 @@ export async function PUT(req: NextRequest) {
   try { raw = await req.json() } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }
 
   const parsed = MatchUpdateSchema.safeParse(raw)
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ') }, { status: 422 })
 
   const body = parsed.data as Match
   const checked = validateAndNormalizeMatch(body, getPhaseById(body.phaseId))
