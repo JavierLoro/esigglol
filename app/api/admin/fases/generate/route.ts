@@ -7,6 +7,7 @@ import type { Match, BOFormat } from '@/lib/types'
 import { bracketSizeError } from '@/lib/bracket-sizes'
 import { validateGroupsConfig } from '@/lib/phase-validation'
 import { createSwissPairings, getSwissRecords, getSwissRoundError } from '@/lib/swiss'
+import { orderBracketMatches } from '@/lib/bracket-position'
 
 const log = logger.child({ module: 'generate' })
 
@@ -47,10 +48,11 @@ export async function POST(req: NextRequest) {
       const ms = phaseMatches.filter(m => m.round === r)
       return ms.length > 0 && ms.every(m => m.result && m.winnerId)
     }
-    const sorted  = (r: number) => phaseMatches.filter(m => m.round === r).sort((a, b) => a.id.localeCompare(b.id))
+    const sorted  = (r: number) => orderBracketMatches(phaseMatches.filter(m => m.round === r))
     const loserOf = (m: Match): string => m.winnerId === m.team1Id ? m.team2Id : m.team1Id
-    const newMatch = (round: number, t1: string, t2: string): Match => ({
+    const newMatch = (round: number, t1: string, t2: string, bracketPosition = 0): Match => ({
       id: generateId('match'), phaseId: phase.id, round,
+      bracketPosition,
       team1Id: t1, team2Id: t2, result: null, riotMatchIds: [],
     })
 
@@ -150,7 +152,7 @@ export async function POST(req: NextRequest) {
         for (let i = 0; i < Math.ceil(teamIds.length / 2); i++) {
           const t1 = teamIds[i * 2]
           const t2 = teamIds[i * 2 + 1]
-          if (t2 !== undefined) created.push(newMatch(1, t1, t2))
+          if (t2 !== undefined) created.push(newMatch(1, t1, t2, i))
           // Si t2 === undefined → bye, ese equipo pasa directamente a R2
         }
       } else {
@@ -172,7 +174,7 @@ export async function POST(req: NextRequest) {
 
         const nextRound = maxRound + 1
         for (let i = 0; i < Math.floor(winners.length / 2); i++) {
-          created.push(newMatch(nextRound, winners[i * 2], winners[i * 2 + 1]))
+          created.push(newMatch(nextRound, winners[i * 2], winners[i * 2 + 1], i))
         }
       }
     }
@@ -185,8 +187,8 @@ export async function POST(req: NextRequest) {
 
       if (!exists(1)) {
         // Generar semifinales
-        created.push(newMatch(1, teamIds[0], teamIds[1]))
-        created.push(newMatch(1, teamIds[2], teamIds[3]))
+        created.push(newMatch(1, teamIds[0], teamIds[1], 0))
+        created.push(newMatch(1, teamIds[2], teamIds[3], 1))
       } else if (!exists(2)) {
         // Generar final y 3er puesto con los equipos reales
         const r1 = sorted(1)
@@ -213,8 +215,8 @@ export async function POST(req: NextRequest) {
         // ── 4 equipos: G1→G2→G3→G4 ──────────────────────────────────────────
         // G1: R1 (×2)
         if (!exists(1)) {
-          created.push(newMatch(1, teamIds[0], teamIds[1]))
-          created.push(newMatch(1, teamIds[2], teamIds[3]))
+          created.push(newMatch(1, teamIds[0], teamIds[1], 0))
+          created.push(newMatch(1, teamIds[2], teamIds[3], 1))
 
         // G2: R2 (upper final ×1) + R-1 (lower R1 ×1)
         } else if (!exists(2) && !exists(-1)) {
@@ -246,17 +248,17 @@ export async function POST(req: NextRequest) {
         // G1: R1 (×4)
         if (!exists(1)) {
           for (let i = 0; i < 4; i++) {
-            created.push(newMatch(1, teamIds[i * 2], teamIds[i * 2 + 1]))
+            created.push(newMatch(1, teamIds[i * 2], teamIds[i * 2 + 1], i))
           }
 
         // G2: R2 (upper ×2) + R-1 (lower ×2)
         } else if (!exists(2) && !exists(-1)) {
           if (!complete(1)) return NextResponse.json({ created: 0, message: 'Ronda 1 incompleta' })
           const r1 = sorted(1) // 4 partidos
-          created.push(newMatch(2, r1[0].winnerId!, r1[1].winnerId!))
-          created.push(newMatch(2, r1[2].winnerId!, r1[3].winnerId!))
-          created.push(newMatch(-1, loserOf(r1[0]), loserOf(r1[1])))
-          created.push(newMatch(-1, loserOf(r1[2]), loserOf(r1[3])))
+          created.push(newMatch(2, r1[0].winnerId!, r1[1].winnerId!, 0))
+          created.push(newMatch(2, r1[2].winnerId!, r1[3].winnerId!, 1))
+          created.push(newMatch(-1, loserOf(r1[0]), loserOf(r1[1]), 0))
+          created.push(newMatch(-1, loserOf(r1[2]), loserOf(r1[3]), 1))
 
         // G3: R3 (upper final ×1) + R-2 (lower ×2)
         } else if (!exists(3) && !exists(-2)) {
@@ -265,8 +267,8 @@ export async function POST(req: NextRequest) {
           const rNeg1 = sorted(-1) // 2 partidos
           created.push(newMatch(3, r2[0].winnerId!, r2[1].winnerId!))
           // Emparejamiento por índice: R2[i].loser vs R-1[i].winner
-          created.push(newMatch(-2, loserOf(r2[0]), rNeg1[0].winnerId!))
-          created.push(newMatch(-2, loserOf(r2[1]), rNeg1[1].winnerId!))
+          created.push(newMatch(-2, loserOf(r2[0]), rNeg1[0].winnerId!, 0))
+          created.push(newMatch(-2, loserOf(r2[1]), rNeg1[1].winnerId!, 1))
 
         // G4: R-3 (lower semi ×1) — los dos ganadores de R-2 se enfrentan
         } else if (!exists(-3)) {

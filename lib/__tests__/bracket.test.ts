@@ -82,6 +82,19 @@ describe('advanceWinner — elimination', () => {
     expect(result[2].team2Id).toBe('D')
   })
 
+  it('usa la posición persistida aunque los IDs estén deliberadamente desordenados', () => {
+    const matches = [
+      makeMatch({ id: 'aaa-random', round: 1, bracketPosition: 1, team1Id: 'C', team2Id: 'D' }),
+      makeMatch({ id: 'zzz-random', round: 1, bracketPosition: 0, team1Id: 'A', team2Id: 'B', result: { team1Score: 1, team2Score: 0 }, winnerId: 'A' }),
+      makeMatch({ id: '000-final', round: 2, bracketPosition: 0 }),
+    ]
+
+    const result = advanceWinner(phase, matches, matches[1])
+
+    expect(result[2].team1Id).toBe('A')
+    expect(result[2].team2Id).toBe('TBD')
+  })
+
   it('bracket de 4 equipos: semifinales → final', () => {
     const matches = [
       makeMatch({ id: 'm1', round: 1, team1Id: 'A', team2Id: 'B', result: { team1Score: 1, team2Score: 0 }, winnerId: 'A' }),

@@ -2,6 +2,7 @@ import type { Match, Team } from '@/lib/types'
 import Image from 'next/image'
 import Link from 'next/link'
 import { clsx } from 'clsx'
+import { orderBracketMatches } from '@/lib/bracket-position'
 
 interface Props {
   matches: Match[]
@@ -236,7 +237,9 @@ export default function EliminationBracket({ matches, teams, title, teamCount }:
       <div className="flex overflow-x-auto pb-3">
         {Array.from({ length: totalRounds }, (_, ri) => {
           const round = existingRounds[ri]
-          const roundMatches = round !== undefined ? matches.filter(m => m.round === round) : []
+          const roundMatches = round !== undefined
+            ? orderBracketMatches(matches.filter(m => m.round === round))
+            : []
           const isPlaceholder = round === undefined
           const slotH = SLOT * Math.pow(2, ri)
           const isLast = ri === totalRounds - 1
@@ -246,7 +249,7 @@ export default function EliminationBracket({ matches, teams, title, teamCount }:
           // Equipos avanzando: de la ronda anterior (si existe y tiene resultados)
           const prevRound = ri > 0 ? existingRounds[ri - 1] : undefined
           const prevRoundMatches = prevRound !== undefined
-            ? matches.filter(m => m.round === prevRound).sort((a, b) => a.id.localeCompare(b.id))
+            ? orderBracketMatches(matches.filter(m => m.round === prevRound))
             : []
 
           return (

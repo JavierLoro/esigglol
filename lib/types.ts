@@ -84,6 +84,8 @@ export interface Match {
   id: string
   phaseId: string
   round: number
+  /** Zero-based position within this bracket round. */
+  bracketPosition?: number
   team1Id: string
   team2Id: string
   result: MatchResult | null   // null = pendiente

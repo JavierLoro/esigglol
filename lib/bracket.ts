@@ -1,4 +1,5 @@
 import type { Match, Phase } from './types'
+import { orderBracketMatches } from './bracket-position'
 
 /**
  * Dado un partido completado, rellena los slots TBD del siguiente round
@@ -36,10 +37,8 @@ export function advanceWinner(
 
   // ── Eliminación clásica ─────────────────────────────────────────────────
   if (phase.type === 'elimination') {
-    const thisRound = phaseMatches.filter(m => m.round === round)
-      .sort((a, b) => a.id.localeCompare(b.id))
-    const nextRound = phaseMatches.filter(m => m.round === round + 1)
-      .sort((a, b) => a.id.localeCompare(b.id))
+    const thisRound = orderBracketMatches(phaseMatches.filter(m => m.round === round))
+    const nextRound = orderBracketMatches(phaseMatches.filter(m => m.round === round + 1))
 
     const idx = thisRound.findIndex(m => m.id === completed.id)
     if (idx === -1 || nextRound.length === 0) return matches
@@ -52,7 +51,7 @@ export function advanceWinner(
   // ── Final Four ──────────────────────────────────────────────────────────
   if (phase.type === 'final-four') {
     if (round === 1) {
-      const semis = phaseMatches.filter(m => m.round === 1).sort((a, b) => a.id.localeCompare(b.id))
+      const semis = orderBracketMatches(phaseMatches.filter(m => m.round === 1))
       const final = phaseMatches.find(m => m.round === 2)
       const thirdPlace = phaseMatches.find(m => m.round === 98)
       const semiIdx = semis.findIndex(m => m.id === completed.id)
@@ -73,7 +72,7 @@ export function advanceWinner(
     if (n <= 4) {
       // 4-team: rounds 1 (×2), 2 (×1), -1 (×1), -2 (×1), 99 (×1)
       if (round === 1) {
-        const r1 = matchesInRound(1).sort((a, b) => a.id.localeCompare(b.id))
+        const r1 = orderBracketMatches(matchesInRound(1))
         const r2 = matchesInRound(2)
         const rNeg1 = matchesInRound(-1)
         const idx = r1.findIndex(m => m.id === completed.id)
@@ -105,18 +104,18 @@ export function advanceWinner(
     } else {
       // 8-team: rounds 1 (×4), 2 (×2), 3 (×1), -1 (×2), -2 (×2), -3 (×1), -4 (×1), 99 (×1)
       if (round === 1) {
-        const r1 = matchesInRound(1).sort((a, b) => a.id.localeCompare(b.id))
-        const r2 = matchesInRound(2).sort((a, b) => a.id.localeCompare(b.id))
-        const rNeg1 = matchesInRound(-1).sort((a, b) => a.id.localeCompare(b.id))
+        const r1 = orderBracketMatches(matchesInRound(1))
+        const r2 = orderBracketMatches(matchesInRound(2))
+        const rNeg1 = orderBracketMatches(matchesInRound(-1))
         const idx = r1.findIndex(m => m.id === completed.id)
 
         if (r2[Math.floor(idx / 2)]) fillSlot(r2[Math.floor(idx / 2)], idx % 2 === 0 ? 'team1Id' : 'team2Id', winner)
         if (rNeg1[Math.floor(idx / 2)]) fillSlot(rNeg1[Math.floor(idx / 2)], idx % 2 === 0 ? 'team1Id' : 'team2Id', loser)
       }
       if (round === 2) {
-        const r2 = matchesInRound(2).sort((a, b) => a.id.localeCompare(b.id))
+        const r2 = orderBracketMatches(matchesInRound(2))
         const r3 = matchesInRound(3)
-        const rNeg2 = matchesInRound(-2).sort((a, b) => a.id.localeCompare(b.id))
+        const rNeg2 = orderBracketMatches(matchesInRound(-2))
         const idx = r2.findIndex(m => m.id === completed.id)
 
         if (r3[0]) fillSlot(r3[0], idx === 0 ? 'team1Id' : 'team2Id', winner)
@@ -135,8 +134,8 @@ export function advanceWinner(
         }
       }
       if (round === -1) {
-        const rNeg1 = matchesInRound(-1).sort((a, b) => a.id.localeCompare(b.id))
-        const rNeg2 = matchesInRound(-2).sort((a, b) => a.id.localeCompare(b.id))
+        const rNeg1 = orderBracketMatches(matchesInRound(-1))
+        const rNeg2 = orderBracketMatches(matchesInRound(-2))
         const idx = rNeg1.findIndex(m => m.id === completed.id)
         if (rNeg2[idx]) {
           if (rNeg2[idx].team1Id === 'TBD') fillSlot(rNeg2[idx], 'team1Id', winner)
@@ -144,7 +143,7 @@ export function advanceWinner(
         }
       }
       if (round === -2) {
-        const rNeg2 = matchesInRound(-2).sort((a, b) => a.id.localeCompare(b.id))
+        const rNeg2 = orderBracketMatches(matchesInRound(-2))
         const rNeg3 = matchesInRound(-3)
         const idx = rNeg2.findIndex(m => m.id === completed.id)
         if (rNeg3[0]) {

@@ -59,4 +59,50 @@ describe('POST /api/admin/fases/generate', () => {
       phaseId: 'phase-1', round: 1, team1Id: 'team-1', team2Id: 'team-2',
     })])
   })
+
+  it('genera la final según la topología persistida, no según IDs aleatorios', async () => {
+    mocks.getPhaseById.mockReturnValue({
+      id: 'phase-1', name: 'Final Four', type: 'final-four', status: 'active', order: 1,
+      config: { bo: 3, bracketTeamIds: ['A', 'B', 'C', 'D'] },
+    })
+    mocks.getMatches.mockReturnValue([
+      {
+        id: 'aaa-random', phaseId: 'phase-1', round: 1, bracketPosition: 1,
+        team1Id: 'C', team2Id: 'D', result: { team1Score: 0, team2Score: 2 }, winnerId: 'D', riotMatchIds: [],
+      },
+      {
+        id: 'zzz-random', phaseId: 'phase-1', round: 1, bracketPosition: 0,
+        team1Id: 'A', team2Id: 'B', result: { team1Score: 2, team2Score: 0 }, winnerId: 'A', riotMatchIds: [],
+      },
+    ])
+
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+      method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(mocks.saveMatches).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ round: 2, bracketPosition: 0, team1Id: 'A', team2Id: 'D' }),
+    ]))
+  })
+
+  it('persiste posiciones estables al crear varios partidos del bracket', async () => {
+    mocks.getPhaseById.mockReturnValue({
+      id: 'phase-1', name: 'Final Four', type: 'final-four', status: 'upcoming', order: 1,
+      config: { bo: 3, bracketTeamIds: ['A', 'B', 'C', 'D'] },
+    })
+    mocks.generateId
+      .mockReturnValueOnce('zzz-random')
+      .mockReturnValueOnce('aaa-random')
+
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+      method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(mocks.saveMatches).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'zzz-random', bracketPosition: 0, team1Id: 'A', team2Id: 'B' }),
+      expect.objectContaining({ id: 'aaa-random', bracketPosition: 1, team1Id: 'C', team2Id: 'D' }),
+    ])
+  })
 })

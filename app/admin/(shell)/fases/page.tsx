@@ -168,6 +168,7 @@ export default function AdminFases() {
       {phases.map((phase, i) => {
         const maxRounds = (phase.config.advanceWins ?? 2) + (phase.config.eliminateLosses ?? 2) - 1
         const groupValidationErrors = phase.type === 'groups' ? validateGroupsConfig(phase.config) : []
+        const structureLocked = allMatches.some(match => match.phaseId === phase.id)
 
         return (
           <div key={phase.id} className="rounded-xl border border-white/10 bg-[#0d1321] p-4 flex flex-col gap-4">
@@ -189,6 +190,7 @@ export default function AdminFases() {
                 <label className="text-xs text-white/40 mb-1 block">Tipo</label>
                 <select
                   value={phase.type}
+                  disabled={structureLocked}
                   onChange={e => update(phase.id, { type: e.target.value as PhaseType })}
                   className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
                 >
@@ -212,6 +214,7 @@ export default function AdminFases() {
                   <label className="text-xs text-white/40 mb-1 block">Formato BO</label>
                   <select
                     value={phase.config.bo}
+                    disabled={structureLocked}
                     onChange={e => updateConfig(phase.id, { bo: Number(e.target.value) as BOFormat })}
                     className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
                   >
@@ -224,6 +227,7 @@ export default function AdminFases() {
                   <label className="text-xs text-white/40 mb-1 block">Pasan por grupo</label>
                   <input
                     type="number"
+                    disabled={structureLocked}
                     min={1}
                     value={phase.config.advanceCount ?? 2}
                     onChange={e => updateConfig(phase.id, { advanceCount: Number(e.target.value) })}
@@ -239,6 +243,7 @@ export default function AdminFases() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-white/40 uppercase tracking-wider">Grupos</span>
                   <button
+                    disabled={structureLocked}
                     onClick={() => updateConfig(phase.id, {
                       groups: [...(phase.config.groups ?? []), { id: String.fromCharCode(65 + (phase.config.groups?.length ?? 0)), teamIds: [] }]
                     })}
@@ -253,6 +258,7 @@ export default function AdminFases() {
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-[#0097D7]">Grupo {g.id}</span>
                         <button
+                          disabled={structureLocked}
                           onClick={() => updateConfig(phase.id, { groups: (phase.config.groups ?? []).filter((_, i) => i !== gi) })}
                           className="text-white/20 hover:text-red-400"
                         >
@@ -266,6 +272,7 @@ export default function AdminFases() {
                             <label key={t.id} className="flex items-center gap-2 cursor-pointer px-2 py-1 rounded hover:bg-white/5">
                               <input
                                 type="checkbox"
+                                disabled={structureLocked}
                                 checked={checked}
                                 className="accent-[#0097D7]"
                                 onChange={() => {
@@ -324,6 +331,7 @@ export default function AdminFases() {
                     <label className="text-xs text-white/40 mb-1 block">Tamaño</label>
                     <select
                       value={phase.config.swissSize ?? 8}
+                      disabled={structureLocked}
                       onChange={e => updateConfig(phase.id, { swissSize: Number(e.target.value) as 8 | 16 })}
                       className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
                     >
@@ -335,6 +343,7 @@ export default function AdminFases() {
                     <label className="text-xs text-white/40 mb-1 block">Victorias para clasificar</label>
                     <select
                       value={phase.config.advanceWins ?? 2}
+                      disabled={structureLocked}
                       onChange={e => updateConfig(phase.id, { advanceWins: Number(e.target.value) })}
                       className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
                     >
@@ -346,6 +355,7 @@ export default function AdminFases() {
                     <label className="text-xs text-white/40 mb-1 block">Derrotas para eliminar</label>
                     <select
                       value={phase.config.eliminateLosses ?? 2}
+                      disabled={structureLocked}
                       onChange={e => updateConfig(phase.id, { eliminateLosses: Number(e.target.value) })}
                       className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
                     >
@@ -370,6 +380,7 @@ export default function AdminFases() {
                           <span className="text-xs text-white/40">R{r}</span>
                           <select
                             value={val}
+                            disabled={structureLocked}
                             onChange={e => updateConfig(phase.id, {
                               roundBo: { ...(phase.config.roundBo ?? {}), [String(r)]: Number(e.target.value) as BOFormat }
                             })}
@@ -393,6 +404,7 @@ export default function AdminFases() {
                         <label key={t.id} className="flex items-center gap-2 cursor-pointer px-2 py-1 rounded hover:bg-white/5">
                           <input
                             type="checkbox"
+                            disabled={structureLocked}
                             checked={checked}
                             className="accent-[#0097D7]"
                             onChange={() => {
@@ -473,6 +485,7 @@ export default function AdminFases() {
                         <label key={t.id} className="flex items-center gap-2 cursor-pointer px-2 py-1 rounded hover:bg-white/5">
                           <input
                             type="checkbox"
+                            disabled={structureLocked}
                             checked={checked}
                             className="accent-[#0097D7]"
                             onChange={() => {
@@ -501,6 +514,7 @@ export default function AdminFases() {
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
+                      disabled={structureLocked}
                       checked={phase.config.include3rdPlace ?? false}
                       className="accent-[#0097D7]"
                       onChange={e => updateConfig(phase.id, { include3rdPlace: e.target.checked })}
@@ -548,6 +562,7 @@ export default function AdminFases() {
             )}
 
             <div className="self-end flex items-center gap-2">
+              {structureLocked && <span className="text-xs text-amber-300/80">Estructura bloqueada: la fase ya tiene partidos</span>}
               <button
                 onClick={() => copyOverlayUrl(phase.id)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-white/40 text-sm hover:text-white hover:border-white/30 transition-colors"
