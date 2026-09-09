@@ -141,7 +141,7 @@ test('oculta el bracket en superficies públicas hasta confirmarlo y conserva ac
   await page.goto('/admin/fases')
   const refreshedPhaseCard = page.locator(`input[value="${phase.name}"]`).locator('xpath=../..')
   await refreshedPhaseCard.getByRole('button', { name: 'Confirmar' }).click()
-  await expect(refreshedPhaseCard.getByText('Bracket confirmado')).toBeVisible()
+  await expect(refreshedPhaseCard.getByText('Confirmado', { exact: true })).toBeVisible()
 
   const publicConfirmed = await request.get('/api/data/fases')
   const publicConfirmedData = await publicConfirmed.json() as { phases: Phase[]; matches: Match[] }
