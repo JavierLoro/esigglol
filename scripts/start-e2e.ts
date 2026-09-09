@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process'
 
 const { values } = parseArgs({ options: { port: { type: 'string', default: '3100' } } })
 const dataDir = path.join(process.cwd(), '.tmp', 'e2e')
-const passwordHash = hashSync('e2e-admin-password', 4)
+const passwordHash = hashSync('e2e-admin-password', 4).replaceAll('$', '\\$')
 
 rmSync(dataDir, { recursive: true, force: true })
 
