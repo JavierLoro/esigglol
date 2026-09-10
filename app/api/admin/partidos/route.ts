@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getMatches, saveMatches, generateId, getPhaseById, savePhase, getTeams, getPhases } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
-import { advanceWinner } from '@/lib/bracket'
+import { recalculateBracket } from '@/lib/bracket'
 import { MatchSchema, MatchUpdateSchema, DeleteIdsSchema } from '@/lib/schemas'
 import type { Match } from '@/lib/types'
 import { z } from 'zod'
@@ -82,12 +82,7 @@ export async function PUT(req: NextRequest) {
 
   matches[idx] = normalizedBody
 
-  // ── Avance de bracket ───────────────────────────────────────────────────
-  if (normalizedBody.result && normalizedBody.winnerId) {
-    if (phase && (phase.type === 'elimination' || phase.type === 'final-four' || phase.type === 'upper-lower')) {
-      matches = advanceWinner(phase, matches, normalizedBody)
-    }
-  }
+  matches = recalculateBracket(phase, matches)
 
   try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
 
@@ -115,7 +110,21 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'No se especificaron IDs' }, { status: 400 })
   }
 
-  const matches = getMatches().filter(m => !toDelete.has(m.id))
+  const previousMatches = getMatches()
+  const affectedPhaseIds = new Set(previousMatches.filter(match => toDelete.has(match.id)).map(match => match.phaseId))
+  let matches = previousMatches.filter(match => !toDelete.has(match.id))
+  for (const phaseId of affectedPhaseIds) {
+    const phase = getPhaseById(phaseId)
+    if (phase) matches = recalculateBracket(phase, matches)
+  }
   try { saveMatches(matches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
+  for (const phaseId of affectedPhaseIds) {
+    const phase = getPhaseById(phaseId)
+    if (!phase) continue
+    const status = derivePhaseStatus(phase, matches)
+    if (phase.status !== status) {
+      try { savePhase({ ...phase, status }) } catch (err) { log.error({ err }, 'DB write failed on phase status update') }
+    }
+  }
   return NextResponse.json({ ok: true, deleted: toDelete.size })
 }
