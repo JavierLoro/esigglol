@@ -62,6 +62,7 @@ export interface PhaseConfig {
   roundBo?: Record<string, BOFormat>  // BO por ronda (clave = número de ronda como string)
   confirmedRounds?: number[]           // swiss: rondas confirmadas (visibles al público)
   bracketTeamIds?: string[]            // equipos para elimination/final-four/upper-lower
+  lowerBracketTeamIds?: string[]       // upper-lower: participantes que comienzan con una derrota en Lower
   include3rdPlace?: boolean            // solo final-four: generar partido de 3er puesto
   confirmedBracket?: boolean           // elimination/final-four/upper-lower: bracket visible al público
 }

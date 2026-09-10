@@ -61,4 +61,33 @@ describe('validación de participantes por formato', () => {
     expect(validatePhaseParticipants('elimination', { bracketTeamIds: ['t1', 't1'] }))
       .toContain('Un equipo no puede aparecer más de una vez')
   })
+
+  it('acepta una entrada escalonada con el doble de equipos en Upper', () => {
+    expect(validatePhaseParticipants('upper-lower', {
+      bracketTeamIds: ['u1', 'u2', 'u3', 'u4', 'l1', 'l2'],
+      lowerBracketTeamIds: ['l1', 'l2'],
+    })).toEqual([])
+    expect(validatePhaseParticipants('upper-lower', {
+      bracketTeamIds: ['u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7', 'u8', 'l1', 'l2', 'l3', 'l4'],
+      lowerBracketTeamIds: ['l1', 'l2', 'l3', 'l4'],
+    })).toEqual([])
+    expect(validatePhaseParticipants('upper-lower', {
+      bracketTeamIds: [
+        ...Array.from({ length: 16 }, (_, index) => `u${index + 1}`),
+        ...Array.from({ length: 8 }, (_, index) => `l${index + 1}`),
+      ],
+      lowerBracketTeamIds: Array.from({ length: 8 }, (_, index) => `l${index + 1}`),
+    })).toEqual([])
+  })
+
+  it('rechaza repartos sin proporción 2:1 y equipos Lower ajenos a la fase', () => {
+    expect(validatePhaseParticipants('upper-lower', {
+      bracketTeamIds: ['u1', 'u2', 'u3', 'u4', 'l1', 'l2'],
+      lowerBracketTeamIds: ['l1'],
+    })).toContain('El reparto inicial debe tener una potencia de 2 en Upper y exactamente la mitad en Lower (4+2, 8+4, 16+8...)')
+    expect(validatePhaseParticipants('upper-lower', {
+      bracketTeamIds: ['u1', 'u2', 'u3', 'u4'],
+      lowerBracketTeamIds: ['outside'],
+    })).toContain('Todos los equipos de Lower deben estar seleccionados en la fase')
+  })
 })

@@ -194,7 +194,7 @@ describe('advanceWinner — upper-lower 4 equipos', () => {
     matches[3].winnerId = 'C'
 
     const result = advanceWinner(phase, matches, matches[3])
-    expect(result[4].team1Id).toBe('C')  // lower final
+    expect(result[4].team2Id).toBe('C')  // lower final; team1 queda reservado al perdedor del Upper
   })
 
   it('R-2 (lower final): ganador → grand final team2', () => {

@@ -156,4 +156,105 @@ describe('POST /api/admin/fases/generate', () => {
     expect(stored.map(match => match.round)).toEqual(expect.arrayContaining([1, 1, 2, -1, -2, 99]))
     expect(stored.filter(match => Number(match.round) < 0)).toHaveLength(2)
   })
+
+  it('genera una topología completa para cuatro equipos Upper y dos Lower', async () => {
+    mocks.getPhaseById.mockReturnValue({
+      id: 'phase-1', name: 'Doble eliminación escalonada', type: 'upper-lower', status: 'upcoming', order: 1,
+      config: {
+        bo: 3,
+        bracketTeamIds: ['A', 'B', 'C', 'D', 'E', 'F'],
+        lowerBracketTeamIds: ['E', 'F'],
+      },
+    })
+    const stored: Array<Record<string, unknown>> = []
+    mocks.getMatches.mockReturnValue(stored)
+    mocks.createMatches.mockImplementation(items => { stored.push(...items); return items })
+    let sequence = 0
+    mocks.generateId.mockImplementation(() => `match-${++sequence}`)
+
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+      method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
+    }))
+
+    expect(await response.json()).toEqual({ created: 8 })
+    expect(stored.filter(match => match.round === 1)).toHaveLength(2)
+    expect(stored.filter(match => match.round === -1)).toEqual([
+      expect.objectContaining({ bracketPosition: 0, team1Id: 'E', team2Id: 'TBD' }),
+      expect.objectContaining({ bracketPosition: 1, team1Id: 'F', team2Id: 'TBD' }),
+    ])
+    expect(stored.map(match => match.round)).toEqual(expect.arrayContaining([2, -2, -3, 99]))
+  })
+
+  it('escala la topología a ocho equipos Upper y cuatro Lower', async () => {
+    const upper = Array.from({ length: 8 }, (_, index) => `U${index + 1}`)
+    const lower = Array.from({ length: 4 }, (_, index) => `L${index + 1}`)
+    mocks.getPhaseById.mockReturnValue({
+      id: 'phase-1', name: 'Doble eliminación de doce', type: 'upper-lower', status: 'upcoming', order: 1,
+      config: { bo: 3, bracketTeamIds: [...upper, ...lower], lowerBracketTeamIds: lower },
+    })
+    const stored: Array<Record<string, unknown>> = []
+    mocks.getMatches.mockReturnValue(stored)
+    mocks.createMatches.mockImplementation(items => { stored.push(...items); return items })
+    let sequence = 0
+    mocks.generateId.mockImplementation(() => `match-${++sequence}`)
+
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+      method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
+    }))
+
+    expect(await response.json()).toEqual({ created: 18 })
+    expect(stored.filter(match => match.round === 1)).toHaveLength(4)
+    expect(stored.filter(match => match.round === -1)).toHaveLength(4)
+    expect(stored.filter(match => match.round === -3)).toHaveLength(2)
+    expect(stored.filter(match => match.round === -5)).toHaveLength(1)
+    expect(stored.filter(match => match.round === 99)).toHaveLength(1)
+  })
+
+  it('genera sin descansos un Upper/Lower de dieciséis equipos en Upper', async () => {
+    const teams = Array.from({ length: 16 }, (_, index) => `T${index + 1}`)
+    mocks.getPhaseById.mockReturnValue({
+      id: 'phase-1', name: 'Doble eliminación de dieciséis', type: 'upper-lower', status: 'upcoming', order: 1,
+      config: { bo: 3, bracketTeamIds: teams },
+    })
+    const stored: Array<Record<string, unknown>> = []
+    mocks.getMatches.mockReturnValue(stored)
+    mocks.createMatches.mockImplementation(items => { stored.push(...items); return items })
+    let sequence = 0
+    mocks.generateId.mockImplementation(() => `match-${++sequence}`)
+
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+      method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
+    }))
+
+    expect(await response.json()).toEqual({ created: 30 })
+    expect(stored.filter(match => match.round === 1)).toHaveLength(8)
+    expect(stored.filter(match => match.round === 4)).toHaveLength(1)
+    expect(stored.filter(match => match.round === -1)).toHaveLength(4)
+    expect(stored.filter(match => match.round === -6)).toHaveLength(1)
+    expect(stored.filter(match => match.round === 99)).toHaveLength(1)
+  })
+
+  it('genera sin descansos un reparto de dieciséis Upper y ocho Lower', async () => {
+    const upper = Array.from({ length: 16 }, (_, index) => `U${index + 1}`)
+    const lower = Array.from({ length: 8 }, (_, index) => `L${index + 1}`)
+    mocks.getPhaseById.mockReturnValue({
+      id: 'phase-1', name: 'Doble eliminación de veinticuatro', type: 'upper-lower', status: 'upcoming', order: 1,
+      config: { bo: 3, bracketTeamIds: [...upper, ...lower], lowerBracketTeamIds: lower },
+    })
+    const stored: Array<Record<string, unknown>> = []
+    mocks.getMatches.mockReturnValue(stored)
+    mocks.createMatches.mockImplementation(items => { stored.push(...items); return items })
+    let sequence = 0
+    mocks.generateId.mockImplementation(() => `match-${++sequence}`)
+
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+      method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
+    }))
+
+    expect(await response.json()).toEqual({ created: 38 })
+    expect(stored.filter(match => match.round === 1)).toHaveLength(8)
+    expect(stored.filter(match => match.round === -1)).toHaveLength(8)
+    expect(stored.filter(match => match.round === -7)).toHaveLength(1)
+    expect(stored.filter(match => match.round === 99)).toHaveLength(1)
+  })
 })

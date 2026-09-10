@@ -74,6 +74,7 @@ Almacena fases del torneo ordenadas.
   confirmedRounds?: number[]                   // rondas visibles al público
   // elimination / final-four / upper-lower:
   bracketTeamIds?: string[]
+  lowerBracketTeamIds?: string[] // upper-lower: subconjunto que comienza en Lower
   include3rdPlace?: boolean                    // solo final-four
   confirmedBracket?: boolean                   // visible al público
 }

@@ -142,6 +142,7 @@ function isPhaseConfig(value: unknown): boolean {
     && isOptional(value, 'roundBo', isBORecord)
     && isOptional(value, 'confirmedRounds', item => Array.isArray(item) && item.every(isFiniteInteger))
     && isOptional(value, 'bracketTeamIds', isStringArray)
+    && isOptional(value, 'lowerBracketTeamIds', isStringArray)
     && isOptional(value, 'include3rdPlace', item => typeof item === 'boolean')
     && isOptional(value, 'confirmedBracket', item => typeof item === 'boolean')
 }
