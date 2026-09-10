@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   requireAdminSession: vi.fn(),
   getPhaseById: vi.fn(),
   getMatches: vi.fn(),
-  saveMatches: vi.fn(),
+  createMatches: vi.fn(),
   generateId: vi.fn(),
 }))
 
@@ -13,7 +13,7 @@ vi.mock('@/lib/auth', () => ({ requireAdminSession: mocks.requireAdminSession })
 vi.mock('@/lib/data', () => ({
   getPhaseById: mocks.getPhaseById,
   getMatches: mocks.getMatches,
-  saveMatches: mocks.saveMatches,
+  createMatches: mocks.createMatches,
   generateId: mocks.generateId,
 }))
 vi.mock('@/lib/logger', () => ({ default: { child: () => ({ error: vi.fn() }) } }))
@@ -55,7 +55,7 @@ describe('POST /api/admin/fases/generate', () => {
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ created: 1 })
-    expect(mocks.saveMatches).toHaveBeenCalledWith([expect.objectContaining({
+    expect(mocks.createMatches).toHaveBeenCalledWith([expect.objectContaining({
       phaseId: 'phase-1', round: 1, team1Id: 'team-1', team2Id: 'team-2',
     })])
   })
@@ -81,7 +81,7 @@ describe('POST /api/admin/fases/generate', () => {
     }))
 
     expect(response.status).toBe(200)
-    expect(mocks.saveMatches).toHaveBeenCalledWith(expect.arrayContaining([
+    expect(mocks.createMatches).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ round: 2, bracketPosition: 0, team1Id: 'A', team2Id: 'D' }),
     ]))
   })
@@ -100,7 +100,7 @@ describe('POST /api/admin/fases/generate', () => {
     }))
 
     expect(response.status).toBe(200)
-    expect(mocks.saveMatches).toHaveBeenCalledWith(expect.arrayContaining([
+    expect(mocks.createMatches).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ id: 'zzz-random', bracketPosition: 0, team1Id: 'A', team2Id: 'B' }),
       expect.objectContaining({ id: 'aaa-random', bracketPosition: 1, team1Id: 'C', team2Id: 'D' }),
       expect.objectContaining({ round: 2, team1Id: 'TBD', team2Id: 'TBD' }),
@@ -114,6 +114,7 @@ describe('POST /api/admin/fases/generate', () => {
     })
     const stored: Array<Record<string, unknown>> = []
     mocks.getMatches.mockReturnValue(stored)
+    mocks.createMatches.mockImplementation(items => { stored.push(...items); return items })
     let sequence = 0
     mocks.generateId.mockImplementation(() => `match-${++sequence}`)
 
@@ -140,6 +141,7 @@ describe('POST /api/admin/fases/generate', () => {
     })
     const stored: Array<Record<string, unknown>> = []
     mocks.getMatches.mockReturnValue(stored)
+    mocks.createMatches.mockImplementation(items => { stored.push(...items); return items })
     let sequence = 0
     mocks.generateId.mockImplementation(() => `match-${++sequence}`)
 

@@ -4,14 +4,17 @@ import type { Team } from '@/lib/types'
 const mocks = vi.hoisted(() => ({
   requireAdminSession: vi.fn(),
   getTeams: vi.fn(),
-  saveTeams: vi.fn(),
+  createTeam: vi.fn(),
   generateId: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({ requireAdminSession: mocks.requireAdminSession }))
 vi.mock('@/lib/data', () => ({
   getTeams: mocks.getTeams,
-  saveTeams: mocks.saveTeams,
+  createTeam: mocks.createTeam,
+  updateTeam: vi.fn(),
+  deleteTeam: vi.fn(),
+  StaleWriteError: class StaleWriteError extends Error {},
   generateId: mocks.generateId,
   getTeamReferences: vi.fn(),
 }))
@@ -41,7 +44,7 @@ describe('POST /api/admin/equipos', () => {
 
     expect(response.status).toBe(422)
     expect(await response.json()).toEqual({ error: expect.stringContaining('El nombre del equipo debe ser único') })
-    expect(mocks.saveTeams).not.toHaveBeenCalled()
+    expect(mocks.createTeam).not.toHaveBeenCalled()
     expect(persisted).toEqual([{ id: 'team-1', name: 'Alpha', logo: '', players: [] }])
   })
 })

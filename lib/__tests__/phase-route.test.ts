@@ -7,19 +7,23 @@ const mocks = vi.hoisted(() => ({
   requireAdminSession: vi.fn(),
   getPhases: vi.fn(),
   getMatches: vi.fn(),
-  savePhases: vi.fn(),
+  updatePhase: vi.fn(),
+  createPhase: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({ requireAdminSession: mocks.requireAdminSession }))
 vi.mock('@/lib/data', () => ({
   getPhases: mocks.getPhases,
   getMatches: mocks.getMatches,
-  savePhases: mocks.savePhases,
+  updatePhase: mocks.updatePhase,
+  createPhase: mocks.createPhase,
+  deletePhase: vi.fn(),
+  StaleWriteError: class StaleWriteError extends Error {},
 }))
 vi.mock('@/lib/logger', () => ({ default: { child: () => ({ error: vi.fn() }) } }))
 
 const phase: Phase = {
-  id: 'phase-1', name: 'Fase', type: 'swiss', status: 'upcoming', order: 1,
+  id: 'phase-1', version: 1, name: 'Fase', type: 'swiss', status: 'upcoming', order: 1,
   config: {
     bo: 1,
     swissSize: 8,
@@ -52,6 +56,7 @@ describe('PUT /api/admin/fases structural lock', () => {
     mocks.requireAdminSession.mockResolvedValue(null)
     mocks.getPhases.mockReturnValue([phase])
     mocks.getMatches.mockReturnValue([match])
+    mocks.updatePhase.mockImplementation((value: Phase) => ({ ...value, version: (value.version ?? 0) + 1 }))
   })
 
   it.each([
@@ -73,7 +78,7 @@ describe('PUT /api/admin/fases structural lock', () => {
 
     expect(response.status).toBe(409)
     expect(await response.json()).toMatchObject({ fields: [field] })
-    expect(mocks.savePhases).not.toHaveBeenCalled()
+    expect(mocks.updatePhase).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -83,7 +88,7 @@ describe('PUT /api/admin/fases structural lock', () => {
     const response = await PUT(request(updated))
 
     expect(response.status).toBe(200)
-    expect(mocks.savePhases).toHaveBeenCalledWith([updated])
+    expect(mocks.updatePhase).toHaveBeenCalledWith(updated)
   })
 
   it('allows structural changes before matches are generated', async () => {
@@ -93,7 +98,7 @@ describe('PUT /api/admin/fases structural lock', () => {
     const response = await PUT(request(updated))
 
     expect(response.status).toBe(200)
-    expect(mocks.savePhases).toHaveBeenCalledWith([updated])
+    expect(mocks.updatePhase).toHaveBeenCalledWith(updated)
   })
 
   it('rechaza crear una fase sin participantes y no persiste nada', async () => {
@@ -103,6 +108,6 @@ describe('PUT /api/admin/fases structural lock', () => {
 
     expect(response.status).toBe(422)
     expect(await response.json()).toMatchObject({ error: expect.any(Object) })
-    expect(mocks.savePhases).not.toHaveBeenCalled()
+    expect(mocks.createPhase).not.toHaveBeenCalled()
   })
 })

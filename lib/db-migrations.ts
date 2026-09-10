@@ -147,6 +147,17 @@ export const migrations: readonly Migration[] = [
       }
     },
   },
+  {
+    version: 3,
+    name: 'entity-versions',
+    up(db) {
+      db.exec(`
+        ALTER TABLE teams ADD COLUMN version INTEGER NOT NULL DEFAULT 1;
+        ALTER TABLE phases ADD COLUMN version INTEGER NOT NULL DEFAULT 1;
+        ALTER TABLE matches ADD COLUMN version INTEGER NOT NULL DEFAULT 1;
+      `)
+    },
+  },
 ]
 
 interface AppliedMigration {

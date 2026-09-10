@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getMatches, saveMatches } from '@/lib/data'
+import { getMatches, updateMatches } from '@/lib/data'
 import { publishRiotResult } from '@/lib/riot-events'
 
 interface CallbackMetadata {
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (notifications.length > 0) {
-    saveMatches(matches)
+    updateMatches(matches.filter(match => notifications.some(notification => notification.matchId === match.id)))
     const receivedAt = new Date().toISOString()
     for (const notification of notifications) publishRiotResult({ ...notification, receivedAt })
   }

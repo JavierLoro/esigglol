@@ -30,6 +30,7 @@ export const TeamSchema = z.object({
 
 export const TeamUpdateSchema = TeamSchema.extend({
   id: z.string().min(1),
+  version: z.number().int().positive(),
 })
 
 const BOFormatSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(5)])
@@ -76,6 +77,7 @@ export const PhaseSchema = PhaseSchemaBase.superRefine(addPhaseValidation)
 
 export const PhaseUpdateSchema = PhaseSchemaBase.extend({
   id: z.string().min(1),
+  version: z.number().int().positive(),
 }).superRefine(addPhaseValidation)
 
 const MatchResultSchema = z.object({
@@ -143,6 +145,7 @@ export const MatchSchema = z.object({
 
 export const MatchUpdateSchema = MatchSchema.extend({
   id: z.string().min(1),
+  version: z.number().int().positive(),
 })
 
 export const MatchBulkSchema = z.union([MatchSchema, z.array(MatchSchema)])
@@ -154,11 +157,13 @@ export const GenerateSchema = z.object({
 
 export const DeleteIdSchema = z.object({
   id: z.string().min(1),
+  version: z.number().int().positive(),
 })
 
 export const DeleteIdsSchema = z.object({
   id: z.string().optional(),
   ids: z.array(z.string()).optional(),
+  versions: z.record(z.string(), z.number().int().positive()).optional(),
 })
 
 export const TournamentSetupSchema = z.object({

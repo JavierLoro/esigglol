@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPhaseById, getMatches, saveMatches, generateId } from '@/lib/data'
+import { createMatches, getPhaseById, getMatches, generateId } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { GenerateSchema } from '@/lib/schemas'
 import logger from '@/lib/logger'
@@ -256,7 +256,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ created: 0, message: 'No hay partidos nuevos que generar' })
   }
 
-  allMatches.push(...created)
-  try { saveMatches(allMatches) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
+  try { createMatches(created) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json({ created: created.length })
 }
