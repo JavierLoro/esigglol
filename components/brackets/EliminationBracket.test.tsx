@@ -36,6 +36,6 @@ describe('EliminationBracket', () => {
     )
 
     expect(html.indexOf('Team A')).toBeLessThan(html.indexOf('Team C'))
-    expect(html.indexOf('/partidos/zzz-random')).toBeLessThan(html.indexOf('/partidos/aaa-random'))
+    expect(html.indexOf('/comparar?t1=A&amp;t2=B')).toBeLessThan(html.indexOf('/comparar?t1=C&amp;t2=D'))
   })
 })

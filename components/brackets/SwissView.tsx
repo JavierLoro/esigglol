@@ -2,6 +2,7 @@ import type { Phase, Match, Team } from '@/lib/types'
 import Image from 'next/image'
 import Link from 'next/link'
 import { clsx } from 'clsx'
+import { getPublicMatchHref } from '@/lib/match-navigation'
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const MATCH_H = 96
@@ -286,7 +287,7 @@ function SwissMatchCard({ match, teamById }: { match: Match; teamById: Map<strin
 
   return (
     <Link
-      href={`/partidos/${match.id}`}
+      href={getPublicMatchHref(match, [...teamById.values()])}
       className="relative flex overflow-hidden rounded-lg border border-white/[0.08] bg-[#0e1117] hover:border-white/20 transition-colors"
       style={{ height: MATCH_H }}
     >

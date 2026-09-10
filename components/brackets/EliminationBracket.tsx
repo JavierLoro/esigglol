@@ -3,6 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { orderBracketMatches } from '@/lib/bracket-position'
+import { getPublicMatchHref } from '@/lib/match-navigation'
 
 interface Props {
   matches: Match[]
@@ -43,12 +44,12 @@ function TeamRow({ teamId, score, isWinner, isPlayed, teams }: {
         <div className="w-[22px] h-[22px] rounded bg-white/10 shrink-0" />
       )}
       {team ? (
-        <Link href={`/equipos/${team.id}`} className={clsx(
-          'flex-1 truncate text-sm hover:underline',
+        <span className={clsx(
+          'flex-1 truncate text-sm',
           isWinner ? 'text-white font-semibold' : 'text-white/70'
         )}>
           {team.name}
-        </Link>
+        </span>
       ) : (
         <span className="flex-1 truncate text-sm text-white/25 italic">TBD</span>
       )}
@@ -71,13 +72,10 @@ function MatchCard({ match, teams }: { match: Match; teams: Team[] }) {
     : null
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-white/[0.08] bg-[#0e1117]">
-      <Link
-        href={`/partidos/${match.id}`}
-        className="absolute top-0.5 right-1 text-[9px] text-white/20 hover:text-[#0097D7] transition-colors z-10"
-      >
-        Ver
-      </Link>
+    <Link
+      href={getPublicMatchHref(match, teams)}
+      className="relative block overflow-hidden rounded-lg border border-white/[0.08] bg-[#0e1117] transition-colors hover:border-white/20"
+    >
       {/* Winner accent bar */}
       {winner && (
         <div
@@ -104,7 +102,7 @@ function MatchCard({ match, teams }: { match: Match; teams: Team[] }) {
         isPlayed={isPlayed}
         teams={teams}
       />
-    </div>
+    </Link>
   )
 }
 
