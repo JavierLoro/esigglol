@@ -67,7 +67,14 @@ export function updateTeam(team: Team): Team {
 }
 
 export function deleteTeam(id: string, version: number): boolean {
-  return db.prepare('DELETE FROM teams WHERE id = ? AND version = ?').run(id, version).changes === 1
+  return db.transaction(() => {
+    const result = db.prepare('DELETE FROM teams WHERE id = ? AND version = ?').run(id, version)
+    if (result.changes === 1) {
+      db.prepare('DELETE FROM team_access WHERE team_id = ?').run(id)
+      db.prepare('DELETE FROM team_change_requests WHERE team_id = ?').run(id)
+    }
+    return result.changes === 1
+  }).immediate()
 }
 
 /** Updates only the persisted logo for an existing team. */

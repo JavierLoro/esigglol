@@ -17,6 +17,28 @@ export interface Team {
   players: Player[]
 }
 
+export type TeamChangeRequestType = 'team_logo' | 'summoner_name' | 'new_player'
+export type TeamChangeRequestStatus = 'pending' | 'approved' | 'rejected'
+
+export interface TeamAccessInfo {
+  teamId: string
+  enabled: boolean
+  createdAt: string
+  lastLoginAt?: string
+}
+
+export interface TeamChangeRequest {
+  id: string
+  teamId: string
+  type: TeamChangeRequestType
+  playerId?: string
+  payload: Record<string, unknown>
+  status: TeamChangeRequestStatus
+  createdAt: string
+  resolvedAt?: string
+  rejectionReason?: string
+}
+
 // ── Fases ────────────────────────────────────────────────────────────────────
 
 export type PhaseType = 'groups' | 'swiss' | 'upper-lower' | 'final-four' | 'elimination'

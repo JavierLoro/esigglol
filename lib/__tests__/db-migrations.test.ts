@@ -31,6 +31,7 @@ describe('SQLite migrations', () => {
       { version: 1, name: 'initial-schema' },
       { version: 2, name: 'stable-player-identity' },
       { version: 3, name: 'entity-versions' },
+      { version: 4, name: 'team-portal' },
     ])
     expect(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'matches'").get()).toEqual({
       name: 'matches',
@@ -77,7 +78,7 @@ describe('SQLite migrations', () => {
     const futureMigrations: Migration[] = [
       ...migrations,
       {
-        version: 4,
+        version: 5,
         name: 'add-migration-test-table',
         up(database) {
           applied.push(3)
@@ -94,7 +95,8 @@ describe('SQLite migrations', () => {
       { version: 1, name: 'initial-schema' },
       { version: 2, name: 'stable-player-identity' },
       { version: 3, name: 'entity-versions' },
-      { version: 4, name: 'add-migration-test-table' },
+      { version: 4, name: 'team-portal' },
+      { version: 5, name: 'add-migration-test-table' },
     ])
   })
 

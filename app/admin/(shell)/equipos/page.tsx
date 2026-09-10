@@ -4,6 +4,7 @@ import type { Team, Player, Role } from '@/lib/types'
 import Image from 'next/image'
 import { Plus, Trash2, Save, ChevronDown, ChevronRight, Upload, X } from 'lucide-react'
 import { adminRequest, errorMessage, isOk, isPathResponse, isTeam, isTeamArray } from '@/lib/admin-client'
+import TeamAccessControl from '@/components/admin/TeamAccessControl'
 
 const PRIMARY_ROLES: Role[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente']
 const SECONDARY_ROLES: Exclude<Role, 'Suplente'>[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill']
@@ -153,6 +154,7 @@ export default function AdminEquipos() {
 
           {expanded === team.id && (
             <div id={`team-details-${team.id}`} className="p-4 border-t border-white/10 flex flex-col gap-4">
+              {!draftIds.has(team.id) && <TeamAccessControl teamId={team.id} />}
               {/* Datos del equipo */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
