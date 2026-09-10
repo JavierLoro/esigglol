@@ -28,6 +28,7 @@ export default function AdminPartidos() {
   const [teams, setTeams] = useState<Team[]>([])
   const [phases, setPhases] = useState<Phase[]>([])
   const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set())
+  const [collapsedRounds, setCollapsedRounds] = useState<Set<string>>(new Set())
   const [adding, setAdding] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
@@ -73,6 +74,7 @@ export default function AdminPartidos() {
       const match = data[0]
       setMatches(prev => [...prev, match])
       setCollapsedPhases(prev => { const next = new Set(prev); next.delete(phaseId); return next })
+      setCollapsedRounds(prev => { const next = new Set(prev); next.delete(`${phaseId}:${match.round}`); return next })
     } catch (error) { notify(errorMessage(error)) } finally { setAdding(null) }
   }
 
@@ -80,6 +82,26 @@ export default function AdminPartidos() {
     setCollapsedPhases(prev => {
       const next = new Set(prev)
       if (next.has(phaseId)) next.delete(phaseId); else next.add(phaseId)
+      return next
+    })
+  }
+
+  function toggleRoundCollapse(phaseId: string, round: number) {
+    const key = `${phaseId}:${round}`
+    setCollapsedRounds(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key); else next.add(key)
+      return next
+    })
+  }
+
+  function setAllPhaseRoundsCollapsed(phaseId: string, rounds: number[], collapsed: boolean) {
+    setCollapsedRounds(prev => {
+      const next = new Set(prev)
+      for (const round of rounds) {
+        const key = `${phaseId}:${round}`
+        if (collapsed) next.add(key); else next.delete(key)
+      }
       return next
     })
   }
@@ -297,6 +319,12 @@ export default function AdminPartidos() {
           const completedCount = phaseMatches.filter(m => m.result !== null).length
           const participantCount = getPhaseTeamIds(phase).filter(teamId => teams.some(team => team.id === teamId)).length
           const canAddMatch = participantCount >= 2
+          const rounds = [...new Set(phaseMatches.map(match => match.round))].sort((a, b) => {
+            if (phase.type !== 'upper-lower') return a - b
+            const order = (round: number) => round === 99 ? 3_000 : round < 0 ? 1_000 + Math.abs(round) : round
+            return order(a) - order(b)
+          })
+          const allRoundsCollapsed = rounds.length > 0 && rounds.every(round => collapsedRounds.has(`${phase.id}:${round}`))
 
           return (
             <div key={phase.id} className="flex flex-col gap-0">
@@ -341,7 +369,57 @@ export default function AdminPartidos() {
                   {phaseMatches.length === 0 && (
                     <p className="text-white/30 text-xs px-1">Sin partidos en esta fase.</p>
                   )}
-                  {phaseMatches.map(match => {
+                  {rounds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAllPhaseRoundsCollapsed(phase.id, rounds, !allRoundsCollapsed)}
+                      className="self-end text-xs text-white/40 hover:text-white/70 transition-colors"
+                    >
+                      {allRoundsCollapsed ? 'Desplegar rondas' : 'Plegar rondas'}
+                    </button>
+                  )}
+                  {rounds.map(round => {
+                    const roundMatches = phaseMatches.filter(match => match.round === round)
+                    const roundCompletedCount = roundMatches.filter(match => match.result !== null).length
+                    const roundKey = `${phase.id}:${round}`
+                    const isRoundCollapsed = collapsedRounds.has(roundKey)
+                    const roundLabel = phase.type === 'upper-lower'
+                      ? round === 99
+                        ? 'Gran final'
+                        : round < 0
+                          ? `Lower · Ronda ${Math.abs(round)}`
+                          : `Upper · Ronda ${round}`
+                      : phase.type === 'final-four' && round === 98
+                        ? 'Tercer puesto'
+                        : `Ronda ${round}`
+
+                    return (
+                      <section key={roundKey} className="overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.015]">
+                        <button
+                          type="button"
+                          id={`round-toggle-${phase.id}-${round}`}
+                          aria-expanded={!isRoundCollapsed}
+                          aria-controls={`round-matches-${phase.id}-${round}`}
+                          onClick={() => toggleRoundCollapse(phase.id, round)}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-white/[0.04] transition-colors"
+                        >
+                          {isRoundCollapsed
+                            ? <ChevronRight size={14} className="shrink-0 text-white/30" />
+                            : <ChevronDown size={14} className="shrink-0 text-white/30" />
+                          }
+                          <span className="flex-1 text-xs font-semibold text-white/70">{roundLabel}</span>
+                          <span className="text-[11px] text-white/30">
+                            {roundCompletedCount}/{roundMatches.length} completados
+                          </span>
+                        </button>
+                        {!isRoundCollapsed && (
+                          <div
+                            id={`round-matches-${phase.id}-${round}`}
+                            role="region"
+                            aria-labelledby={`round-toggle-${phase.id}-${round}`}
+                            className="flex flex-col gap-3 border-t border-white/[0.06] p-3"
+                          >
+                  {roundMatches.map(match => {
                     const team1 = teams.find(t => t.id === match.team1Id)
                     const team2 = teams.find(t => t.id === match.team2Id)
                     const phaseTeamIds = getPhaseTeamIds(phase)
@@ -650,6 +728,11 @@ export default function AdminPartidos() {
                           </button>
                         </div>
                       </div>
+                    )
+                  })}
+                          </div>
+                        )}
+                      </section>
                     )
                   })}
                 </div>
