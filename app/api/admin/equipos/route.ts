@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createTeam, deleteTeam, generateId, getTeamReferences, getTeams, StaleWriteError, updateTeam } from '@/lib/data'
+import { deleteTeam, generateId, getTeamReferences, getTeams, StaleWriteError, updateTeam } from '@/lib/data'
+import { createTeamWithAccess, ensureExistingTeamsHaveAccess } from '@/lib/team-portal-data'
+import { encryptTeamPassword, generateTeamPassword } from '@/lib/team-credentials'
+import bcrypt from 'bcryptjs'
 import { requireAdminSession } from '@/lib/auth'
 import { TeamSchema, TeamUpdateSchema, DeleteIdSchema } from '@/lib/schemas'
 import type { Team } from '@/lib/types'
@@ -11,6 +14,7 @@ const log = logger.child({ module: 'equipos' })
 export async function GET() {
   const deny = await requireAdminSession()
   if (deny) return deny
+  await ensureExistingTeamsHaveAccess()
   return NextResponse.json(getTeams(), {
     headers: { 'Cache-Control': 'private, no-store' },
   })
@@ -30,7 +34,11 @@ export async function POST(req: NextRequest) {
   const team: Team = { id: generateId('team'), ...parsed.data }
   const domainIssues = validateTeams([...teams, team])
   if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
-  try { return NextResponse.json(createTeam(team), { status: 201 }) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
+  try {
+    const password = generateTeamPassword()
+    const passwordHash = await bcrypt.hash(password, 12)
+    return NextResponse.json(createTeamWithAccess(team, passwordHash, encryptTeamPassword(password)), { status: 201 })
+  } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
 }
 
 export async function PUT(req: NextRequest) {

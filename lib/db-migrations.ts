@@ -158,6 +158,38 @@ export const migrations: readonly Migration[] = [
       `)
     },
   },
+  {
+    version: 4,
+    name: 'team-portal',
+    up(db) {
+      db.exec(`
+        CREATE TABLE team_access (
+          team_id            TEXT PRIMARY KEY,
+          password_hash      TEXT NOT NULL,
+          password_encrypted TEXT NOT NULL,
+          enabled            INTEGER NOT NULL DEFAULT 1,
+          session_version    INTEGER NOT NULL DEFAULT 1,
+          created_at         TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          last_login_at      TEXT
+        );
+
+        CREATE TABLE team_change_requests (
+          id               TEXT PRIMARY KEY,
+          team_id          TEXT NOT NULL,
+          type             TEXT NOT NULL CHECK(type IN ('team_logo', 'summoner_name', 'new_player')),
+          player_id        TEXT,
+          payload          TEXT NOT NULL,
+          status           TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+          created_at       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          resolved_at      TEXT,
+          rejection_reason TEXT
+        );
+
+        CREATE INDEX idx_team_requests_team ON team_change_requests(team_id, created_at DESC);
+        CREATE INDEX idx_team_requests_status ON team_change_requests(status, created_at DESC);
+      `)
+    },
+  },
 ]
 
 interface AppliedMigration {

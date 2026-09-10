@@ -1,13 +1,14 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, Trophy, Calendar, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, Trophy, Calendar, LogOut, Inbox } from 'lucide-react'
 import { clsx } from 'clsx'
 import RiotResultNotifications from '@/components/admin/RiotResultNotifications'
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/equipos', label: 'Equipos', icon: Users },
+  { href: '/admin/solicitudes', label: 'Solicitudes', icon: Inbox },
   { href: '/admin/fases', label: 'Fases', icon: Trophy },
   { href: '/admin/partidos', label: 'Partidos', icon: Calendar },
 ]
