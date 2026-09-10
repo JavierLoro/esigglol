@@ -1,5 +1,6 @@
 import db from './db'
 import type { Team, Phase, Match, PlayerRow } from './types'
+import { reconcileCachedPlayers } from './player-identity'
 
 // ── Teams ────────────────────────────────────────────────────────────────────
 
@@ -158,7 +159,9 @@ export interface PlayerStatsCache {
 export function getPlayerStatsCache(): PlayerStatsCache {
   const row = db.prepare('SELECT data FROM player_stats WHERE key = ?').get('cache') as { data: string } | undefined
   if (!row) return { lastUpdated: null, players: [] }
-  return JSON.parse(row.data) as PlayerStatsCache
+  const cache = JSON.parse(row.data) as PlayerStatsCache
+  cache.players = reconcileCachedPlayers(cache.players, getTeams())
+  return cache
 }
 
 export function savePlayerStatsCache(data: PlayerStatsCache): void {

@@ -81,6 +81,72 @@ export const migrations: readonly Migration[] = [
       `)
     },
   },
+  {
+    version: 2,
+    name: 'stable-player-identity',
+    up(db) {
+      db.exec(`
+        ALTER TABLE player_champion_mastery ADD COLUMN player_id TEXT;
+        ALTER TABLE player_match_history ADD COLUMN player_id TEXT;
+      `)
+
+      const normalize = (value: string) => value.trim().replace(/\s*#\s*/g, '#').toLocaleLowerCase()
+      const playerIds = new Map<string, string>()
+      const teams = db.prepare('SELECT data FROM teams').all() as Array<{ data: string }>
+      for (const row of teams) {
+        const team = JSON.parse(row.data) as { players?: Array<{ id: string; summonerName: string }> }
+        for (const player of team.players ?? []) playerIds.set(normalize(player.summonerName), player.id)
+      }
+
+      const masteryRows = db.prepare('SELECT DISTINCT summoner_name FROM player_champion_mastery').all() as Array<{ summoner_name: string }>
+      const historyRows = db.prepare('SELECT DISTINCT summoner_name FROM player_match_history').all() as Array<{ summoner_name: string }>
+      const updateMastery = db.prepare('UPDATE player_champion_mastery SET player_id = ? WHERE summoner_name = ?')
+      const updateHistory = db.prepare('UPDATE player_match_history SET player_id = ? WHERE summoner_name = ?')
+      for (const row of masteryRows) updateMastery.run(playerIds.get(normalize(row.summoner_name)) ?? row.summoner_name, row.summoner_name)
+      for (const row of historyRows) updateHistory.run(playerIds.get(normalize(row.summoner_name)) ?? row.summoner_name, row.summoner_name)
+
+      db.exec(`
+        CREATE TABLE player_champion_mastery_v2 (
+          player_id TEXT NOT NULL, summoner_name TEXT NOT NULL,
+          champion_id INTEGER NOT NULL, champion_name TEXT NOT NULL,
+          mastery_level INTEGER NOT NULL, mastery_points INTEGER NOT NULL,
+          last_played_at INTEGER NOT NULL, updated_at TEXT NOT NULL,
+          PRIMARY KEY (player_id, champion_id)
+        );
+        INSERT OR REPLACE INTO player_champion_mastery_v2
+          SELECT player_id, summoner_name, champion_id, champion_name, mastery_level,
+                 mastery_points, last_played_at, updated_at
+          FROM player_champion_mastery;
+        DROP TABLE player_champion_mastery;
+        ALTER TABLE player_champion_mastery_v2 RENAME TO player_champion_mastery;
+
+        CREATE TABLE player_match_history_v2 (
+          player_id TEXT NOT NULL, summoner_name TEXT NOT NULL,
+          match_id TEXT NOT NULL, champion_id INTEGER NOT NULL,
+          champion_name TEXT NOT NULL, position TEXT NOT NULL,
+          kills INTEGER NOT NULL, deaths INTEGER NOT NULL, assists INTEGER NOT NULL,
+          win INTEGER NOT NULL, played_at INTEGER NOT NULL, queue_id INTEGER NOT NULL,
+          PRIMARY KEY (player_id, match_id)
+        );
+        INSERT OR REPLACE INTO player_match_history_v2
+          SELECT player_id, summoner_name, match_id, champion_id, champion_name, position,
+                 kills, deaths, assists, win, played_at, queue_id
+          FROM player_match_history;
+        DROP TABLE player_match_history;
+        ALTER TABLE player_match_history_v2 RENAME TO player_match_history;
+
+        CREATE INDEX idx_player_champion_mastery_player ON player_champion_mastery(player_id);
+        CREATE INDEX idx_player_match_history_player ON player_match_history(player_id);
+      `)
+
+      const cacheRow = db.prepare("SELECT data FROM player_stats WHERE key = 'cache'").get() as { data: string } | undefined
+      if (cacheRow) {
+        const cache = JSON.parse(cacheRow.data) as { players?: Array<{ playerId?: string; summonerName: string }> }
+        for (const player of cache.players ?? []) player.playerId ??= playerIds.get(normalize(player.summonerName)) ?? player.summonerName
+        db.prepare("UPDATE player_stats SET data = ? WHERE key = 'cache'").run(JSON.stringify(cache))
+      }
+    },
+  },
 ]
 
 interface AppliedMigration {
@@ -163,11 +229,21 @@ export function runMigrations(
     if (appliedVersions.has(migration.version)) continue
 
     const applyMigration = db.transaction(() => {
+      // Another Next.js worker may have applied it while this connection was
+      // waiting for the write lock during parallel page collection.
+      const existing = db.prepare('SELECT name FROM schema_migrations WHERE version = ?')
+        .get(migration.version) as { name: string } | undefined
+      if (existing) {
+        if (existing.name !== migration.name) {
+          throw new Error(`Migration ${migration.version} name changed from ${existing.name} to ${migration.name}`)
+        }
+        return
+      }
       migration.up(db)
       db.prepare(
         'INSERT INTO schema_migrations (version, name) VALUES (?, ?)',
       ).run(migration.version, migration.name)
     })
-    applyMigration()
+    applyMigration.immediate()
   }
 }

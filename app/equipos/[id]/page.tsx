@@ -32,6 +32,7 @@ const TIER_COLORS: Record<string, string> = {
 const ROLE_ORDER = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente']
 
 interface CachedPlayer {
+  playerId: string
   summonerName: string
   profileIconId?: number
   tier: string
@@ -152,7 +153,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
 
   const cache = getPlayerStatsCache()
   const statsMap = new Map<string, CachedPlayer>(
-    (cache.players as CachedPlayer[]).map(p => [p.summonerName, p])
+    (cache.players as CachedPlayer[]).map(p => [p.playerId, p])
   )
 
   // Build DDragon icon base URL for champion portraits
@@ -165,11 +166,11 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
   const seasonStartMs = currentTimestamp() - 30 * 24 * 60 * 60 * 1000
   const champDataMap = new Map<string, PlayerChampionData>()
   for (const player of team.players) {
-    const mastery = getPlayerMastery(player.summonerName)
-    const season = getChampionStats(player.summonerName, seasonStartMs, 420, 20)
-    const recent = getTopRecentChampions(player.summonerName, 20, 6)
+    const mastery = getPlayerMastery(player.id)
+    const season = getChampionStats(player.id, seasonStartMs, 420, 20)
+    const recent = getTopRecentChampions(player.id, 20, 6)
     if (mastery.length > 0 || season.length > 0 || recent.length > 0) {
-      champDataMap.set(player.summonerName, { mastery, season, recent, iconBaseUrl })
+      champDataMap.set(player.id, { mastery, season, recent, iconBaseUrl })
     }
   }
 
@@ -227,8 +228,8 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
             <PlayerCard
               key={player.id}
               player={player}
-              stats={statsMap.get(player.summonerName)}
-              champData={champDataMap.get(player.summonerName) ?? null}
+              stats={statsMap.get(player.id)}
+              champData={champDataMap.get(player.id) ?? null}
             />
           ))}
         </div>

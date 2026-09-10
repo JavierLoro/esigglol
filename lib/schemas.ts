@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { validatePhaseParticipants } from './phase-validation'
 import { isValidRiotMatchId, normalizeRiotMatchId, RIOT_MATCH_ID_ERROR } from './riot-match-id'
+import { normalizeRiotId } from './player-identity'
 
 const RoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente'])
 
@@ -21,7 +22,7 @@ export const TeamSchema = z.object({
   team.players.forEach((player, index) => {
     if (ids.has(player.id)) ctx.addIssue({ code: 'custom', path: ['players', index, 'id'], message: 'El ID del jugador debe ser único' })
     ids.add(player.id)
-    const name = player.summonerName.trim().toLocaleLowerCase()
+    const name = normalizeRiotId(player.summonerName)
     if (summonerNames.has(name)) ctx.addIssue({ code: 'custom', path: ['players', index, 'summonerName'], message: 'El invocador no puede repetirse' })
     summonerNames.add(name)
   })

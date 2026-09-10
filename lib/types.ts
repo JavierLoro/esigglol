@@ -166,6 +166,7 @@ export interface PlayerStats {
 }
 
 export interface PlayerRow extends PlayerStats {
+  playerId: string
   teamId: string
   teamName: string
   teamLogo: string
