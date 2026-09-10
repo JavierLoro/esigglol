@@ -154,7 +154,7 @@ export default function AdminEquipos() {
 
           {expanded === team.id && (
             <div id={`team-details-${team.id}`} className="p-4 border-t border-white/10 flex flex-col gap-4">
-              {!draftIds.has(team.id) && <TeamAccessControl teamId={team.id} />}
+              {!draftIds.has(team.id) && <TeamAccessControl teamId={team.id} teamName={team.name} />}
               {/* Datos del equipo */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>

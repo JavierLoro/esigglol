@@ -2,424 +2,241 @@
 
 # ESIgg.lol
 
-**League of Legends Tournament Manager for ESIUCLM**
+**Gestor de torneos de League of Legends para ESIUCLM**
 
+[![Aplicación](https://img.shields.io/badge/aplicación-esigglol.jlc--dev.me-C89B3C)](https://esigglol.jlc-dev.me)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
-![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4-06B6D4?logo=tailwindcss&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-WAL-003B57?logo=sqlite&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?logo=docker&logoColor=white)
 [![CI](https://github.com/JavierLoro/esigglol/actions/workflows/ci.yml/badge.svg)](https://github.com/JavierLoro/esigglol/actions/workflows/ci.yml)
 
 </div>
 
----
+ESIgg.lol reúne la gestión y publicación de un torneo de League of Legends. Los
+organizadores preparan equipos, fases y partidos desde un panel protegido; los
+participantes consultan y mantienen la información permitida de su equipo; y
+los espectadores siguen cuadros, resultados y estadísticas desde la web
+pública.
 
-## Overview
+## Funcionalidades
 
-ESIgg.lol is a private League of Legends tournament platform for ESIUCLM. It provides a public-facing site for spectators and a password-protected admin panel for tournament management.
+### Sitio público
 
-### Public site
-- Tournament phases and brackets (groups, Swiss, single/double elimination)
-- Player rankings and stats
-- Team detail pages and head-to-head comparison
-- Match results and history
-- Live Twitch stream embed
+- Fases de grupos, sistema suizo, eliminación simple, Final Four y Upper/Lower.
+- Cuadros y resultados actualizados a partir de los partidos del torneo.
+- Ranking, estadísticas de jugadores e historial de partidas.
+- Fichas de equipos y comparador cara a cara.
+- Overlays de fases y partidos para emisiones.
+- Estado e integración del canal de Twitch.
 
-### Admin panel (`/admin`)
-- Team, phase, and match management (with logo upload)
-- Automatic bracket generation
-- Riot Tournament API integration (tournament codes, lobby events)
-- Player stats collection from Riot API
-- Runtime Riot API key management (no restart needed)
+### Administración
 
----
+- Gestión de equipos, jugadores, fases y partidos.
+- Generación y avance de cuadros con confirmación del administrador.
+- Corrección de resultados con recálculo de los cruces dependientes.
+- Subida de logos y edición segura mediante control de versiones por entidad.
+- Generación de códigos de torneo, eventos de lobby y recogida de estadísticas
+  mediante las API de Riot.
+- Configuración de la Riot API key sin reiniciar la aplicación.
+- Gestión de accesos de equipos y aprobación o rechazo de sus solicitudes.
 
-## Tech Stack
+### Portal de equipos
 
-| Layer | Technology |
+Cada equipo dispone de un acceso independiente en `/equipo/login`. Desde
+`/equipo` puede consultar su plantilla, ajustar los roles permitidos y enviar
+solicitudes para cambiar el logo, corregir un Riot ID o incorporar un jugador.
+Los cambios que afectan a la identidad o composición del equipo requieren la
+revisión de un administrador.
+
+## Accesos
+
+| Área | Ruta | Acceso |
+|---|---|---|
+| Web pública | `/` | Público |
+| Administración | `/admin` | Contraseña de administrador |
+| Portal de equipos | `/equipo` | Credenciales propias del equipo |
+| Overlays | `/overlay/fases/[id]`, `/overlay/partidos/[id]` | Público |
+| Estado del servicio | `/api/health` | Público |
+| Métricas | `/api/metrics` | Público |
+
+## Tecnología
+
+| Capa | Tecnología |
 |---|---|
-| Framework | Next.js 16 (App Router) |
-| UI | React 19, TailwindCSS v4, lucide-react |
-| Language | TypeScript 5 (strict) |
-| Database | SQLite via better-sqlite3 (WAL mode) |
-| Auth | JWT (jose), bcryptjs |
-| Validation | Zod v4 |
-| Logging | Pino + pino-pretty |
-| Metrics | Prometheus — `prom-client` |
-| Testing | Vitest |
+| Framework | Next.js 16 con App Router y React 19 |
+| Interfaz | Tailwind CSS v4 y lucide-react |
+| Lenguaje | TypeScript 5 en modo estricto |
+| Persistencia | SQLite con better-sqlite3 y modo WAL |
+| Autenticación | JWT con jose y contraseñas bcrypt |
+| Validación | Zod v4 |
+| Observabilidad | Pino y métricas Prometheus |
+| Pruebas | Vitest y Playwright |
 
----
+## Inicio rápido
 
-## Local Setup
+### Desarrollo local
 
-### Docker (recommended — identical to production)
-
-**Requirements:** Docker Desktop
-
-```bash
-# Copy and fill in environment variables
-cp .env.example .env.local
-# Edit .env.local: set SESSION_SECRET and ADMIN_PASSWORD_HASH
-
-# Generate admin password hash
-npx tsx scripts/gen-password-hash.ts <your-password>
-
-# Generate SESSION_SECRET (prints one 256-bit secret; do not commit the output)
-npm run generate-session-secret
-
-# Build and start (same image as production)
-docker compose -f docker-compose.dev.yml up --build
-```
-
-App available at `http://localhost:3000`. After code changes, re-run `up --build`.
-
-### Without Docker (fast iteration with HMR)
-
-**Requirements:** Node.js 22+, npm
+Requiere Node.js 22 o posterior y npm.
 
 ```bash
 npm install
 cp .env.example .env.local
-npm run dev
-```
-
----
-
-## Environment Variables
-
-| Variable | Required | Description |
-|---|---|---|
-| `ADMIN_PASSWORD_HASH` | Yes | bcrypt hash of the admin password |
-| `SESSION_SECRET` | Yes | JWT signing secret (at least 32 chars; generate with `npm run generate-session-secret`) |
-| `RIOT_API_KEY` | No | Riot Games API key (can also be set from admin panel) |
-| `RIOT_REGION` | No | Riot API region (default: `euw1`) |
-| `TWITCH_CHANNEL` | No | Twitch channel name for embed |
-| `TWITCH_CLIENT_ID` | No | Twitch application client ID used server-side to verify live status |
-| `TWITCH_CLIENT_SECRET` | No | Twitch application secret used server-side; keep it in the deployment secret manager |
-| `DB_PATH` | No | SQLite database path (default: `./data/esigglol.db`) |
-| `REFRESH_AUTO_INTERVAL_MS` | No | Min age for auto refresh in ms (default: `21600000`) |
-| `REFRESH_BATCH_SIZE` | No | Players processed per refresh batch (default: `3`) |
-| `REFRESH_BATCH_DELAY_MS` | No | Delay between refresh batches in ms (default: `30000`) |
-| `BACKUP_ENABLED` | No | Enables the Docker SQLite backup worker (default: `true`) |
-| `BACKUP_INTERVAL_SECONDS` | No | Seconds between snapshots (default: `86400`) |
-| `BACKUP_RETENTION_COUNT` | No | Number of snapshots to keep (default: `7`) |
-| `BACKUP_HOST_PATH` | No | Host directory mounted for backups (default: `./backups`) |
-
-> **Note:** The Riot API key can be configured at runtime from the admin dashboard — no server restart needed when the dev key expires.
-
-> **Security:** API key rotation requires access to the Riot and Anthropic consoles. Revoke the old keys, create replacements, update the deployment secret manager, and restart the app; never add the values to `.env.example`, Git, logs, or issue comments. This repository cannot perform that external rotation.
-
-> **Note:** `ADMIN_PASSWORD_HASH` contains `$` characters. Always wrap the value in single quotes in `.env.local` to prevent shell variable expansion:
-> ```
-> ADMIN_PASSWORD_HASH='$2b$12$...'
-> ```
-
----
-
-## Docker
-
-| File | Purpose |
-|---|---|
-| `docker-compose.yml` | Production — pulls image from GHCR + Watchtower auto-updates |
-| `docker-compose.dev.yml` | Dev — builds image locally, no Watchtower |
-
-```bash
-# Dev (local machine)
-docker compose -f docker-compose.dev.yml up --build
-
-# Production
-docker compose up -d
-
-# View logs
-docker logs esigglol-app-1 -f
-
-# Check status
-docker compose ps
-```
-
-Production does not read `.env.local`. Configure `SESSION_SECRET`,
-`ADMIN_PASSWORD_HASH` and optional variables in the deploy platform or secret
-manager, then inject them into the host environment before running Docker
-Compose. The production compose file forwards those system variables to the
-container; never copy a local env file to the server.
-
-The SQLite database is persisted in `./data/` via a volume mount. The container runs as user `1000`. Ensure the database files are writable:
-
-```bash
-chmod 666 data/esigglol.db data/esigglol.db-shm data/esigglol.db-wal
-```
-
-The Compose stack also runs a separate `backup` worker. It uses SQLite's
-online backup API (safe with WAL mode), validates each snapshot, and retains
-seven files by default. See [docs/backups.md](docs/backups.md) for external
-mounts, verification, and the manual restore procedure. No cloud credentials
-are configured or uploaded by the repository.
-
-**Watchtower** polls the registry every 60 seconds and automatically redeploys when a new image is available.
-
----
-
-## Changing the Admin Password
-
-```bash
-npx tsx scripts/gen-password-hash.ts <new-password>
-# Update ADMIN_PASSWORD_HASH in .env.local (single quotes)
-docker compose restart app
-```
-
----
-
-## Available Scripts
-
-| Command | Description |
-|---|---|
-| `npm run dev` | Start dev server (syncs DDragon assets first) |
-| `npm run build` | Production build |
-| `npm run start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run test` | Run Vitest tests |
-| `npm run test:watch` | Run Vitest in watch mode |
-| `npm run prepare` | Install Git hooks (Husky) |
-| `npm run sync-ddragon` | Manually sync Data Dragon assets |
-| `npm run collect-stats-dev` | Collect player stats (dev key, rate-limited) |
-| `npm run collect-stats-prod` | Collect player stats (production key) |
-| `npm run backup` | Create and validate one SQLite backup |
-| `npm run backup:verify -- <file>` | Validate an existing backup |
-| `npm run backup:restore -- --source <file> --force` | Manually restore a backup (stop the app first) |
-| `npx tsx scripts/seed-data.ts` | Seed placeholder teams and players into the database |
-
-> Pre-commit runs `lint-staged`, which executes ESLint with `--fix` only on staged JS/TS files.
-
-### Seeding placeholder data
-
-Populates the database with placeholder teams and players for development and testing. Always **adds** without touching existing data.
-
-```bash
-npx tsx scripts/seed-data.ts              # 8 teams × 5 starters + 1 sub
-npx tsx scripts/seed-data.ts --teams 4    # custom team count
-npx tsx scripts/seed-data.ts --players 5  # custom starters per team (max 5 with current pool)
-```
-
----
-
-## CI/CD
-
-Pushing to `main` triggers GitHub Actions:
-
-1. **CI** — lint + test + build
-2. **Docker** — build and push image to `ghcr.io/javierloro/esigglol:latest`
-3. **Watchtower** — detects the new image within ~60s and redeploys automatically
-
----
-
----
-
-<div align="center">
-
-# ESIgg.lol — Español
-
-**Gestor de torneos de League of Legends para ESIUCLM**
-
-</div>
-
----
-
-## Descripcion
-
-ESIgg.lol es una plataforma privada de torneos de League of Legends para ESIUCLM. Incluye un sitio publico para los espectadores y un panel de administracion protegido por contrasena.
-
-### Sitio publico
-- Fases y brackets del torneo (grupos, suizo, eliminacion simple y doble)
-- Ranking y estadisticas de jugadores
-- Paginas de equipo y comparador
-- Resultados e historial de partidos
-- Embed del directo de Twitch
-
-### Panel de administracion (`/admin`)
-- Gestion de equipos, fases y partidos (con subida de logos)
-- Generacion automatica de brackets
-- Integracion con Riot Tournament API (codigos de torneo, lobby events)
-- Recoleccion de stats de jugadores desde la API de Riot
-- Gestion de la API key de Riot en tiempo real (sin reinicio)
-
-  La integración usa `tournament-stub/v5` por defecto. Para generar códigos
-  válidos para partidas reales, solicita primero acceso a Riot y configura
-  `TOURNAMENT_API_MODE=production`; usa `TOURNAMENT_API_MODE=stub` para
-  desarrollo y pruebas.
-
----
-
-## Tech Stack
-
-| Capa | Tecnologia |
-|---|---|
-| Framework | Next.js 16 (App Router) |
-| UI | React 19, TailwindCSS v4, lucide-react |
-| Lenguaje | TypeScript 5 (strict) |
-| Base de datos | SQLite via better-sqlite3 (modo WAL) |
-| Auth | JWT (jose), bcryptjs |
-| Validacion | Zod v4 |
-| Logging | Pino + pino-pretty |
-| Metricas | Prometheus — `prom-client` |
-| Testing | Vitest |
-
----
-
-## Setup local
-
-### Docker (recomendado — identico a produccion)
-
-**Requisitos:** Docker Desktop
-
-```bash
-# Copiar variables de entorno y rellenar valores
-cp .env.example .env.local
-# Editar .env.local: rellenar SESSION_SECRET y ADMIN_PASSWORD_HASH
-
-# Generar hash de password para admin
-npx tsx scripts/gen-password-hash.ts <tu-password>
-
-# Generar SESSION_SECRET (imprime un secreto de 256 bits; no commitear la salida)
 npm run generate-session-secret
-
-# Construir y arrancar (misma imagen que produccion)
-docker compose -f docker-compose.dev.yml up --build
-```
-
-La app estara disponible en `http://localhost:3000`. Tras cambios de codigo, volver a ejecutar `up --build`.
-
-### Sin Docker (iteracion rapida con HMR)
-
-**Requisitos:** Node.js 22+, npm
-
-```bash
-npm install
-cp .env.example .env.local
+npx tsx scripts/gen-password-hash.ts <contraseña>
 npm run dev
 ```
 
----
+Copia en `.env.local` el secreto y el hash generados. La aplicación estará
+disponible en `http://localhost:3000`. `npm run dev` sincroniza antes los datos
+de Data Dragon.
 
-## Variables de entorno
+### Docker
 
-| Variable | Requerida | Descripcion |
-|---|---|---|
-| `ADMIN_PASSWORD_HASH` | Si | Hash bcrypt del password de admin |
-| `SESSION_SECRET` | Si | Secreto para firmar JWT (min 32 chars; generar con `npm run generate-session-secret`) |
-| `RIOT_API_KEY` | No | API key de Riot Games (tambien configurable desde el panel admin) |
-| `RIOT_REGION` | No | Region de Riot API (default: `euw1`) |
-| `TWITCH_CHANNEL` | No | Canal de Twitch para el embed |
-| `TWITCH_CLIENT_ID` | No | Client ID de la aplicación de Twitch usado en servidor para verificar el directo |
-| `TWITCH_CLIENT_SECRET` | No | Secreto de la aplicación de Twitch; guardarlo en el gestor de secretos del despliegue |
-| `DB_PATH` | No | Ruta de la BD SQLite (default: `./data/esigglol.db`) |
-| `REFRESH_AUTO_INTERVAL_MS` | No | Edad mínima (ms) para auto refresh (default: `21600000`) |
-| `REFRESH_BATCH_SIZE` | No | Jugadores procesados por batch de refresh (default: `3`) |
-| `REFRESH_BATCH_DELAY_MS` | No | Delay entre batches de refresh en ms (default: `30000`) |
-| `BACKUP_ENABLED` | No | Activa el worker de backups SQLite en Docker (default: `true`) |
-| `BACKUP_INTERVAL_SECONDS` | No | Segundos entre snapshots (default: `86400`) |
-| `BACKUP_RETENTION_COUNT` | No | Numero de snapshots a conservar (default: `7`) |
-| `BACKUP_HOST_PATH` | No | Directorio del host para backups (default: `./backups`) |
+Requiere Docker Desktop o Docker Engine con Compose.
 
-> **Nota:** La API key de Riot se puede configurar en tiempo real desde el panel admin — no requiere reiniciar el servidor cuando la dev key expira.
+```bash
+cp .env.example .env.local
+docker compose -f docker-compose.dev.yml up --build
+```
 
-> **Importante:** `ADMIN_PASSWORD_HASH` contiene caracteres `$`. En `.env.local` envuelve el valor entre comillas simples para evitar expansion de variables:
-> ```
-> ADMIN_PASSWORD_HASH='$2b$12$...'
-> ```
+El entorno de desarrollo construye la imagen local y monta `./data` para
+conservar SQLite. Después de modificar el código, vuelve a construir la imagen.
 
----
+## Configuración
 
-## Docker
+Las credenciales y secretos deben permanecer fuera del repositorio. Usa
+`.env.local` en desarrollo y el gestor de secretos del despliegue en producción.
+
+| Variable | Obligatoria | Valor por defecto | Uso |
+|---|---:|---|---|
+| `ADMIN_PASSWORD_HASH` | Sí | — | Hash bcrypt de la contraseña de administración |
+| `SESSION_SECRET` | Sí | — | Firma de sesiones JWT; mínimo 32 caracteres |
+| `RIOT_API_KEY` | No | Vacío | Consultas a Riot y operaciones de Tournament API |
+| `RIOT_REGION` | No | `euw1` | Región de Riot |
+| `TOURNAMENT_API_MODE` | No | `stub` | Proveedor `stub` o `production` de Tournament API |
+| `TWITCH_CHANNEL` | No | Vacío | Canal mostrado en la portada |
+| `TWITCH_CLIENT_ID` | No | Vacío | Consulta del estado del directo |
+| `TWITCH_CLIENT_SECRET` | No | Vacío | Consulta del estado del directo |
+| `DB_PATH` | No | `./data/esigglol.db` | Ruta del archivo SQLite |
+| `REFRESH_AUTO_INTERVAL_MS` | No | `21600000` | Edad mínima antes de refrescar estadísticas |
+| `REFRESH_BATCH_SIZE` | No | `3` | Jugadores procesados por lote |
+| `REFRESH_BATCH_DELAY_MS` | No | `30000` | Espera entre lotes, en milisegundos |
+| `LOG_LEVEL` | No | `info` | Nivel de logs de Pino |
+| `LOG_PRETTY` | No | `false` | Formato legible para desarrollo |
+
+El modo `stub` sirve para desarrollo y pruebas. Los códigos válidos para
+partidas reales requieren acceso de producción autorizado por Riot, una clave
+compatible y `TOURNAMENT_API_MODE=production`. La guía de
+[Tournament API](docs/riot-tournament-api.md) describe la configuración y sus
+restricciones. Al desplegar con Compose, la variable también debe estar
+declarada en `services.app.environment`; mientras no se reenvíe al contenedor,
+la aplicación conservará el modo `stub` predeterminado.
+
+`ADMIN_PASSWORD_HASH` contiene caracteres `$`. Escríbelo entre comillas simples
+para evitar que el shell los expanda:
+
+```dotenv
+ADMIN_PASSWORD_HASH='$2b$12$...'
+```
+
+## Desarrollo y validación
+
+| Comando | Acción |
+|---|---|
+| `npm run dev` | Arranca Next.js con recarga en caliente |
+| `npm run lint` | Ejecuta ESLint |
+| `npm test` | Ejecuta las pruebas de Vitest |
+| `npm run test:watch` | Ejecuta Vitest en modo interactivo |
+| `npm run test:e2e` | Ejecuta las pruebas E2E de Playwright |
+| `npm run test:e2e:ui` | Abre la interfaz de Playwright |
+| `npm run build` | Genera el build de producción |
+| `npm run start` | Arranca el build de producción |
+| `npm run sync-ddragon` | Actualiza manualmente los datos de Data Dragon |
+| `npm run collect-stats-dev` | Recoge estadísticas respetando límites de una dev key |
+| `npm run collect-stats-prod` | Recoge estadísticas con configuración de producción |
+
+El hook de pre-commit ejecuta ESLint con correcciones automáticas sobre los
+archivos JavaScript y TypeScript preparados para el commit.
+
+### Datos de prueba
+
+El seed añade equipos y jugadores ficticios sin borrar los datos existentes:
+
+```bash
+npx tsx scripts/seed-data.ts
+npx tsx scripts/seed-data.ts --teams 4
+npx tsx scripts/seed-data.ts --players 5
+```
+
+No lo ejecutes sobre una base de datos de producción.
+
+## Docker y despliegue
 
 | Archivo | Uso |
 |---|---|
-| `docker-compose.yml` | Produccion — tira imagen de GHCR + Watchtower auto-actualizacion |
-| `docker-compose.dev.yml` | Dev — construye imagen local, sin Watchtower |
+| `docker-compose.dev.yml` | Construye la aplicación localmente |
+| `docker-compose.yml` | Usa la imagen publicada en GHCR y activa Watchtower |
 
 ```bash
-# Dev (maquina local)
-docker compose -f docker-compose.dev.yml up --build
-
-# Produccion
+# Producción
 docker compose up -d
 
-# Ver logs
-docker logs esigglol-app-1 -f
-
-# Ver estado
+# Estado y logs
 docker compose ps
+docker compose logs -f app
 ```
 
-Produccion no lee `.env.local`. Configura `SESSION_SECRET`,
-`ADMIN_PASSWORD_HASH` y las variables opcionales en la plataforma de deploy o
-gestor de secretos, e inyectalas en el entorno del host antes de ejecutar
-Docker Compose. El compose de produccion reenvia esas variables del sistema al
-contenedor; no copies un archivo local al servidor.
+El servicio `app` de producción recibe desde el host las variables declaradas
+en `services.app.environment`. El servicio `backup` carga su configuración
+desde `.env.local`; además, `BACKUP_HOST_PATH` debe definirse para Compose en el
+shell o en un archivo `.env`, porque determina el volumen antes de arrancar los
+contenedores.
 
-La base de datos SQLite se persiste en `./data/` mediante un volumen. El contenedor corre como usuario `1000`. Los archivos de la BD deben tener permisos de escritura:
+Los pushes a `main` ejecutan el siguiente flujo:
 
-```bash
-chmod 666 data/esigglol.db data/esigglol.db-shm data/esigglol.db-wal
-```
+1. ESLint, pruebas y build de producción.
+2. Construcción y publicación de la imagen en
+   `ghcr.io/javierloro/esigglol:latest`.
+3. Conexión de GitHub Actions a la red privada mediante Tailscale.
+4. Solicitud autenticada al servicio interno de redespliegue.
 
-El stack de Compose tambien ejecuta un worker `backup` separado. Usa la API
-online de SQLite (segura con WAL), valida cada snapshot y conserva siete por
-defecto. Consulta [docs/backups.md](docs/backups.md) para montajes externos,
-verificacion y restauracion manual. El repositorio no configura credenciales
-cloud ni sube datos automaticamente.
+El Compose de producción también incluye Watchtower para vigilar la imagen
+publicada como mecanismo de actualización del host.
 
-**Watchtower** comprueba cada 60 segundos si hay una nueva imagen en el registry y redespliega automaticamente.
+## Persistencia y copias de seguridad
 
----
+SQLite se conserva en `./data`. Los contenedores se ejecutan con el usuario
+`1000`, por lo que ese directorio debe permitir escritura a dicho usuario.
 
-## Cambiar la contrasena de admin
+El worker `backup` usa la API de copia en línea de SQLite, valida cada snapshot
+y aplica una política de retención. Sus principales variables son:
 
-```bash
-npx tsx scripts/gen-password-hash.ts <nueva-password>
-# Actualizar ADMIN_PASSWORD_HASH en .env.local (entre comillas simples)
-docker compose restart app
-```
+| Variable | Valor por defecto | Uso |
+|---|---|---|
+| `BACKUP_ENABLED` | `true` | Activa el worker |
+| `BACKUP_INTERVAL_SECONDS` | `86400` | Intervalo entre copias |
+| `BACKUP_RUN_ON_START` | `true` | Crea una copia al arrancar |
+| `BACKUP_RETENTION_COUNT` | `7` | Número de snapshots conservados |
+| `BACKUP_HOST_PATH` | `./backups` | Directorio del host para las copias |
 
----
+Consulta [Copias de seguridad](docs/backups.md) antes de configurar un volumen
+externo o restaurar una base de datos.
 
-## Scripts disponibles
+## Documentación
 
-| Comando | Descripcion |
-|---|---|
-| `npm run dev` | Servidor de desarrollo (sincroniza DDragon primero) |
-| `npm run build` | Build de produccion |
-| `npm run start` | Iniciar servidor de produccion |
-| `npm run lint` | Ejecutar ESLint |
-| `npm run test` | Ejecutar tests (Vitest) |
-| `npm run test:watch` | Tests en modo watch |
-| `npm run prepare` | Instalar hooks de Git (Husky) |
-| `npm run sync-ddragon` | Sincronizar assets de Data Dragon manualmente |
-| `npm run collect-stats-dev` | Recolectar stats de jugadores (dev key, con delays) |
-| `npm run collect-stats-prod` | Recolectar stats de jugadores (prod key) |
-| `npm run backup` | Crear y validar un backup SQLite |
-| `npm run backup:verify -- <fichero>` | Validar un backup existente |
-| `npm run backup:restore -- --source <fichero> --force` | Restaurar manualmente un backup (parar la app antes) |
-| `npx tsx scripts/seed-data.ts` | Poblar la BD con equipos y jugadores placeholder |
+- [Formatos de torneo](docs/tournament-formats.md)
+- [Integración con Riot Tournament API](docs/riot-tournament-api.md)
+- [Copias, verificación y restauración](docs/backups.md)
+- [Scripts de utilidad](docs/scripts.md)
+- [Arquitectura](docs/architecture.md)
+- [Referencia de API y métricas](docs/api-reference.md)
 
-> El pre-commit ejecuta `lint-staged`, que lanza ESLint con `--fix` solo sobre archivos JS/TS staged.
+## Seguridad
 
-### Generar datos de prueba (seed)
-
-Puebla la base de datos con equipos y jugadores ficticios para desarrollo. **Siempre añade** sin tocar los datos existentes.
-
-```bash
-npx tsx scripts/seed-data.ts              # 8 equipos × 5 titulares + 1 suplente
-npx tsx scripts/seed-data.ts --teams 4    # numero de equipos personalizado
-npx tsx scripts/seed-data.ts --players 5  # titulares por equipo personalizado (máx 5 con el pool actual)
-```
-
----
-
-## CI/CD
-
-Push a `main` dispara GitHub Actions:
-
-1. **CI** — lint + test + build
-2. **Docker** — build y push de imagen a `ghcr.io/javierloro/esigglol:latest`
-3. **Watchtower** — detecta la nueva imagen en ~60s y redespliega el contenedor automaticamente
+- No publiques contraseñas, claves de Riot, secretos de Twitch ni
+  `SESSION_SECRET` en Git, logs o incidencias.
+- Rota una credencial desde el proveedor correspondiente y actualízala en el
+  gestor de secretos del despliegue.
+- Conserva las copias de SQLite fuera del volumen principal y prueba el proceso
+  de restauración antes de necesitarlo.
