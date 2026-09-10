@@ -1,4 +1,4 @@
-import { bracketSizeError } from './bracket-sizes'
+import { bracketSizeError, isPowerOfTwoAtLeastFour } from './bracket-sizes'
 import type { Phase, PhaseType } from './types'
 
 export interface GroupsValidationInput {
@@ -68,6 +68,7 @@ export function validateGroupsConfig(config: GroupsValidationInput): string[] {
 export interface PhaseParticipantsInput extends GroupsValidationInput {
   swissTeamIds?: ReadonlyArray<string>
   bracketTeamIds?: ReadonlyArray<string>
+  lowerBracketTeamIds?: ReadonlyArray<string>
 }
 
 /** Validates participant cardinality and structure for every phase format. */
@@ -79,5 +80,20 @@ export function validatePhaseParticipants(type: PhaseType, config: PhaseParticip
   if (new Set(teamIds).size !== teamIds.length) errors.push('Un equipo no puede aparecer más de una vez')
   const sizeError = bracketSizeError(type, new Set(teamIds).size)
   if (sizeError) errors.push(sizeError)
+  if (type === 'upper-lower') {
+    const participantIds = new Set(teamIds)
+    const lowerIds = config.lowerBracketTeamIds ?? []
+    const uniqueLowerIds = new Set(lowerIds)
+    if (uniqueLowerIds.size !== lowerIds.length) errors.push('Un equipo no puede aparecer más de una vez en Lower')
+    if (lowerIds.some(teamId => !participantIds.has(teamId))) errors.push('Todos los equipos de Lower deben estar seleccionados en la fase')
+
+    const upperCount = participantIds.size - uniqueLowerIds.size
+    const lowerCount = uniqueLowerIds.size
+    if (lowerCount === 0) {
+      if (!isPowerOfTwoAtLeastFour(upperCount)) errors.push('Si todos empiezan en Upper, su cantidad debe ser una potencia de 2 desde 4')
+    } else if (!isPowerOfTwoAtLeastFour(upperCount) || upperCount !== lowerCount * 2) {
+      errors.push('El reparto inicial debe tener una potencia de 2 en Upper y exactamente la mitad en Lower (4+2, 8+4, 16+8...)')
+    }
+  }
   return errors
 }

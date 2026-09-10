@@ -13,6 +13,7 @@ export const STRUCTURAL_PHASE_FIELDS = [
   'config.eliminateLosses',
   'config.roundBo',
   'config.bracketTeamIds',
+  'config.lowerBracketTeamIds',
   'config.include3rdPlace',
 ] as const
 

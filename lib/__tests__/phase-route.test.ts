@@ -72,6 +72,7 @@ describe('PUT /api/admin/fases structural lock', () => {
     ['config.eliminateLosses', { ...phase, config: { ...phase.config, eliminateLosses: 3 } }],
     ['config.roundBo', { ...phase, config: { ...phase.config, roundBo: { '1': 3 } } }],
     ['config.bracketTeamIds', { ...phase, config: { ...phase.config, bracketTeamIds: ['team-2', 'team-1'] } }],
+    ['config.lowerBracketTeamIds', { ...phase, config: { ...phase.config, lowerBracketTeamIds: ['team-1'] } }],
     ['config.include3rdPlace', { ...phase, config: { ...phase.config, include3rdPlace: true } }],
   ] satisfies Array<[(typeof STRUCTURAL_PHASE_FIELDS)[number], Phase]>)('rejects %s when matches exist', async (field, updated) => {
     const response = await PUT(request(updated))

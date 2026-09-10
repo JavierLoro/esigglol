@@ -38,6 +38,7 @@ const structuralChanges: Record<(typeof STRUCTURAL_PHASE_FIELDS)[number], (phase
   'config.eliminateLosses': phase => ({ ...phase, config: { ...phase.config, eliminateLosses: 3 } }),
   'config.roundBo': phase => ({ ...phase, config: { ...phase.config, roundBo: { '1': 3 } } }),
   'config.bracketTeamIds': phase => ({ ...phase, config: { ...phase.config, bracketTeamIds: ['team-2', 'team-1'] } }),
+  'config.lowerBracketTeamIds': phase => ({ ...phase, config: { ...phase.config, lowerBracketTeamIds: ['team-2'] } }),
   'config.include3rdPlace': phase => ({ ...phase, config: { ...phase.config, include3rdPlace: true } }),
 }
 

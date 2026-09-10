@@ -136,7 +136,8 @@ Bracket con rama alta (upper) y rama baja (lower). Un equipo necesita dos derrot
 
 | Campo | Tipo | Descripción |
 |---|---|---|
-| `bracketTeamIds` | `string[]` | 4 u 8 equipos |
+| `bracketTeamIds` | `string[]` | Todos los participantes del Upper y el Lower |
+| `lowerBracketTeamIds` | `string[]` | Vacío si todos comienzan en Upper; en el reparto 2:1 contiene los equipos que comienzan en Lower |
 | `bo` | `1\|2\|3\|5` | BO para todos los partidos |
 | `confirmedBracket` | `boolean` | Bracket visible al público |
 
@@ -169,6 +170,24 @@ Bracket con rama alta (upper) y rama baja (lower). Un equipo necesita dos derrot
 | `-4` (×1) | Lower final |
 | `99` (×1) | Grand final |
 
+#### Entrada escalonada: 4 Upper + 2 Lower
+
+| Round | Descripción |
+|---|---|
+| `1` (×2) | Primera ronda Upper |
+| `2` (×1) | Final Upper |
+| `-1` (×2) | Cada equipo Lower recibe a un perdedor de Upper R1 |
+| `-2` (×1) | Cruce entre ganadores de Lower R1 |
+| `-3` (×1) | Final Lower contra el perdedor de la final Upper |
+| `99` (×1) | Gran final a partido único |
+
+La cantidad inicial del Upper siempre es una potencia de 2 desde 4. Se puede
+configurar a todos los equipos en Upper (4, 8, 16...) o iniciar exactamente la
+mitad en Lower (4+2, 8+4, 16+8...). Antes
+de cada incorporación de perdedores del Upper, el Lower se reduce hasta tener
+el número de plazas necesario. Los equipos que comienzan en Lower cuentan como
+si ya hubieran sufrido una derrota.
+
 ### Flujo de `advanceWinner`
 
 - Ganador de upper → siguiente ronda de upper
@@ -177,6 +196,7 @@ Bracket con rama alta (upper) y rama baja (lower). Un equipo necesita dos derrot
 - Perdedor de lower → eliminado
 - Ganador de upper final → grand final (team1)
 - Ganador de lower final → grand final (team2)
+- La grand final es única y decide el torneo, con independencia de su ganador
 
 ---
 

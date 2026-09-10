@@ -5,7 +5,7 @@ describe('tamaños soportados por formato', () => {
   it('declara tamaños explícitos para cada formato', () => {
     expect(BRACKET_SIZES.swiss).toEqual([8, 16])
     expect(BRACKET_SIZES['final-four']).toEqual([4])
-    expect(BRACKET_SIZES['upper-lower']).toEqual([4, 8])
+    expect(BRACKET_SIZES['upper-lower']).toBeNull()
   })
 
   it.each([2, 4, 8])('acepta eliminación con %i equipos', count => {
@@ -16,8 +16,12 @@ describe('tamaños soportados por formato', () => {
     expect(bracketSizeError('elimination', count)).toMatch(/potencias de dos/)
   })
 
+  it.each([4, 6, 8, 12, 16, 24, 32, 48])('acepta Upper/Lower con %i participantes', count => {
+    expect(bracketSizeError('upper-lower', count)).toBeNull()
+  })
+
   it.each([
-    ['upper-lower', 2], ['upper-lower', 3], ['upper-lower', 5], ['upper-lower', 6], ['upper-lower', 16],
+    ['upper-lower', 2], ['upper-lower', 3], ['upper-lower', 5], ['upper-lower', 7], ['upper-lower', 10], ['upper-lower', 20],
     ['final-four', 2], ['final-four', 3], ['final-four', 5], ['final-four', 6], ['final-four', 8],
     ['swiss', 2], ['swiss', 3], ['swiss', 4], ['swiss', 5], ['swiss', 6], ['swiss', 10],
   ] as const)('rechaza %s con %i equipos', (type, count) => {

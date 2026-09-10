@@ -5,7 +5,7 @@ import { GenerateSchema } from '@/lib/schemas'
 import logger from '@/lib/logger'
 import type { Match, BOFormat } from '@/lib/types'
 import { bracketSizeError } from '@/lib/bracket-sizes'
-import { validateGroupsConfig } from '@/lib/phase-validation'
+import { validateGroupsConfig, validatePhaseParticipants } from '@/lib/phase-validation'
 import { createSwissPairings, getSwissRecords, getSwissRoundError } from '@/lib/swiss'
 import { orderBracketMatches } from '@/lib/bracket-position'
 
@@ -210,42 +210,55 @@ export async function POST(req: NextRequest) {
       const n = teamIds.length
       const sizeError = bracketSizeError(type, n)
       if (sizeError) return NextResponse.json({ error: sizeError }, { status: 400 })
+      const participantErrors = validatePhaseParticipants(type, phase.config)
+      if (participantErrors.length > 0) return NextResponse.json({ error: participantErrors[0], details: participantErrors }, { status: 400 })
+      const lowerIds = phase.config.lowerBracketTeamIds ?? []
+      const lowerSet = new Set(lowerIds)
+      const upperIds = teamIds.filter(teamId => !lowerSet.has(teamId))
 
-      if (n <= 4) {
-        // La topología completa hace visible y administrable el Lower desde el
-        // inicio. advanceWinner rellena cada plaza tras guardar un resultado.
-        if (!exists(1)) {
-          created.push(newMatch(1, teamIds[0], teamIds[1], 0))
-          created.push(newMatch(1, teamIds[2], teamIds[3], 1))
+      const upperRounds = Math.log2(upperIds.length)
+      if (!exists(1)) {
+        for (let i = 0; i < upperIds.length / 2; i++) created.push(newMatch(1, upperIds[i * 2], upperIds[i * 2 + 1], i))
+      }
+      for (let upperRound = 2; upperRound <= upperRounds; upperRound++) {
+        if (exists(upperRound)) continue
+        const count = upperIds.length / (2 ** upperRound)
+        for (let i = 0; i < count; i++) created.push(newMatch(upperRound, 'TBD', 'TBD', i))
+      }
+
+      if (lowerIds.length > 0) {
+        if (!exists(-1)) {
+          for (let i = 0; i < lowerIds.length; i++) created.push(newMatch(-1, lowerIds[i], 'TBD', i))
         }
-        if (!exists(2)) created.push(newMatch(2, 'TBD', 'TBD'))
-        if (!exists(-1)) created.push(newMatch(-1, 'TBD', 'TBD'))
-        if (!exists(-2)) created.push(newMatch(-2, 'TBD', 'TBD'))
-        if (!exists(99)) created.push(newMatch(99, 'TBD', 'TBD'))
-
-      } else {
-        if (!exists(1)) {
-          for (let i = 0; i < 4; i++) {
-            created.push(newMatch(1, teamIds[i * 2], teamIds[i * 2 + 1], i))
+        for (let upperRound = 2; upperRound <= upperRounds; upperRound++) {
+          const count = upperIds.length / (2 ** upperRound)
+          const consolidationRound = -(2 * upperRound - 2)
+          const injectionRound = consolidationRound - 1
+          if (!exists(consolidationRound)) {
+            for (let i = 0; i < count; i++) created.push(newMatch(consolidationRound, 'TBD', 'TBD', i))
+          }
+          if (!exists(injectionRound)) {
+            for (let i = 0; i < count; i++) created.push(newMatch(injectionRound, 'TBD', 'TBD', i))
           }
         }
-        if (!exists(2)) {
-          created.push(newMatch(2, 'TBD', 'TBD', 0))
-          created.push(newMatch(2, 'TBD', 'TBD', 1))
-        }
-        if (!exists(3)) created.push(newMatch(3, 'TBD', 'TBD'))
+      } else {
         if (!exists(-1)) {
-          created.push(newMatch(-1, 'TBD', 'TBD', 0))
-          created.push(newMatch(-1, 'TBD', 'TBD', 1))
+          const count = upperIds.length / 4
+          for (let i = 0; i < count; i++) created.push(newMatch(-1, 'TBD', 'TBD', i))
         }
-        if (!exists(-2)) {
-          created.push(newMatch(-2, 'TBD', 'TBD', 0))
-          created.push(newMatch(-2, 'TBD', 'TBD', 1))
+        for (let upperRound = 2; upperRound <= upperRounds; upperRound++) {
+          const count = upperIds.length / (2 ** upperRound)
+          const injectionRound = -(2 * upperRound - 2)
+          if (!exists(injectionRound)) {
+            for (let i = 0; i < count; i++) created.push(newMatch(injectionRound, 'TBD', 'TBD', i))
+          }
+          const consolidationRound = injectionRound - 1
+          if (upperRound < upperRounds && !exists(consolidationRound)) {
+            for (let i = 0; i < count / 2; i++) created.push(newMatch(consolidationRound, 'TBD', 'TBD', i))
+          }
         }
-        if (!exists(-3)) created.push(newMatch(-3, 'TBD', 'TBD'))
-        if (!exists(-4)) created.push(newMatch(-4, 'TBD', 'TBD'))
-        if (!exists(99)) created.push(newMatch(99, 'TBD', 'TBD'))
       }
+      if (!exists(99)) created.push(newMatch(99, 'TBD', 'TBD'))
     }
   } catch (err) {
     log.error({ err }, 'Error generando partidos')

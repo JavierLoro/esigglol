@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import type { Phase, PhaseType, PhaseStatus, BOFormat, Team, Match } from '@/lib/types'
 import { validatePhaseParticipants } from '@/lib/phase-validation'
 import { Plus, Trash2, Save, GripVertical, Zap, Check, Copy } from 'lucide-react'
-import { bracketSizeError } from '@/lib/bracket-sizes'
+import { bracketSizeError, isPowerOfTwoAtLeastFour } from '@/lib/bracket-sizes'
 import {
   adminRequest,
   errorMessage,
@@ -507,7 +507,7 @@ export default function AdminFases() {
                 <div>
                   <span className="text-xs font-bold text-white/40 uppercase tracking-wider block mb-2">
                     Equipos en el bracket
-                    {phase.type === 'upper-lower' && ' (4 u 8 equipos)'}
+                    {phase.type === 'upper-lower' && ' (todos en Upper o reparto Upper/Lower 2:1)'}
                     {phase.type === 'final-four' && ' (4 equipos)'}
                   </span>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 rounded-lg border border-white/10 p-3">
@@ -527,6 +527,9 @@ export default function AdminFases() {
                                 bracketTeamIds: checked
                                   ? current.filter(id => id !== t.id)
                                   : [...current, t.id],
+                                ...(checked && phase.type === 'upper-lower' ? {
+                                  lowerBracketTeamIds: (phase.config.lowerBracketTeamIds ?? []).filter(id => id !== t.id),
+                                } : {}),
                               })
                             }}
                           />
@@ -535,8 +538,66 @@ export default function AdminFases() {
                       )
                     })}
                   </div>
-              {(phase.config.bracketTeamIds ?? []).length > 0 && (
+                  {(phase.config.bracketTeamIds ?? []).length > 0 && (
                     <p className="text-xs text-white/30 mt-1">{(phase.config.bracketTeamIds ?? []).length} equipos seleccionados</p>
+                  )}
+                  {phase.type === 'upper-lower' && (phase.config.bracketTeamIds ?? []).length > 0 && (
+                    <div className="mt-3 flex flex-col gap-2">
+                      <div className="flex flex-wrap gap-2" role="group" aria-label="Modo de entrada al bracket">
+                        <button
+                          type="button"
+                          disabled={structureLocked}
+                          aria-pressed={(phase.config.lowerBracketTeamIds ?? []).length === 0}
+                          onClick={() => updateConfig(phase.id, { lowerBracketTeamIds: [] })}
+                          className="rounded-md border border-white/10 px-3 py-1.5 text-xs text-white/70 aria-pressed:border-[#0097D7]/60 aria-pressed:bg-[#0097D7]/10 aria-pressed:text-[#33b3e8] disabled:opacity-50"
+                        >
+                          Todos en Upper
+                        </button>
+                        <button
+                          type="button"
+                          disabled={structureLocked || !isPowerOfTwoAtLeastFour((phase.config.bracketTeamIds ?? []).length * 2 / 3)}
+                          aria-pressed={(phase.config.lowerBracketTeamIds ?? []).length > 0}
+                          onClick={() => {
+                            const selected = phase.config.bracketTeamIds ?? []
+                            updateConfig(phase.id, { lowerBracketTeamIds: selected.slice(-selected.length / 3) })
+                          }}
+                          className="rounded-md border border-white/10 px-3 py-1.5 text-xs text-white/70 aria-pressed:border-[#0097D7]/60 aria-pressed:bg-[#0097D7]/10 aria-pressed:text-[#33b3e8] disabled:opacity-50"
+                        >
+                          Reparto 2:1
+                        </button>
+                      </div>
+                      <p className="text-xs text-white/40">
+                        El reparto 2:1 necesita 6, 12, 24… participantes. Puedes ajustar debajo qué equipos comienzan en cada llave.
+                      </p>
+                      <div className="overflow-hidden rounded-lg border border-white/10 divide-y divide-white/5">
+                        {(phase.config.bracketTeamIds ?? []).map(teamId => {
+                          const team = teams.find(candidate => candidate.id === teamId)
+                          const startsInLower = (phase.config.lowerBracketTeamIds ?? []).includes(teamId)
+                          return (
+                            <label key={teamId} className="flex items-center justify-between gap-3 px-3 py-2">
+                              <span className="truncate text-xs text-white/70">{team?.name ?? teamId}</span>
+                              <select
+                                aria-label={`Llave inicial de ${team?.name ?? teamId}`}
+                                disabled={structureLocked}
+                                value={startsInLower ? 'lower' : 'upper'}
+                                onChange={event => {
+                                  const current = phase.config.lowerBracketTeamIds ?? []
+                                  updateConfig(phase.id, {
+                                    lowerBracketTeamIds: event.target.value === 'lower'
+                                      ? [...current, teamId]
+                                      : current.filter(id => id !== teamId),
+                                  })
+                                }}
+                                className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white focus:outline-none focus:border-[#0097D7]/50"
+                              >
+                                <option value="upper">Upper</option>
+                                <option value="lower">Lower</option>
+                              </select>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
                   )}
                   {participantErrors.map(error => <p key={error} className="text-xs text-red-400 mt-1" role="alert">{error}</p>)}
                 </div>

@@ -3,6 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import LocalDateTime from '@/components/LocalDateTime'
+import { getPublicMatchHref } from '@/lib/match-navigation'
 
 interface Props {
   phase: Phase
@@ -152,11 +153,11 @@ export default function GroupsView({ phase, matches, teams }: Props) {
                     const played = m.result !== null
 
                     return (
-                      <div key={m.id} className="px-4 py-2.5 flex items-center gap-2">
+                      <Link key={m.id} href={getPublicMatchHref(m, teams)} className="flex items-center gap-2 px-4 py-2.5 transition-colors hover:bg-white/[0.03]">
                         {/* Team 1 */}
                         <div className={clsx('flex items-center gap-2 flex-1 min-w-0 justify-end', played && winner !== 'team1' && 'opacity-40')}>
                           {t1 ? (
-                            <Link href={`/equipos/${t1.id}`} className="text-xs truncate text-right hover:underline">{t1.name}</Link>
+                            <span className="text-xs truncate text-right">{t1.name}</span>
                           ) : (
                             <span className="text-xs truncate text-right">{m.team1Id}</span>
                           )}
@@ -182,16 +183,12 @@ export default function GroupsView({ phase, matches, teams }: Props) {
                         <div className={clsx('flex items-center gap-2 flex-1 min-w-0', played && winner !== 'team2' && 'opacity-40')}>
                           {t2?.logo && <Image src={t2.logo} alt={t2.name} width={18} height={18} className="rounded shrink-0" />}
                           {t2 ? (
-                            <Link href={`/equipos/${t2.id}`} className="text-xs truncate hover:underline">{t2.name}</Link>
+                            <span className="text-xs truncate">{t2.name}</span>
                           ) : (
                             <span className="text-xs truncate">{m.team2Id}</span>
                           )}
                         </div>
-                        <Link
-                          href={`/partidos/${m.id}`}
-                          className="text-[10px] text-white/20 hover:text-[#0097D7] shrink-0 ml-1 transition-colors"
-                        >→</Link>
-                      </div>
+                      </Link>
                     )
                   })}
                 </div>
