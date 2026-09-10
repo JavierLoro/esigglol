@@ -64,7 +64,7 @@ export default function TeamPanelPage() {
         <div className="min-w-0"><p className="text-sm text-[#33b3e8]">Panel del equipo</p><h1 className="text-3xl font-semibold tracking-tight truncate">{data.team.name}</h1><p className="text-sm text-white/35 mt-1">{data.team.players.length} jugadores · {pending.length} solicitudes pendientes</p></div>
         <div className="ml-auto flex items-center gap-2">
           <label className="cursor-pointer rounded-lg border border-white/10 px-3 py-2 text-sm text-white/65 hover:text-white"><ImageUp size={15} className="inline mr-2" />Solicitar logo<input className="hidden" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { const file = event.target.files?.[0]; if (file) void requestLogo(file); event.target.value = '' }} /></label>
-          <button aria-label="Cerrar sesión" onClick={async () => { await fetch('/api/team/login', { method: 'DELETE' }); window.location.assign('/equipo/login') }} className="p-2.5 text-white/35 hover:text-white"><LogOut size={18} /></button>
+          <button onClick={async () => { await fetch('/api/team/login', { method: 'DELETE' }); window.location.assign('/equipo/login') }} className="inline-flex items-center gap-2 rounded-lg border border-red-400/25 px-3 py-2 text-sm font-medium text-red-300 hover:border-red-400/50 hover:bg-red-400/10 hover:text-red-200 transition-colors"><LogOut size={16} />Cerrar sesión</button>
         </div>
       </header>
       {message && <div role="status" className="mt-4 rounded-lg border border-[#0097D7]/25 bg-[#0097D7]/10 px-4 py-2 text-sm text-[#7dd3fc]">{message}</div>}
