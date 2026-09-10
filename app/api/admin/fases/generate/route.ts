@@ -179,32 +179,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Final Four — generación progresiva ───────────────────────────────────
+    // ── Final Four ───────────────────────────────────────────────────────────
     if (type === 'final-four') {
       const teamIds = phase.config.bracketTeamIds ?? []
       const sizeError = bracketSizeError(type, teamIds.length)
       if (sizeError) return NextResponse.json({ error: sizeError }, { status: 400 })
 
       if (!exists(1)) {
-        // Generar semifinales
+        // Persistimos toda la topología desde el principio. Los resultados de
+        // las semifinales rellenan después los slots TBD de forma automática.
         created.push(newMatch(1, teamIds[0], teamIds[1], 0))
         created.push(newMatch(1, teamIds[2], teamIds[3], 1))
-      } else if (!exists(2)) {
-        // Generar final y 3er puesto con los equipos reales
-        const r1 = sorted(1)
-        if (r1.some(m => !m.result || !m.winnerId)) {
-          return NextResponse.json({ created: 0, message: 'Semifinales incompletas' })
-        }
-        created.push(newMatch(2, r1[0].winnerId!, r1[1].winnerId!))
-        if (phase.config.include3rdPlace) {
-          created.push(newMatch(98, loserOf(r1[0]), loserOf(r1[1])))
-        }
-      } else {
-        return NextResponse.json({ created: 0, message: 'Bracket completado' })
+      }
+      const completedSemis = complete(1) ? sorted(1) : []
+      if (!exists(2)) {
+        created.push(newMatch(2, completedSemis[0]?.winnerId ?? 'TBD', completedSemis[1]?.winnerId ?? 'TBD'))
+      }
+      if (phase.config.include3rdPlace && !exists(98)) {
+        created.push(newMatch(
+          98,
+          completedSemis[0] ? loserOf(completedSemis[0]) : 'TBD',
+          completedSemis[1] ? loserOf(completedSemis[1]) : 'TBD',
+        ))
       }
     }
 
-    // ── Upper/Lower Bracket — generación progresiva ──────────────────────────
+    // ── Upper/Lower Bracket ──────────────────────────────────────────────────
     if (type === 'upper-lower') {
       const teamIds = phase.config.bracketTeamIds ?? []
       const n = teamIds.length
@@ -212,87 +212,39 @@ export async function POST(req: NextRequest) {
       if (sizeError) return NextResponse.json({ error: sizeError }, { status: 400 })
 
       if (n <= 4) {
-        // ── 4 equipos: G1→G2→G3→G4 ──────────────────────────────────────────
-        // G1: R1 (×2)
+        // La topología completa hace visible y administrable el Lower desde el
+        // inicio. advanceWinner rellena cada plaza tras guardar un resultado.
         if (!exists(1)) {
           created.push(newMatch(1, teamIds[0], teamIds[1], 0))
           created.push(newMatch(1, teamIds[2], teamIds[3], 1))
-
-        // G2: R2 (upper final ×1) + R-1 (lower R1 ×1)
-        } else if (!exists(2) && !exists(-1)) {
-          if (!complete(1)) return NextResponse.json({ created: 0, message: 'Ronda 1 incompleta' })
-          const r1 = sorted(1)
-          created.push(newMatch(2, r1[0].winnerId!, r1[1].winnerId!))
-          created.push(newMatch(-1, loserOf(r1[0]), loserOf(r1[1])))
-
-        // G3: R-2 (lower final ×1)
-        } else if (!exists(-2)) {
-          if (!complete(2) || !complete(-1)) return NextResponse.json({ created: 0, message: 'Rondas incompletas' })
-          const r2 = sorted(2)[0]
-          const rNeg1 = sorted(-1)[0]
-          created.push(newMatch(-2, loserOf(r2), rNeg1.winnerId!))
-
-        // G4: R99 (gran final ×1)
-        } else if (!exists(99)) {
-          if (!complete(-2)) return NextResponse.json({ created: 0, message: 'Lower bracket incompleto' })
-          const r2 = sorted(2)[0]
-          const rNeg2 = sorted(-2)[0]
-          created.push(newMatch(99, r2.winnerId!, rNeg2.winnerId!))
-
-        } else {
-          return NextResponse.json({ created: 0, message: 'Bracket completado' })
         }
+        if (!exists(2)) created.push(newMatch(2, 'TBD', 'TBD'))
+        if (!exists(-1)) created.push(newMatch(-1, 'TBD', 'TBD'))
+        if (!exists(-2)) created.push(newMatch(-2, 'TBD', 'TBD'))
+        if (!exists(99)) created.push(newMatch(99, 'TBD', 'TBD'))
 
       } else {
-        // ── 8 equipos: G1→G2→G3→G4→G5→G6 ───────────────────────────────────
-        // G1: R1 (×4)
         if (!exists(1)) {
           for (let i = 0; i < 4; i++) {
             created.push(newMatch(1, teamIds[i * 2], teamIds[i * 2 + 1], i))
           }
-
-        // G2: R2 (upper ×2) + R-1 (lower ×2)
-        } else if (!exists(2) && !exists(-1)) {
-          if (!complete(1)) return NextResponse.json({ created: 0, message: 'Ronda 1 incompleta' })
-          const r1 = sorted(1) // 4 partidos
-          created.push(newMatch(2, r1[0].winnerId!, r1[1].winnerId!, 0))
-          created.push(newMatch(2, r1[2].winnerId!, r1[3].winnerId!, 1))
-          created.push(newMatch(-1, loserOf(r1[0]), loserOf(r1[1]), 0))
-          created.push(newMatch(-1, loserOf(r1[2]), loserOf(r1[3]), 1))
-
-        // G3: R3 (upper final ×1) + R-2 (lower ×2)
-        } else if (!exists(3) && !exists(-2)) {
-          if (!complete(2) || !complete(-1)) return NextResponse.json({ created: 0, message: 'Rondas incompletas' })
-          const r2 = sorted(2)     // 2 partidos
-          const rNeg1 = sorted(-1) // 2 partidos
-          created.push(newMatch(3, r2[0].winnerId!, r2[1].winnerId!))
-          // Emparejamiento por índice: R2[i].loser vs R-1[i].winner
-          created.push(newMatch(-2, loserOf(r2[0]), rNeg1[0].winnerId!, 0))
-          created.push(newMatch(-2, loserOf(r2[1]), rNeg1[1].winnerId!, 1))
-
-        // G4: R-3 (lower semi ×1) — los dos ganadores de R-2 se enfrentan
-        } else if (!exists(-3)) {
-          if (!complete(-2)) return NextResponse.json({ created: 0, message: 'Lower bracket incompleto' })
-          const rNeg2 = sorted(-2)
-          created.push(newMatch(-3, rNeg2[0].winnerId!, rNeg2[1].winnerId!))
-
-        // G5: R-4 (lower final ×1) — perdedor upper final vs ganador lower semi
-        } else if (!exists(-4)) {
-          if (!complete(3) || !complete(-3)) return NextResponse.json({ created: 0, message: 'Rondas incompletas' })
-          const r3 = sorted(3)[0]
-          const rNeg3 = sorted(-3)[0]
-          created.push(newMatch(-4, loserOf(r3), rNeg3.winnerId!))
-
-        // G6: R99 (gran final ×1)
-        } else if (!exists(99)) {
-          if (!complete(3) || !complete(-4)) return NextResponse.json({ created: 0, message: 'Rondas incompletas' })
-          const r3 = sorted(3)[0]
-          const rNeg4 = sorted(-4)[0]
-          created.push(newMatch(99, r3.winnerId!, rNeg4.winnerId!))
-
-        } else {
-          return NextResponse.json({ created: 0, message: 'Bracket completado' })
         }
+        if (!exists(2)) {
+          created.push(newMatch(2, 'TBD', 'TBD', 0))
+          created.push(newMatch(2, 'TBD', 'TBD', 1))
+        }
+        if (!exists(3)) created.push(newMatch(3, 'TBD', 'TBD'))
+        if (!exists(-1)) {
+          created.push(newMatch(-1, 'TBD', 'TBD', 0))
+          created.push(newMatch(-1, 'TBD', 'TBD', 1))
+        }
+        if (!exists(-2)) {
+          created.push(newMatch(-2, 'TBD', 'TBD', 0))
+          created.push(newMatch(-2, 'TBD', 'TBD', 1))
+        }
+        if (!exists(-3)) created.push(newMatch(-3, 'TBD', 'TBD'))
+        if (!exists(-4)) created.push(newMatch(-4, 'TBD', 'TBD'))
+        if (!exists(99)) created.push(newMatch(99, 'TBD', 'TBD'))
       }
     }
   } catch (err) {
