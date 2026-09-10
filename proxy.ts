@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifySession, COOKIE_NAME } from '@/lib/auth'
+import { verifySession, readSession, COOKIE_NAME, TEAM_COOKIE_NAME } from '@/lib/auth'
 import { IS_PRODUCTION } from '@/lib/env'
 import { httpRequestDuration, httpRequestsTotal } from '@/lib/metrics'
 import logger from '@/lib/logger'
@@ -40,6 +40,14 @@ export async function proxy(req: NextRequest) {
       httpRequestsTotal.inc({ method, route, status_code: '302' })
       log.info({ method, route, status: 302, duration_ms: Math.round(duration * 1000) }, 'redirect to login')
       return NextResponse.redirect(new URL('/admin/login', req.url))
+    }
+  }
+
+
+  if (pathname.startsWith('/equipo') && !pathname.startsWith('/equipo/login')) {
+    const token = req.cookies.get(TEAM_COOKIE_NAME)?.value
+    if (!token || (await readSession(token))?.role !== 'team') {
+      return NextResponse.redirect(new URL('/equipo/login', req.url))
     }
   }
 

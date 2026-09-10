@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/auth', () => ({ requireAdminSession: mocks.requireAdminSession }))
+vi.mock('@/lib/team-credentials', () => ({ generateTeamPassword: vi.fn(), encryptTeamPassword: vi.fn() }))
+vi.mock('@/lib/team-portal-data', () => ({ createTeamWithAccess: mocks.createTeam, ensureExistingTeamsHaveAccess: vi.fn() }))
 vi.mock('@/lib/data', () => ({
   getTeams: mocks.getTeams,
   createTeam: mocks.createTeam,

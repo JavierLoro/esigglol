@@ -3,13 +3,14 @@ import { validatePhaseParticipants } from './phase-validation'
 import { isValidRiotMatchId, normalizeRiotMatchId, RIOT_MATCH_ID_ERROR } from './riot-match-id'
 import { normalizeRiotId } from './player-identity'
 
-const RoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente'])
+export const RoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente'])
+export const SecondaryRoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill'])
 
 const PlayerSchema = z.object({
   id: z.string().trim().min(1),
   summonerName: z.string().trim().min(1),
   primaryRole: RoleSchema,
-  secondaryRole: z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill']).optional(),
+  secondaryRole: SecondaryRoleSchema.optional(),
 })
 
 export const TeamSchema = z.object({
@@ -31,6 +32,32 @@ export const TeamSchema = z.object({
 export const TeamUpdateSchema = TeamSchema.extend({
   id: z.string().min(1),
   version: z.number().int().positive(),
+})
+
+export const TeamLoginSchema = z.object({
+  teamId: z.string().min(1),
+  password: z.string().min(1).max(200),
+})
+
+export const TeamRolesSchema = z.object({
+  version: z.number().int().positive(),
+  primaryRole: RoleSchema,
+  secondaryRole: SecondaryRoleSchema.optional(),
+})
+
+export const SummonerNameRequestSchema = z.object({
+  playerId: z.string().min(1),
+  summonerName: z.string().trim().min(3).max(100).refine(value => value.includes('#'), 'Incluye el tag, por ejemplo Nick#EUW'),
+})
+
+export const NewPlayerRequestSchema = z.object({
+  summonerName: z.string().trim().min(3).max(100).refine(value => value.includes('#'), 'Incluye el tag, por ejemplo Nick#EUW'),
+  primaryRole: RoleSchema,
+  secondaryRole: SecondaryRoleSchema.optional(),
+})
+
+export const ResolveTeamRequestSchema = z.object({
+  reason: z.string().trim().max(500).optional(),
 })
 
 const BOFormatSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(5)])
