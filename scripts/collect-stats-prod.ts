@@ -13,6 +13,7 @@ import { readFileSync } from 'fs'
 import { join, resolve } from 'path'
 import Database from 'better-sqlite3'
 import { savePlayerMastery, savePlayerMatches, getStoredMatchIds } from '../lib/data-riot'
+import { normalizeRiotId } from '../lib/player-identity'
 
 // ── Env ───────────────────────────────────────────────────────────────────────
 
@@ -62,7 +63,7 @@ function buildChampionMap(): Map<number, string> {
 
 // ── Collect one player ────────────────────────────────────────────────────────
 
-async function collectPlayer(nameTag: string, championMap: Map<number, string>): Promise<void> {
+async function collectPlayer(playerId: string, nameTag: string, championMap: Map<number, string>): Promise<void> {
   const [name, tag] = nameTag.split('#')
 
   // 1. PUUID
@@ -81,7 +82,7 @@ async function collectPlayer(nameTag: string, championMap: Map<number, string>):
     ),
   ])
 
-  savePlayerMastery(nameTag, masteries.map(m => ({
+  savePlayerMastery(playerId, nameTag, masteries.map(m => ({
     championId: m.championId,
     championName: championMap.get(m.championId) ?? `Champion_${m.championId}`,
     masteryLevel: m.championLevel,
@@ -91,7 +92,7 @@ async function collectPlayer(nameTag: string, championMap: Map<number, string>):
   })))
 
   // 3. Deduplicar
-  const stored = getStoredMatchIds(nameTag)
+  const stored = getStoredMatchIds(playerId)
   const newIds = matchIds.filter(id => !stored.has(id))
 
   if (newIds.length === 0) {
@@ -114,7 +115,7 @@ async function collectPlayer(nameTag: string, championMap: Map<number, string>):
     )
   )
 
-  const toSave: Parameters<typeof savePlayerMatches>[1] = []
+  const toSave: Parameters<typeof savePlayerMatches>[2] = []
   for (let i = 0; i < results.length; i++) {
     const result = results[i]
     if (result.status === 'rejected') continue
@@ -135,7 +136,7 @@ async function collectPlayer(nameTag: string, championMap: Map<number, string>):
     })
   }
 
-  savePlayerMatches(nameTag, toSave)
+  savePlayerMatches(playerId, nameTag, toSave)
   const errors = results.filter(r => r.status === 'rejected').length
   console.log(`[${nameTag}] maestria OK | +${toSave.length} partidas guardadas${errors ? ` (${errors} errores)` : ''}`)
 }
@@ -176,26 +177,30 @@ async function main(): Promise<void> {
 
   const singlePlayer = process.argv[2]
 
-  let players: string[]
+  const db = new Database(resolve(process.cwd(), 'esigglol.db'))
+  const teams = db.prepare('SELECT data FROM teams').all() as Array<{ data: string }>
+  const configuredPlayers = teams.flatMap(t => {
+    const team = JSON.parse(t.data) as { players: Array<{ id: string; summonerName: string }> }
+    return team.players
+  })
+  db.close()
+
+  let players: Array<{ id: string; summonerName: string }>
   if (singlePlayer) {
     if (!singlePlayer.includes('#')) {
       console.error('Formato incorrecto. Usa: "Nombre#TAG"')
       process.exit(1)
     }
-    players = [singlePlayer]
+    const player = configuredPlayers.find(candidate => normalizeRiotId(candidate.summonerName) === normalizeRiotId(singlePlayer))
+    if (!player) throw new Error('Jugador no encontrado en los equipos')
+    players = [player]
   } else {
-    const db = new Database(resolve(process.cwd(), 'esigglol.db'))
-    const teams = db.prepare('SELECT data FROM teams').all() as Array<{ data: string }>
-    players = teams.flatMap(t => {
-      const team = JSON.parse(t.data) as { players: Array<{ summonerName: string }> }
-      return team.players.map(p => p.summonerName)
-    })
-    db.close()
+    players = configuredPlayers
     console.log(`Jugadores encontrados en la DB: ${players.length} | Concurrencia: ${CONCURRENCY}`)
   }
 
   const start = Date.now()
-  const { ok, failed } = await runWithConcurrency(players, p => collectPlayer(p, championMap), CONCURRENCY)
+  const { ok, failed } = await runWithConcurrency(players, p => collectPlayer(p.id, p.summonerName, championMap), CONCURRENCY)
 
   const elapsed = Math.round((Date.now() - start) / 1000)
   const min = Math.floor(elapsed / 60)

@@ -3,6 +3,7 @@ import db from './db'
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface MasteryRow {
+  playerId: string
   summonerName: string
   championId: number
   championName: string
@@ -13,6 +14,7 @@ export interface MasteryRow {
 }
 
 export interface MatchRow {
+  playerId: string
   summonerName: string
   matchId: string
   championId: number
@@ -45,35 +47,36 @@ export interface RecentChampion {
 
 // ── Player cooldown ──────────────────────────────────────────────────────────
 
-export function getPlayerLastUpdated(summonerName: string): string | null {
+export function getPlayerLastUpdated(playerId: string): string | null {
   const row = db.prepare(
-    'SELECT MAX(updated_at) as last FROM player_champion_mastery WHERE summoner_name = ?'
-  ).get(summonerName) as { last: string | null } | undefined
+    'SELECT MAX(updated_at) as last FROM player_champion_mastery WHERE player_id = ?'
+  ).get(playerId) as { last: string | null } | undefined
   return row?.last ?? null
 }
 
 // ── Champion mastery ──────────────────────────────────────────────────────────
 
-export function savePlayerMastery(summonerName: string, masteries: Omit<MasteryRow, 'summonerName'>[]): void {
+export function savePlayerMastery(playerId: string, summonerName: string, masteries: Omit<MasteryRow, 'playerId' | 'summonerName'>[]): void {
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO player_champion_mastery
-      (summoner_name, champion_id, champion_name, mastery_level, mastery_points, last_played_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+      (player_id, summoner_name, champion_id, champion_name, mastery_level, mastery_points, last_played_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `)
   db.transaction(() => {
     for (const m of masteries) {
-      stmt.run(summonerName, m.championId, m.championName, m.masteryLevel, m.masteryPoints, m.lastPlayedAt, m.updatedAt)
+      stmt.run(playerId, summonerName, m.championId, m.championName, m.masteryLevel, m.masteryPoints, m.lastPlayedAt, m.updatedAt)
     }
   })()
 }
 
-export function getPlayerMastery(summonerName: string): MasteryRow[] {
+export function getPlayerMastery(playerId: string): MasteryRow[] {
   return (db.prepare(`
-    SELECT summoner_name, champion_id, champion_name, mastery_level, mastery_points, last_played_at, updated_at
+    SELECT player_id, summoner_name, champion_id, champion_name, mastery_level, mastery_points, last_played_at, updated_at
     FROM player_champion_mastery
-    WHERE summoner_name = ?
+    WHERE player_id = ?
     ORDER BY mastery_points DESC
-  `).all(summonerName) as Array<Record<string, unknown>>).map(r => ({
+  `).all(playerId) as Array<Record<string, unknown>>).map(r => ({
+    playerId: r.player_id as string,
     summonerName: r.summoner_name as string,
     championId: r.champion_id as number,
     championName: r.champion_name as string,
@@ -86,33 +89,34 @@ export function getPlayerMastery(summonerName: string): MasteryRow[] {
 
 // ── Match history ─────────────────────────────────────────────────────────────
 
-export function savePlayerMatches(summonerName: string, matches: Omit<MatchRow, 'summonerName'>[]): void {
+export function savePlayerMatches(playerId: string, summonerName: string, matches: Omit<MatchRow, 'playerId' | 'summonerName'>[]): void {
   const stmt = db.prepare(`
     INSERT OR IGNORE INTO player_match_history
-      (summoner_name, match_id, champion_id, champion_name, position, kills, deaths, assists, win, played_at, queue_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (player_id, summoner_name, match_id, champion_id, champion_name, position, kills, deaths, assists, win, played_at, queue_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   db.transaction(() => {
     for (const m of matches) {
-      stmt.run(summonerName, m.matchId, m.championId, m.championName, m.position,
+      stmt.run(playerId, summonerName, m.matchId, m.championId, m.championName, m.position,
         m.kills, m.deaths, m.assists, m.win ? 1 : 0, m.playedAt, m.queueId)
     }
   })()
 }
 
-export function getStoredMatchIds(summonerName: string): Set<string> {
-  const rows = db.prepare('SELECT match_id FROM player_match_history WHERE summoner_name = ?').all(summonerName) as Array<{ match_id: string }>
+export function getStoredMatchIds(playerId: string): Set<string> {
+  const rows = db.prepare('SELECT match_id FROM player_match_history WHERE player_id = ?').all(playerId) as Array<{ match_id: string }>
   return new Set(rows.map(r => r.match_id))
 }
 
-export function getPlayerMatchHistory(summonerName: string, limit = 100): MatchRow[] {
+export function getPlayerMatchHistory(playerId: string, limit = 100): MatchRow[] {
   return (db.prepare(`
-    SELECT summoner_name, match_id, champion_id, champion_name, position, kills, deaths, assists, win, played_at, queue_id
+    SELECT player_id, summoner_name, match_id, champion_id, champion_name, position, kills, deaths, assists, win, played_at, queue_id
     FROM player_match_history
-    WHERE summoner_name = ?
+    WHERE player_id = ?
     ORDER BY played_at DESC
     LIMIT ?
-  `).all(summonerName, limit) as Array<Record<string, unknown>>).map(r => ({
+  `).all(playerId, limit) as Array<Record<string, unknown>>).map(r => ({
+    playerId: r.player_id as string,
     summonerName: r.summoner_name as string,
     matchId: r.match_id as string,
     championId: r.champion_id as number,
@@ -131,7 +135,7 @@ export function getPlayerMatchHistory(summonerName: string, limit = 100): MatchR
 
 // KDA medio y partidas jugadas por campeón, filtrado por cola y desde seasonStart.
 // Si minMatches > 0 y hay menos partidas en la ventana temporal, usa las últimas minMatches partidas.
-export function getChampionStats(summonerName: string, seasonStartMs: number, queueId = 420, minMatches = 0): ChampionStat[] {
+export function getChampionStats(playerId: string, seasonStartMs: number, queueId = 420, minMatches = 0): ChampionStat[] {
   const rows = db.prepare(`
     SELECT
       champion_name,
@@ -141,12 +145,12 @@ export function getChampionStats(summonerName: string, seasonStartMs: number, qu
       SUM(deaths)     AS deaths,
       SUM(assists)    AS assists
     FROM player_match_history
-    WHERE summoner_name = ?
+    WHERE player_id = ?
       AND queue_id = ?
       AND played_at >= ?
     GROUP BY champion_name
     ORDER BY games DESC
-  `).all(summonerName, queueId, seasonStartMs) as Array<Record<string, number | string>>
+  `).all(playerId, queueId, seasonStartMs) as Array<Record<string, number | string>>
 
   const totalGames = rows.reduce((sum, r) => sum + (r.games as number), 0)
 
@@ -163,14 +167,14 @@ export function getChampionStats(summonerName: string, seasonStartMs: number, qu
       FROM (
         SELECT champion_name, win, kills, deaths, assists
         FROM player_match_history
-        WHERE summoner_name = ?
+        WHERE player_id = ?
           AND queue_id = ?
         ORDER BY played_at DESC
         LIMIT ?
       )
       GROUP BY champion_name
       ORDER BY games DESC
-    `).all(summonerName, queueId, minMatches) as Array<Record<string, number | string>>
+    `).all(playerId, queueId, minMatches) as Array<Record<string, number | string>>
 
     return mapChampionRows(fallbackRows)
   }
@@ -200,20 +204,20 @@ function mapChampionRows(rows: Array<Record<string, number | string>>): Champion
 }
 
 // Top 5 campeones más jugados en las últimas N partidas almacenadas
-export function getTopRecentChampions(summonerName: string, lastN = 20, top = 5): RecentChampion[] {
+export function getTopRecentChampions(playerId: string, lastN = 20, top = 5): RecentChampion[] {
   return (db.prepare(`
     SELECT champion_name, COUNT(*) AS games, SUM(win) AS wins
     FROM (
       SELECT champion_name, win
       FROM player_match_history
-      WHERE summoner_name = ?
+      WHERE player_id = ?
       ORDER BY played_at DESC
       LIMIT ?
     )
     GROUP BY champion_name
     ORDER BY games DESC
     LIMIT ?
-  `).all(summonerName, lastN, top) as Array<Record<string, unknown>>).map(r => ({
+  `).all(playerId, lastN, top) as Array<Record<string, unknown>>).map(r => ({
     championName: r.champion_name as string,
     games: r.games as number,
     wins: r.wins as number,

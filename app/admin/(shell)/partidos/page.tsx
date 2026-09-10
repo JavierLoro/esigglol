@@ -116,7 +116,10 @@ export default function AdminPartidos() {
       await adminRequest(fetch('/api/admin/partidos', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: [...selected] }),
+        body: JSON.stringify({
+          ids: [...selected],
+          versions: Object.fromEntries(matches.filter(match => selected.has(match.id)).map(match => [match.id, match.version])),
+        }),
       }), isOk)
       setMatches(prev => prev.filter(m => !selected.has(m.id)))
       setSelected(new Set())

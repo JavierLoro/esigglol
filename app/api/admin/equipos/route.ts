@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTeams, saveTeams, generateId, getTeamReferences } from '@/lib/data'
+import { createTeam, deleteTeam, generateId, getTeamReferences, getTeams, StaleWriteError, updateTeam } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { TeamSchema, TeamUpdateSchema, DeleteIdSchema } from '@/lib/schemas'
 import type { Team } from '@/lib/types'
@@ -30,9 +30,7 @@ export async function POST(req: NextRequest) {
   const team: Team = { id: generateId('team'), ...parsed.data }
   const domainIssues = validateTeams([...teams, team])
   if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
-  teams.push(team)
-  try { saveTeams(teams) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
-  return NextResponse.json(team, { status: 201 })
+  try { return NextResponse.json(createTeam(team), { status: 201 }) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
 }
 
 export async function PUT(req: NextRequest) {
@@ -51,8 +49,10 @@ export async function PUT(req: NextRequest) {
   teams[idx] = parsed.data as Team
   const domainIssues = validateTeams(teams)
   if (domainIssues.length) return NextResponse.json({ error: issuesToMessage(domainIssues) }, { status: 422 })
-  try { saveTeams(teams) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
-  return NextResponse.json(parsed.data)
+  try { return NextResponse.json(updateTeam(parsed.data as Team)) } catch (err) {
+    if (err instanceof StaleWriteError) return NextResponse.json({ error: 'El equipo cambió en otra sesión. Recarga antes de guardar.' }, { status: 409 })
+    log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function DELETE(req: NextRequest) {
@@ -78,7 +78,8 @@ export async function DELETE(req: NextRequest) {
     }, { status: 409 })
   }
 
-  const remainingTeams = teams.filter(t => t.id !== parsed.data.id)
-  try { saveTeams(remainingTeams) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
+  try {
+    if (!deleteTeam(parsed.data.id, parsed.data.version)) return NextResponse.json({ error: 'El equipo cambió en otra sesión. Recarga antes de eliminar.' }, { status: 409 })
+  } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json({ ok: true })
 }

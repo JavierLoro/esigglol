@@ -121,7 +121,8 @@ export default function AdminFases() {
     if (!confirm(msg)) return
     setDeleting(id)
     try {
-      await adminRequest(fetch('/api/admin/fases', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }), isOk)
+      const phase = phases.find(candidate => candidate.id === id)
+      await adminRequest(fetch('/api/admin/fases', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, version: phase?.version }) }), isOk)
       setPhases(prev => prev.filter(p => p.id !== id)); setAllMatches(prev => prev.filter(m => m.phaseId !== id)); notify('Fase eliminada')
     } catch (error) { notify(errorMessage(error)) } finally { setDeleting(null) }
   }

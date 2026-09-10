@@ -1,6 +1,7 @@
 import type { Match, Phase, Team } from './types'
 import { getEffectiveBO } from './match-validation'
 import { getPhaseTeamIds } from './phase-validation'
+import { normalizeRiotId } from './player-identity'
 
 export type DomainIssue = { path: (string | number)[]; message: string }
 
@@ -12,6 +13,8 @@ export function validateTeams(teams: Team[]): DomainIssue[] {
   const issues: DomainIssue[] = []
   const ids = new Set<string>()
   const names = new Set<string>()
+  const playerIds = new Set<string>()
+  const summonerNames = new Set<string>()
 
   teams.forEach((team, index) => {
     if (ids.has(team.id)) issues.push({ path: [index, 'id'], message: 'El ID del equipo debe ser único' })
@@ -20,13 +23,11 @@ export function validateTeams(teams: Team[]): DomainIssue[] {
     if (names.has(normalizedName)) issues.push({ path: [index, 'name'], message: 'El nombre del equipo debe ser único' })
     names.add(normalizedName)
 
-    const playerIds = new Set<string>()
-    const summonerNames = new Set<string>()
     team.players.forEach((player, playerIndex) => {
-      if (playerIds.has(player.id)) issues.push({ path: [index, 'players', playerIndex, 'id'], message: 'El ID del jugador debe ser único dentro del equipo' })
+      if (playerIds.has(player.id)) issues.push({ path: [index, 'players', playerIndex, 'id'], message: 'El ID del jugador debe ser único entre equipos' })
       playerIds.add(player.id)
-      const summonerName = player.summonerName.trim().toLocaleLowerCase()
-      if (summonerNames.has(summonerName)) issues.push({ path: [index, 'players', playerIndex, 'summonerName'], message: 'El invocador no puede repetirse dentro del equipo' })
+      const summonerName = normalizeRiotId(player.summonerName)
+      if (summonerNames.has(summonerName)) issues.push({ path: [index, 'players', playerIndex, 'summonerName'], message: 'El Riot ID no puede repetirse entre equipos' })
       summonerNames.add(summonerName)
     })
   })

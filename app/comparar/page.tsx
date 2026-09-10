@@ -25,15 +25,15 @@ export default async function CompararPage({
   const cache = getPlayerStatsCache()
   const allPlayers = cache.players
 
-  const normalizeName = (name: string) => name.trim().replace(/\s*#\s*/g, '#').toLowerCase()
-  const playerMap = new Map(allPlayers.map(p => [normalizeName(p.summonerName), p]))
+  const playerMap = new Map(allPlayers.map(p => [p.playerId, p]))
 
   const allStats: Record<string, PlayerRow[]> = {}
   for (const team of teams) {
     allStats[team.id] = (team.players ?? []).map(p => {
-      const cached = playerMap.get(normalizeName(p.summonerName))
+      const cached = playerMap.get(p.id)
       if (cached) return { ...cached, primaryRole: p.primaryRole, secondaryRole: p.secondaryRole }
       return {
+        playerId: p.id,
         summonerName: p.summonerName,
         puuid: '',
         profileIconId: 0,
@@ -63,9 +63,9 @@ export default async function CompararPage({
   const seasonStartMs = currentTimestamp() - 30 * 24 * 60 * 60 * 1000
   for (const team of teams) {
     for (const player of team.players) {
-      const mastery = getPlayerMastery(player.summonerName)
-      const season = getChampionStats(player.summonerName, seasonStartMs, 420, 20)
-      const recent = getTopRecentChampions(player.summonerName, 20, 6)
+      const mastery = getPlayerMastery(player.id)
+      const season = getChampionStats(player.id, seasonStartMs, 420, 20)
+      const recent = getTopRecentChampions(player.id, 20, 6)
       if (mastery.length > 0 || season.length > 0 || recent.length > 0) {
         champData[player.summonerName] = { mastery, season, recent, iconBaseUrl }
       }

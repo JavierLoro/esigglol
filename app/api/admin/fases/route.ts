@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPhases, savePhases, generateId, getMatches, saveMatches } from '@/lib/data'
+import { createPhase, deletePhase, generateId, getMatches, getPhases, StaleWriteError, updatePhase } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
 import { PhaseSchema, PhaseUpdateSchema, DeleteIdSchema } from '@/lib/schemas'
 import type { Phase } from '@/lib/types'
@@ -25,11 +25,8 @@ export async function POST(req: NextRequest) {
   const parsed = PhaseSchema.safeParse(raw)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
-  const phases = getPhases()
   const phase: Phase = { id: generateId('phase'), ...parsed.data }
-  phases.push(phase)
-  try { savePhases(phases) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
-  return NextResponse.json(phase, { status: 201 })
+  try { return NextResponse.json(createPhase(phase), { status: 201 }) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
 }
 
 export async function PUT(req: NextRequest) {
@@ -62,8 +59,10 @@ export async function PUT(req: NextRequest) {
     if (confirmationError) return NextResponse.json({ error: confirmationError }, { status: 422 })
   }
   phases[idx] = parsed.data as Phase
-  try { savePhases(phases) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
-  return NextResponse.json(parsed.data)
+  try { return NextResponse.json(updatePhase(parsed.data as Phase)) } catch (err) {
+    if (err instanceof StaleWriteError) return NextResponse.json({ error: 'La fase cambió en otra sesión. Recarga antes de guardar.' }, { status: 409 })
+    log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function DELETE(req: NextRequest) {
@@ -76,12 +75,10 @@ export async function DELETE(req: NextRequest) {
   const parsed = DeleteIdSchema.safeParse(raw)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
-  const phases = getPhases().filter(p => p.id !== parsed.data.id)
-  try { savePhases(phases) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
-
-  // Cascade: borrar partidos de la fase eliminada
-  const remainingMatches = getMatches().filter(m => m.phaseId !== parsed.data.id)
-  try { saveMatches(remainingMatches) } catch (err) { log.error({ err }, 'DB write failed on match cascade') }
+  if (!getPhases().some(phase => phase.id === parsed.data.id)) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+  try {
+    if (!deletePhase(parsed.data.id, parsed.data.version)) return NextResponse.json({ error: 'La fase cambió en otra sesión. Recarga antes de eliminar.' }, { status: 409 })
+  } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
 
   return NextResponse.json({ ok: true })
 }

@@ -21,34 +21,32 @@ export default async function RankingPage() {
 
   const cache = getPlayerStatsCache()
   const teams = getTeams()
-  const teamLookup = new Map(teams.map(t => [t.id, { logo: t.logo, name: t.name }]))
-
-  const normalizeName = (name: string) => name.trim().replace(/\s*#\s*/g, '#').toLowerCase()
-
-  const roleLookup = new Map(
+  const playerLookup = new Map(
     teams.flatMap(t =>
-      (t.players ?? []).map(p => [normalizeName(p.summonerName), { primaryRole: p.primaryRole, secondaryRole: p.secondaryRole }])
+      (t.players ?? []).map(p => [p.id, { player: p, team: t }])
     )
   )
 
   const seenInCache = new Map<string, PlayerRow>()
   for (const r of cache.players) {
-    const key = normalizeName(r.summonerName)
-    if (!seenInCache.has(key)) seenInCache.set(key, r)
+    if (!seenInCache.has(r.playerId)) seenInCache.set(r.playerId, r)
   }
-  const cachedNames = new Set(seenInCache.keys())
+  const cachedPlayerIds = new Set(seenInCache.keys())
   const cachedRows = Array.from(seenInCache.values()).map(r => {
-    const t = teamLookup.get(r.teamId)
-    if (t) { r.teamLogo = t.logo ?? ''; r.teamName = t.name }
-    const roles = roleLookup.get(normalizeName(r.summonerName))
-    if (roles) { r.primaryRole = roles.primaryRole; r.secondaryRole = roles.secondaryRole }
+    const entry = playerLookup.get(r.playerId)
+    if (entry) {
+      r.summonerName = entry.player.summonerName
+      r.teamId = entry.team.id; r.teamLogo = entry.team.logo ?? ''; r.teamName = entry.team.name
+      r.primaryRole = entry.player.primaryRole; r.secondaryRole = entry.player.secondaryRole
+    }
     return r
   })
 
   const pendingRows: PlayerRow[] = teams.flatMap(team =>
     (team.players ?? [])
-      .filter(p => !cachedNames.has(normalizeName(p.summonerName)))
+      .filter(p => !cachedPlayerIds.has(p.id))
       .map(p => ({
+        playerId: p.id,
         summonerName: p.summonerName,
         puuid: '',
         profileIconId: 0,

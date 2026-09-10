@@ -44,7 +44,8 @@ export default function AdminEquipos() {
         })
         setExpanded(created.id)
       } else {
-        await adminRequest(fetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isTeam)
+        const saved = await adminRequest<Team>(fetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isTeam)
+        setTeams(prev => prev.map(candidate => candidate.id === team.id ? saved : candidate))
       }
       notify('Cambios guardados')
     } catch (error) {
@@ -76,7 +77,8 @@ export default function AdminEquipos() {
     if (!confirm('¿Eliminar este equipo?')) return
     setDeleting(id)
     try {
-      await adminRequest(fetch('/api/admin/equipos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }), isOk)
+      const team = teams.find(candidate => candidate.id === id)
+      await adminRequest(fetch('/api/admin/equipos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, version: team?.version }) }), isOk)
       setTeams(prev => prev.filter(t => t.id !== id)); notify('Equipo eliminado')
     } catch (error) { notify(errorMessage(error)) } finally { setDeleting(null) }
   }

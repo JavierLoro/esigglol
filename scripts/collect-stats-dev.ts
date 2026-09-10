@@ -12,6 +12,7 @@ import { readFileSync } from 'fs'
 import { join, resolve } from 'path'
 import Database from 'better-sqlite3'
 import { savePlayerMastery, savePlayerMatches, getStoredMatchIds } from '../lib/data-riot'
+import { normalizeRiotId } from '../lib/player-identity'
 
 // ── Env ───────────────────────────────────────────────────────────────────────
 
@@ -83,7 +84,7 @@ function buildChampionMap(): Map<number, string> {
 
 // ── Collect one player ────────────────────────────────────────────────────────
 
-async function collectPlayer(nameTag: string, championMap: Map<number, string>): Promise<void> {
+async function collectPlayer(playerId: string, nameTag: string, championMap: Map<number, string>): Promise<void> {
   const [name, tag] = nameTag.split('#')
   console.log(`\n[${nameTag}]`)
 
@@ -98,7 +99,7 @@ async function collectPlayer(nameTag: string, championMap: Map<number, string>):
     championId: number; championLevel: number; championPoints: number; lastPlayTime: number
   }>>(`${BASE}/lol/champion-mastery/v4/champion-masteries/by-puuid/${puuid}/top?count=50`)
 
-  savePlayerMastery(nameTag, masteries.map(m => ({
+  savePlayerMastery(playerId, nameTag, masteries.map(m => ({
     championId: m.championId,
     championName: championMap.get(m.championId) ?? `Champion_${m.championId}`,
     masteryLevel: m.championLevel,
@@ -114,7 +115,7 @@ async function collectPlayer(nameTag: string, championMap: Map<number, string>):
   )
 
   // 4. Deduplicar contra lo ya almacenado
-  const stored = getStoredMatchIds(nameTag)
+  const stored = getStoredMatchIds(playerId)
   const newIds = matchIds.filter(id => !stored.has(id))
   console.log(`  partidas: ${matchIds.length} en temporada, ${stored.size} ya almacenadas, ${newIds.length} nuevas`)
 
@@ -122,7 +123,7 @@ async function collectPlayer(nameTag: string, championMap: Map<number, string>):
 
   // 5. Fetch y almacenar cada partida nueva
   let fetched = 0
-  const toSave: Parameters<typeof savePlayerMatches>[1] = []
+  const toSave: Parameters<typeof savePlayerMatches>[2] = []
 
   for (const matchId of newIds) {
     const match = await riotGet<{
@@ -154,7 +155,7 @@ async function collectPlayer(nameTag: string, championMap: Map<number, string>):
     process.stdout.write(`\r  partidas nuevas: ${fetched}/${newIds.length} (req en ventana: ${limiter.used}/95)`)
   }
 
-  savePlayerMatches(nameTag, toSave)
+  savePlayerMatches(playerId, nameTag, toSave)
   console.log(`\n  guardadas ${toSave.length} partidas nuevas`)
 }
 
@@ -165,22 +166,25 @@ async function main(): Promise<void> {
 
   const singlePlayer = process.argv[2]
 
-  let players: string[]
+  const db = new Database(resolve(process.cwd(), 'esigglol.db'))
+  const teams = db.prepare('SELECT data FROM teams').all() as Array<{ data: string }>
+  const configuredPlayers = teams.flatMap(t => {
+    const team = JSON.parse(t.data) as { players: Array<{ id: string; summonerName: string }> }
+    return team.players
+  })
+  db.close()
+
+  let players: Array<{ id: string; summonerName: string }>
   if (singlePlayer) {
     if (!singlePlayer.includes('#')) {
       console.error('Formato incorrecto. Usa: "Nombre#TAG"')
       process.exit(1)
     }
-    players = [singlePlayer]
+    const player = configuredPlayers.find(candidate => normalizeRiotId(candidate.summonerName) === normalizeRiotId(singlePlayer))
+    if (!player) throw new Error('Jugador no encontrado en los equipos')
+    players = [player]
   } else {
-    // Leer todos los jugadores de la DB
-    const db = new Database(resolve(process.cwd(), 'esigglol.db'))
-    const teams = db.prepare('SELECT data FROM teams').all() as Array<{ data: string }>
-    players = teams.flatMap(t => {
-      const team = JSON.parse(t.data) as { players: Array<{ summonerName: string }> }
-      return team.players.map(p => p.summonerName)
-    })
-    db.close()
+    players = configuredPlayers
     console.log(`Jugadores encontrados en la DB: ${players.length}`)
   }
 
@@ -188,9 +192,9 @@ async function main(): Promise<void> {
   let ok = 0
   let failed = 0
 
-  for (const nameTag of players) {
+  for (const player of players) {
     try {
-      await collectPlayer(nameTag, championMap)
+      await collectPlayer(player.id, player.summonerName, championMap)
       ok++
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)

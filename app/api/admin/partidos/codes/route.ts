@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { GenerateCodesSchema } from '@/lib/schemas'
-import { getMatches, saveMatches, getPhaseById } from '@/lib/data'
+import { getMatches, updateMatches, getPhaseById } from '@/lib/data'
 import { getTournamentConfig, generateCodes, getCodeDetails, TournamentApiError } from '@/lib/tournament'
 import type { BOFormat } from '@/lib/types'
 import { randomUUID } from 'crypto'
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     match.tournamentCodes = codes
     match.tournamentCodesGeneratedAt = new Date().toISOString()
     match.tournamentCallbackToken = callbackToken
-    saveMatches(matches)
+    updateMatches([match])
     return NextResponse.json({ codes, regenerated })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error desconocido'

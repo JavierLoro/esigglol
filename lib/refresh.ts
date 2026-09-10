@@ -7,6 +7,7 @@ import { ensureProfileIcon } from '@/lib/ddragon'
 import { REFRESH_AUTO_INTERVAL_MS, REFRESH_BATCH_DELAY_MS, REFRESH_BATCH_SIZE } from '@/lib/env'
 import type { Player, Team, PlayerRow } from '@/lib/types'
 import logger from '@/lib/logger'
+import { normalizeRiotId } from '@/lib/player-identity'
 
 const log = logger.child({ module: 'refresh' })
 
@@ -14,8 +15,6 @@ const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 let isRunning = false
 let keyExpired = false
-
-const normalizeName = (name: string) => name.trim().replace(/\s*#\s*/g, '#').toLowerCase()
 
 export function getRefreshState() {
   const cache = getPlayerStatsCache()
@@ -38,19 +37,19 @@ function buildChampionMap(): Map<number, string> {
 }
 
 export function getRefreshTarget(summonerName: string): { player: Player; team: Team } | null {
-  const normalized = normalizeName(summonerName)
+  const normalized = normalizeRiotId(summonerName)
   if (!normalized) return null
 
   for (const team of getTeams()) {
-    const player = team.players.find(p => normalizeName(p.summonerName) === normalized)
+    const player = team.players.find(p => normalizeRiotId(p.summonerName) === normalized)
     if (player) return { player, team }
   }
   return null
 }
 
-async function collectChampionData(summonerName: string, puuid: string, championMap: Map<number, string>) {
+async function collectChampionData(playerId: string, summonerName: string, puuid: string, championMap: Map<number, string>) {
   const masteries = await getChampionMastery(puuid)
-  savePlayerMastery(summonerName, masteries.map(m => ({
+  savePlayerMastery(playerId, summonerName, masteries.map(m => ({
     championId: m.championId,
     championName: championMap.get(m.championId) ?? `Champion_${m.championId}`,
     masteryLevel: m.championLevel,
@@ -60,7 +59,7 @@ async function collectChampionData(summonerName: string, puuid: string, champion
   })))
 
   const matchIds = await getMatchIds(puuid, 100)
-  const stored = getStoredMatchIds(summonerName)
+  const stored = getStoredMatchIds(playerId)
   const newIds = matchIds.filter(id => !stored.has(id))
 
   if (newIds.length === 0) return
@@ -80,7 +79,7 @@ async function collectChampionData(summonerName: string, puuid: string, champion
       const participant = match.info.participants.find(p => p.puuid === puuid)
       if (!participant) continue
 
-      savePlayerMatches(summonerName, [{
+      savePlayerMatches(playerId, summonerName, [{
         matchId,
         championId: participant.championId,
         championName: participant.championName,
@@ -107,7 +106,7 @@ async function loadPlayerRow(player: Player, team: Team, championMap: Map<number
 
   if (stats.puuid) {
     try {
-      await collectChampionData(player.summonerName, stats.puuid, championMap)
+      await collectChampionData(player.id, player.summonerName, stats.puuid, championMap)
     } catch (err) {
       // Champion history is supplementary: a failure must not discard fresh rank stats.
       log.warn({ summonerName: player.summonerName, err }, 'Error collecting champion data')
@@ -116,6 +115,7 @@ async function loadPlayerRow(player: Player, team: Team, championMap: Map<number
 
   return {
     ...stats,
+    playerId: player.id,
     teamId: team.id,
     teamName: team.name,
     teamLogo: team.logo,
@@ -137,8 +137,7 @@ export async function runPlayerRefresh(summonerName: string): Promise<PlayerRow>
     const championMap = buildChampionMap()
     const previousCache = getPlayerStatsCache()
     const row = await loadPlayerRow(target.player, target.team, championMap)
-    const refreshedName = normalizeName(row.summonerName)
-    const kept = previousCache.players.filter(p => normalizeName(p.summonerName) !== refreshedName)
+    const kept = previousCache.players.filter(p => p.playerId !== row.playerId)
     savePlayerStatsCache({
       lastUpdated: new Date().toISOString(),
       players: [...kept, row],
@@ -186,13 +185,13 @@ export async function runRefresh(teamIds?: string[]) {
           }
           log.error({ summonerName: p.summonerName, err }, 'Error loading player stats from Riot API')
           const prev = previousCache.players.find(
-            cp => normalizeName(cp.summonerName) === normalizeName(p.summonerName)
+            cp => cp.playerId === p.id
           )
           if (prev) {
             rows.push({ ...prev, apiError: true })
           } else {
             rows.push({
-              summonerName: p.summonerName, puuid: '', profileIconId: 0,
+              playerId: p.id, summonerName: p.summonerName, puuid: '', profileIconId: 0,
               level: 0, tier: 'UNRANKED', rank: 'IV', lp: 0,
               wins: 0, losses: 0, winrate: 0,
               teamId: team.id, teamName: team.name, teamLogo: team.logo,
@@ -205,12 +204,12 @@ export async function runRefresh(teamIds?: string[]) {
 
       if (!aborted) {
         const dedupedMap = new Map<string, PlayerRow>()
-        for (const r of rows) dedupedMap.set(normalizeName(r.summonerName), r)
+        for (const r of rows) dedupedMap.set(r.playerId, r)
         const uniqueRows = Array.from(dedupedMap.values())
 
-        const refreshedNames = new Set(uniqueRows.map(r => normalizeName(r.summonerName)))
+        const refreshedPlayerIds = new Set(uniqueRows.map(r => r.playerId))
         const kept = previousCache.players.filter(
-          p => !refreshedNames.has(normalizeName(p.summonerName))
+          p => !refreshedPlayerIds.has(p.playerId)
         )
         savePlayerStatsCache({ lastUpdated: new Date().toISOString(), players: [...kept, ...uniqueRows] })
       }

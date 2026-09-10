@@ -11,6 +11,7 @@ export interface Player {
 
 export interface Team {
   id: string
+  version?: number
   name: string
   logo: string // ruta relativa a /public
   players: Player[]
@@ -45,6 +46,7 @@ export interface PhaseConfig {
 
 export interface Phase {
   id: string
+  version?: number
   name: string
   type: PhaseType
   status: PhaseStatus
@@ -82,6 +84,7 @@ export interface GameData {
 
 export interface Match {
   id: string
+  version?: number
   phaseId: string
   round: number
   /** Zero-based position within this bracket round. */
@@ -166,6 +169,7 @@ export interface PlayerStats {
 }
 
 export interface PlayerRow extends PlayerStats {
+  playerId: string
   teamId: string
   teamName: string
   teamLogo: string

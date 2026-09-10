@@ -14,8 +14,20 @@ const match = (overrides: Partial<Match> = {}): Match => ({
 describe('validación de invariantes de dominio', () => {
   it('rechaza equipos con nombres o jugadores repetidos', () => {
     const duplicate: Team = { ...teams[0], id: 'team-3', players: [{ ...teams[0].players[0] }] }
-    expect(validateTeams([...teams, { ...duplicate, name: ' alpha ' }])).toHaveLength(1)
+    expect(validateTeams([...teams, { ...duplicate, name: ' alpha ' }])).toEqual(
+      expect.arrayContaining([expect.objectContaining({ message: 'El nombre del equipo debe ser único' })]),
+    )
     expect(validateTeams([{ ...teams[0], players: [teams[0].players[0], { ...teams[0].players[0], id: 'p-3' }] }])).toHaveLength(1)
+  })
+
+  it('rechaza Riot IDs normalizados repetidos entre equipos', () => {
+    const duplicateAcrossTeams: Team = {
+      ...teams[1],
+      players: [{ ...teams[1].players[0], summonerName: ' one # euw ' }],
+    }
+    expect(validateTeams([teams[0], duplicateAcrossTeams])).toEqual([
+      expect.objectContaining({ message: 'El Riot ID no puede repetirse entre equipos' }),
+    ])
   })
 
   it('requiere fase y equipos existentes y rechaza TBD manual', () => {

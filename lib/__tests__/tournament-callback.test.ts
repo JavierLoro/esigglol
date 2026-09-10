@@ -8,12 +8,12 @@ const state = vi.hoisted(() => ({
     riotMatchIds: string[]
   }>,
 }))
-const saveMatches = vi.hoisted(() => vi.fn())
+const updateMatches = vi.hoisted(() => vi.fn())
 const publishRiotResult = vi.hoisted(() => vi.fn())
 
 vi.mock('../data', () => ({
   getMatches: () => state.matches,
-  saveMatches,
+  updateMatches,
 }))
 vi.mock('../riot-events', () => ({ publishRiotResult }))
 
@@ -29,7 +29,7 @@ function callbackRequest(metadata: string, gameId = 123): Request {
 
 describe('Riot Tournament callback', () => {
   beforeEach(() => {
-    saveMatches.mockReset()
+    updateMatches.mockReset()
     publishRiotResult.mockReset()
     state.matches = [{
       id: 'match-1',
@@ -47,7 +47,7 @@ describe('Riot Tournament callback', () => {
 
     expect(response.status).toBe(200)
     expect(state.matches[0].riotMatchIds).toEqual(['123'])
-    expect(saveMatches).toHaveBeenCalledOnce()
+    expect(updateMatches).toHaveBeenCalledOnce()
     expect(publishRiotResult).toHaveBeenCalledOnce()
   })
 
@@ -59,7 +59,7 @@ describe('Riot Tournament callback', () => {
 
     expect(response.status).toBe(200)
     expect(state.matches[0].riotMatchIds).toEqual([])
-    expect(saveMatches).not.toHaveBeenCalled()
+    expect(updateMatches).not.toHaveBeenCalled()
   })
 
   it('is idempotent for repeated game IDs', async () => {
@@ -71,6 +71,6 @@ describe('Riot Tournament callback', () => {
 
     expect(response.status).toBe(200)
     expect(state.matches[0].riotMatchIds).toEqual(['123'])
-    expect(saveMatches).not.toHaveBeenCalled()
+    expect(updateMatches).not.toHaveBeenCalled()
   })
 })

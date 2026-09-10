@@ -29,6 +29,8 @@ describe('SQLite migrations', () => {
     })
     expect(db.prepare('SELECT version, name FROM schema_migrations').all()).toEqual([
       { version: 1, name: 'initial-schema' },
+      { version: 2, name: 'stable-player-identity' },
+      { version: 3, name: 'entity-versions' },
     ])
     expect(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'matches'").get()).toEqual({
       name: 'matches',
@@ -75,10 +77,10 @@ describe('SQLite migrations', () => {
     const futureMigrations: Migration[] = [
       ...migrations,
       {
-        version: 2,
+        version: 4,
         name: 'add-migration-test-table',
         up(database) {
-          applied.push(2)
+          applied.push(3)
           database.exec('CREATE TABLE migration_test (id INTEGER PRIMARY KEY)')
         },
       },
@@ -87,11 +89,36 @@ describe('SQLite migrations', () => {
     runMigrations(db, futureMigrations)
     runMigrations(db, futureMigrations)
 
-    expect(applied).toEqual([2])
+    expect(applied).toEqual([3])
     expect(db.prepare('SELECT version, name FROM schema_migrations').all()).toEqual([
       { version: 1, name: 'initial-schema' },
-      { version: 2, name: 'add-migration-test-table' },
+      { version: 2, name: 'stable-player-identity' },
+      { version: 3, name: 'entity-versions' },
+      { version: 4, name: 'add-migration-test-table' },
     ])
+  })
+
+  it('migrates mastery, history and ranking cache to the stable player id', () => {
+    const db = openDatabase()
+    runMigrations(db, [migrations[0]])
+    db.prepare('INSERT INTO teams (id, data) VALUES (?, ?)').run('team-1', JSON.stringify({
+      id: 'team-1', name: 'Alpha', logo: '',
+      players: [{ id: 'player-1', summonerName: ' Player # EUW ', primaryRole: 'Mid' }],
+    }))
+    db.prepare('INSERT INTO player_champion_mastery VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run('player#euw', 1, 'Annie', 7, 100, 1, '2026-01-01')
+    db.prepare('INSERT INTO player_match_history VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run('PLAYER#EUW', 'EUW1_1', 1, 'Annie', 'MID', 1, 2, 3, 1, 1, 420)
+    db.prepare("INSERT INTO player_stats (key, data) VALUES ('cache', ?)").run(JSON.stringify({
+      lastUpdated: null, players: [{ summonerName: 'player#euw' }],
+    }))
+
+    runMigrations(db)
+
+    expect(db.prepare('SELECT player_id FROM player_champion_mastery').get()).toEqual({ player_id: 'player-1' })
+    expect(db.prepare('SELECT player_id FROM player_match_history').get()).toEqual({ player_id: 'player-1' })
+    const cache = JSON.parse((db.prepare("SELECT data FROM player_stats WHERE key = 'cache'").get() as { data: string }).data)
+    expect(cache.players[0].playerId).toBe('player-1')
   })
 })
 
