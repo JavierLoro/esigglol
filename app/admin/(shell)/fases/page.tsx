@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import type { Phase, PhaseType, PhaseStatus, BOFormat, Team, Match } from '@/lib/types'
 import { validatePhaseParticipants } from '@/lib/phase-validation'
-import { Plus, Trash2, Save, GripVertical, Zap, Check, Copy } from 'lucide-react'
+import { Plus, Trash2, Save, GripVertical, Zap, Check, Copy, ChevronDown, ChevronRight } from 'lucide-react'
 import { bracketSizeError, isPowerOfTwoAtLeastFour } from '@/lib/bracket-sizes'
 import {
   adminRequest,
@@ -25,6 +25,12 @@ const PHASE_TYPES: { value: PhaseType; label: string }[] = [
 
 const BO_OPTIONS: BOFormat[] = [1, 2, 3, 5]
 
+const PHASE_STATUS_LABELS: Record<PhaseStatus, string> = {
+  upcoming: 'Próximamente',
+  active: 'En curso',
+  completed: 'Finalizado',
+}
+
 function isBracketComplete(phase: Phase, matches: Match[]): boolean {
   const pm = matches.filter(m => m.phaseId === phase.id)
   if (pm.length === 0) return false
@@ -42,6 +48,7 @@ export default function AdminFases() {
   const [phases, setPhases] = useState<Phase[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [allMatches, setAllMatches] = useState<Match[]>([])
+  const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [generating, setGenerating] = useState<string | null>(null)
@@ -82,14 +89,28 @@ export default function AdminFases() {
   }
 
   function addPhase() {
+    const id = `draft-${crypto.randomUUID()}`
     setPhases(prev => [...prev, {
-      id: `draft-${crypto.randomUUID()}`,
+      id,
       name: 'Nueva fase',
       type: 'elimination',
       status: 'upcoming',
       order: prev.length + 1,
       config: { bo: 1 },
     }])
+    setCollapsedPhases(prev => { const next = new Set(prev); next.delete(id); return next })
+  }
+
+  function togglePhaseCollapse(phaseId: string) {
+    setCollapsedPhases(prev => {
+      const next = new Set(prev)
+      if (next.has(phaseId)) next.delete(phaseId); else next.add(phaseId)
+      return next
+    })
+  }
+
+  function setAllPhasesCollapsed(collapsed: boolean) {
+    setCollapsedPhases(collapsed ? new Set(phases.map(phase => phase.id)) : new Set())
   }
 
   async function savePhase(phase: Phase) {
@@ -172,12 +193,23 @@ export default function AdminFases() {
     } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
   }
 
+  const allPhasesCollapsed = phases.length > 0 && phases.every(phase => collapsedPhases.has(phase.id))
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Fases</h1>
         <div className="flex items-center gap-3">
           {(msg || loadError) && <span className={(loadError || msg.startsWith('Error') || msg.startsWith('Sesión')) ? 'text-red-400 text-sm' : 'text-green-400 text-sm'}>{loadError || msg}</span>}
+          {phases.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setAllPhasesCollapsed(!allPhasesCollapsed)}
+              className="text-xs text-white/40 hover:text-white/70 transition-colors"
+            >
+              {allPhasesCollapsed ? 'Desplegar fases' : 'Plegar fases'}
+            </button>
+          )}
           <button onClick={addPhase} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors">
             <Plus size={15} /> Añadir fase
           </button>
@@ -189,24 +221,57 @@ export default function AdminFases() {
       {phases.map((phase, i) => {
         const maxRounds = (phase.config.advanceWins ?? 2) + (phase.config.eliminateLosses ?? 2) - 1
         const participantErrors = validatePhaseParticipants(phase.type, phase.config)
-        const structureLocked = allMatches.some(match => match.phaseId === phase.id)
+        const phaseMatches = allMatches.filter(match => match.phaseId === phase.id)
+        const structureLocked = phaseMatches.length > 0
+        const completedMatches = phaseMatches.filter(match => match.result !== null).length
+        const isCollapsed = collapsedPhases.has(phase.id)
+        const phaseTypeLabel = PHASE_TYPES.find(type => type.value === phase.type)?.label ?? phase.type
 
         return (
           <div key={phase.id} className="rounded-xl border border-white/10 bg-[#0d1321] p-4 flex flex-col gap-4">
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                id={`phase-toggle-${phase.id}`}
+                aria-expanded={!isCollapsed}
+                aria-controls={`phase-config-${phase.id}`}
+                aria-label={`${isCollapsed ? 'Desplegar' : 'Plegar'} fase ${phase.name}`}
+                onClick={() => togglePhaseCollapse(phase.id)}
+                className="shrink-0 text-white/30 hover:text-white/70 transition-colors"
+              >
+                {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+              </button>
               <GripVertical size={16} className="text-white/20" />
               <span className="text-xs text-white/30 w-6 text-center">{i + 1}</span>
-              <input
-                aria-label={`Nombre de la fase ${i + 1}: ${phase.name}`}
-                value={phase.name}
-                onChange={e => update(phase.id, { name: e.target.value })}
-                className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-medium text-white focus:outline-none focus:border-[#0097D7]/50"
-              />
+              {isCollapsed ? (
+                <>
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">{phase.name}</span>
+                  <span className="hidden sm:inline text-xs text-white/40">{phaseTypeLabel}</span>
+                  <span className="rounded-full bg-white/5 px-2 py-1 text-[11px] text-white/50">{PHASE_STATUS_LABELS[phase.status]}</span>
+                  <span className="hidden md:inline text-[11px] text-white/30">
+                    {phaseMatches.length > 0 ? `${completedMatches}/${phaseMatches.length} partidos` : 'Sin partidos'}
+                  </span>
+                </>
+              ) : (
+                <input
+                  aria-label={`Nombre de la fase ${i + 1}: ${phase.name}`}
+                  value={phase.name}
+                  onChange={e => update(phase.id, { name: e.target.value })}
+                  className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-medium text-white focus:outline-none focus:border-[#0097D7]/50"
+                />
+              )}
               <button aria-label={`Eliminar fase ${phase.name}`} onClick={() => deletePhase(phase.id)} disabled={deleting === phase.id || saving === phase.id} className="text-white/20 hover:text-red-400 transition-colors ml-auto disabled:opacity-50">
                 <Trash2 size={15} />
               </button>
             </div>
 
+            {!isCollapsed && (
+            <div
+              id={`phase-config-${phase.id}`}
+              role="region"
+              aria-labelledby={`phase-toggle-${phase.id}`}
+              className="flex flex-col gap-4"
+            >
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <label className="text-xs text-white/40 mb-1 block">Tipo</label>
@@ -674,6 +739,8 @@ export default function AdminFases() {
                 {saving === phase.id ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
+            </div>
+            )}
           </div>
         )
       })}
