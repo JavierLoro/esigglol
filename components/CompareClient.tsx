@@ -7,7 +7,6 @@ import type { PlayerRow } from '@/lib/types'
 import type { PlayerChampionData } from '@/components/ChampionBubbles'
 import { clsx } from 'clsx'
 import RefreshStatsButton from '@/components/RefreshStatsButton'
-import { isTeamSelectionAllowed } from '@/lib/compare'
 
 interface Props {
   teams: Team[]
@@ -370,12 +369,12 @@ export default function CompareClient({ teams, allStats, matches, lastUpdated, c
                 value={id}
                 onChange={e => {
                   const nextId = e.target.value
-                  if (isTeamSelectionAllowed(nextId, otherId)) set(nextId)
+                  if (nextId !== otherId) set(nextId)
                 }}
                 className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-[#0097D7]/50"
               >
                 {teams.map(t => (
-                  <option key={t.id} value={t.id} disabled={!isTeamSelectionAllowed(t.id, otherId)}>{t.name}</option>
+                  <option key={t.id} value={t.id} disabled={t.id === otherId}>{t.name}</option>
                 ))}
               </select>
             </div>

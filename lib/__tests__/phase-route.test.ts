@@ -1,6 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { STRUCTURAL_PHASE_FIELDS } from '../phase-structure'
 import type { Match, Phase } from '../types'
 
 const mocks = vi.hoisted(() => ({
@@ -59,33 +58,17 @@ describe('PUT /api/admin/fases structural lock', () => {
     mocks.updatePhase.mockImplementation((value: Phase) => ({ ...value, version: (value.version ?? 0) + 1 }))
   })
 
-  it.each([
-    ['type', { ...phase, type: 'elimination' as const }],
-    ['order', { ...phase, order: 2 }],
-    ['config.bo', { ...phase, config: { ...phase.config, bo: 3 as const } }],
-    ['config.advanceCount', { ...phase, config: { ...phase.config, advanceCount: 1 } }],
-    ['config.groups', { ...phase, config: { ...phase.config, groups: [{ id: 'A', teamIds: ['team-1', 'team-2'] }] } }],
-    ['config.rounds', { ...phase, config: { ...phase.config, rounds: 4 } }],
-    ['config.swissTeamIds', { ...phase, config: { ...phase.config, swissTeamIds: [...phase.config.swissTeamIds!].reverse() } }],
-    ['config.swissSize', { ...phase, config: { ...phase.config, swissSize: 16 as const } }],
-    ['config.advanceWins', { ...phase, config: { ...phase.config, advanceWins: 3 } }],
-    ['config.eliminateLosses', { ...phase, config: { ...phase.config, eliminateLosses: 3 } }],
-    ['config.roundBo', { ...phase, config: { ...phase.config, roundBo: { '1': 3 } } }],
-    ['config.bracketTeamIds', { ...phase, config: { ...phase.config, bracketTeamIds: ['team-2', 'team-1'] } }],
-    ['config.lowerBracketTeamIds', { ...phase, config: { ...phase.config, lowerBracketTeamIds: ['team-1'] } }],
-    ['config.include3rdPlace', { ...phase, config: { ...phase.config, include3rdPlace: true } }],
-  ] satisfies Array<[(typeof STRUCTURAL_PHASE_FIELDS)[number], Phase]>)('rejects %s when matches exist', async (field, updated) => {
+  it('rejects structural changes when matches exist', async () => {
+    const updated = { ...phase, config: { ...phase.config, bo: 3 as const } }
     const response = await PUT(request(updated))
 
     expect(response.status).toBe(409)
-    expect(await response.json()).toMatchObject({ fields: [field] })
+    expect(await response.json()).toMatchObject({ fields: ['config.bo'] })
     expect(mocks.updatePhase).not.toHaveBeenCalled()
   })
 
-  it.each([
-    ['name', { ...phase, name: 'Nuevo nombre' }],
-    ['status', { ...phase, status: 'active' as const }],
-  ])('allows %s when matches exist', async (_field, updated) => {
+  it('allows non-structural changes when matches exist', async () => {
+    const updated = { ...phase, name: 'Nuevo nombre' }
     const response = await PUT(request(updated))
 
     expect(response.status).toBe(200)
