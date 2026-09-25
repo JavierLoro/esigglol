@@ -1,3 +1,4 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextRequest, NextResponse } from 'next/server'
 import { commitTournamentChanges, createMatches, generateId, getMatches, getPhaseById, getTeams, getPhases, StaleWriteError } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
@@ -13,13 +14,14 @@ import { derivePhaseStatus } from '@/lib/phase-status'
 
 const log = logger.child({ module: 'partidos' })
 
-export async function GET() {
+async function handleGET(_request?: Request) {
+  void _request
   const deny = await requireAdminSession()
   if (deny) return deny
   return NextResponse.json(getMatches())
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const deny = await requireAdminSession()
   if (deny) return deny
 
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
   try { return NextResponse.json(createMatches(newMatches), { status: 201 }) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
 }
 
-export async function PUT(req: NextRequest) {
+async function handlePUT(req: NextRequest) {
   const deny = await requireAdminSession()
   if (deny) return deny
 
@@ -97,7 +99,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+async function handleDELETE(req: NextRequest) {
   const deny = await requireAdminSession()
   if (deny) return deny
 
@@ -142,3 +144,11 @@ export async function DELETE(req: NextRequest) {
     log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }
+
+export const GET = competitionRoute(handleGET, 'admin')
+
+export const POST = competitionRoute(handlePOST, 'admin')
+
+export const PUT = competitionRoute(handlePUT, 'admin')
+
+export const DELETE = competitionRoute(handleDELETE, 'admin')

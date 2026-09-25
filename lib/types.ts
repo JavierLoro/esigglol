@@ -1,15 +1,35 @@
+export type Game = 'lol' | 'valorant'
+export interface Tournament {
+  id: string
+  name: string
+  slug: string
+  game: Game
+  platform: 'pc'
+  region: 'eu'
+  status: 'draft' | 'published' | 'archived'
+}
+export type ValorantRole = 'Duelista' | 'Iniciador' | 'Controlador' | 'Centinela' | 'Flexible'
+export type CompetitiveDetails =
+  | { game: 'lol'; games?: (GameData | null)[] }
+  | { game: 'valorant'; maps?: ValorantMapResult[] }
+export interface ValorantMapResult { map?: string; team1Rounds: number; team2Rounds: number }
+
 // ── Equipos y jugadores ──────────────────────────────────────────────────────
 
-export type Role = 'Top' | 'Jungle' | 'Mid' | 'Bot' | 'Support' | 'Fill' | 'Suplente'
+export type Role = ValorantRole | 'Top' | 'Jungle' | 'Mid' | 'Bot' | 'Support' | 'Fill' | 'Suplente'
 
 export interface Player {
   id: string
   summonerName: string // "Nick#TAG"
   primaryRole: Role
+  rosterStatus?: 'starter' | 'substitute'
   secondaryRole?: Exclude<Role, 'Suplente'>
 }
 
 export interface Team {
+  tournamentId?: string
+  game?: Game
+  tournamentName?: string
   id: string
   version?: number
   name: string
@@ -68,6 +88,9 @@ export interface PhaseConfig {
 }
 
 export interface Phase {
+  tournamentId?: string
+  game?: Game
+  tournamentName?: string
   id: string
   version?: number
   name: string
@@ -106,6 +129,10 @@ export interface GameData {
 }
 
 export interface Match {
+  maps?: ValorantMapResult[]
+  tournamentId?: string
+  game?: Game
+  tournamentName?: string
   id: string
   version?: number
   phaseId: string

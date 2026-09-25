@@ -1,3 +1,4 @@
+import { currentTournamentId } from './competition-context'
 import { RIOT_REGION, TOURNAMENT_API_MODE } from './env'
 import db from './db'
 import type { TournamentConfig, LobbyEvent, TournamentCodeDetails } from './types'
@@ -155,17 +156,17 @@ export async function getLobbyEvents(code: string): Promise<LobbyEvent[]> {
 // ── Config persistence ──────────────────────────────────────────────────────
 
 export function getTournamentConfig(): TournamentConfig | null {
-  const row = db.prepare('SELECT data FROM tournament_config WHERE key = ?').get('config') as { data: string } | undefined
+  const row = db.prepare('SELECT data FROM tournament_config WHERE key = ?').get(`${currentTournamentId()}:config`) as { data: string } | undefined
   return row ? JSON.parse(row.data) as TournamentConfig : null
 }
 
 export function saveTournamentConfig(config: TournamentConfig): void {
   db.prepare(
     'INSERT OR REPLACE INTO tournament_config (key, data) VALUES (?, ?)'
-  ).run('config', JSON.stringify(config))
+  ).run(`${currentTournamentId()}:config`, JSON.stringify(config))
 }
 
 /** Remove the registered Riot tournament while keeping other settings (such as the API key). */
 export function deleteTournamentConfig(): void {
-  db.prepare('DELETE FROM tournament_config WHERE key = ?').run('config')
+  db.prepare('DELETE FROM tournament_config WHERE key = ?').run(`${currentTournamentId()}:config`)
 }

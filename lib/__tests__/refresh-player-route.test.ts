@@ -37,7 +37,7 @@ describe('POST /api/riot/refresh-stats/player', () => {
 
   it('rechaza la petición sin sesión admin', async () => {
     mocks.requireAdminSession.mockResolvedValue(Response.json({ error: 'No autorizado' }, { status: 401 }))
-    const response = await POST(new Request('http://localhost/api/riot/refresh-stats/player', {
+    const response = await POST(new Request('http://localhost/api/riot/refresh-stats/player?tournament=legacy-lol', {
       method: 'POST', body: JSON.stringify({ summonerName: 'Player#EUW' }),
     }))
     expect(response.status).toBe(401)
@@ -45,13 +45,13 @@ describe('POST /api/riot/refresh-stats/player', () => {
   })
 
   it('valida el jugador y evita competir con otro refresh', async () => {
-    const invalid = await POST(new Request('http://localhost/api/riot/refresh-stats/player', {
+    const invalid = await POST(new Request('http://localhost/api/riot/refresh-stats/player?tournament=legacy-lol', {
       method: 'POST', body: '{}',
     }))
     expect(invalid.status).toBe(400)
 
     mocks.getRefreshState.mockReturnValue({ running: true, keyExpired: false, lastUpdated: null })
-    const running = await POST(new Request('http://localhost/api/riot/refresh-stats/player', {
+    const running = await POST(new Request('http://localhost/api/riot/refresh-stats/player?tournament=legacy-lol', {
       method: 'POST', body: JSON.stringify({ summonerName: 'Player#EUW' }),
     }))
     expect(running.status).toBe(409)
@@ -61,7 +61,7 @@ describe('POST /api/riot/refresh-stats/player', () => {
   it('programa el refresh en background después de validar la sesión', async () => {
     let callback: (() => Promise<void>) | undefined
     mocks.after.mockImplementation((fn: () => Promise<void>) => { callback = fn })
-    const response = await POST(new Request('http://localhost/api/riot/refresh-stats/player', {
+    const response = await POST(new Request('http://localhost/api/riot/refresh-stats/player?tournament=legacy-lol', {
       method: 'POST', body: JSON.stringify({ summonerName: 'Player#EUW' }),
     }))
 

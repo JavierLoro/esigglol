@@ -1,3 +1,5 @@
+import { getTournaments } from '@/lib/competitions'
+import { inTournament, LEGACY_TOURNAMENT_ID } from '@/lib/competition-context'
 import { NextRequest, NextResponse } from 'next/server'
 import { getMatches, updateMatches } from '@/lib/data'
 import { publishRiotResult } from '@/lib/riot-events'
@@ -25,7 +27,8 @@ export async function POST(req: NextRequest) {
   // In stub mode this never fires, but the structure is ready for production
   const events = Array.isArray(body) ? body : [body]
 
-  const matches = getMatches()
+  const tournaments = getTournaments(true).filter(t => t.game === 'lol' && t.status !== 'archived')
+  const matches = tournaments.flatMap(t => inTournament(t.id, getMatches))
   const notifications: { matchId: string; gameId: string; shortCode: string }[] = []
 
   for (const event of events) {
@@ -49,7 +52,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (notifications.length > 0) {
-    updateMatches(matches.filter(match => notifications.some(notification => notification.matchId === match.id)))
+    for (const tournament of tournaments) inTournament(tournament.id, () => updateMatches(matches.filter(match => (match.tournamentId ?? LEGACY_TOURNAMENT_ID) === tournament.id && notifications.some(notification => notification.matchId === match.id))))
     const receivedAt = new Date().toISOString()
     for (const notification of notifications) publishRiotResult({ ...notification, receivedAt })
   }

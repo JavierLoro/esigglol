@@ -3,13 +3,14 @@ import { validatePhaseParticipants } from './phase-validation'
 import { isValidRiotMatchId, normalizeRiotMatchId, RIOT_MATCH_ID_ERROR } from './riot-match-id'
 import { normalizeRiotId } from './player-identity'
 
-export const RoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente'])
-export const SecondaryRoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill'])
+export const RoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Duelista', 'Iniciador', 'Controlador', 'Centinela', 'Flexible', 'Suplente'])
+export const SecondaryRoleSchema = z.enum(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Duelista', 'Iniciador', 'Controlador', 'Centinela', 'Flexible'])
 
 const PlayerSchema = z.object({
   id: z.string().trim().min(1),
   summonerName: z.string().trim().min(1),
-  primaryRole: RoleSchema,
+  primaryRole: RoleSchema.default('Flexible'),
+  rosterStatus: z.enum(['starter', 'substitute']).optional(),
   secondaryRole: SecondaryRoleSchema.optional(),
 })
 
@@ -41,7 +42,8 @@ export const TeamLoginSchema = z.object({
 
 export const TeamRolesSchema = z.object({
   version: z.number().int().positive(),
-  primaryRole: RoleSchema,
+  primaryRole: RoleSchema.default('Flexible'),
+  rosterStatus: z.enum(['starter', 'substitute']).optional(),
   secondaryRole: SecondaryRoleSchema.optional(),
 })
 
@@ -52,7 +54,8 @@ export const SummonerNameRequestSchema = z.object({
 
 export const NewPlayerRequestSchema = z.object({
   summonerName: z.string().trim().min(3).max(100).refine(value => value.includes('#'), 'Incluye el tag, por ejemplo Nick#EUW'),
-  primaryRole: RoleSchema,
+  primaryRole: RoleSchema.default('Flexible'),
+  rosterStatus: z.enum(['starter', 'substitute']).optional(),
   secondaryRole: SecondaryRoleSchema.optional(),
 })
 
@@ -135,6 +138,7 @@ export const GameDataSchema = z.object({
 })
 
 export const MatchSchema = z.object({
+  maps: z.array(z.object({ map: z.string().trim().max(80).optional(), team1Rounds: z.number().int().nonnegative(), team2Rounds: z.number().int().nonnegative() })).optional(),
   phaseId: z.string().min(1),
   round: z.number().int(),
   bracketPosition: z.number().int().nonnegative().optional(),
@@ -179,6 +183,7 @@ export const MatchUpdateSchema = MatchSchema.extend({
 export const MatchBulkSchema = z.union([MatchSchema, z.array(MatchSchema)])
 
 export const GenerateSchema = z.object({
+  maps: z.array(z.object({ map: z.string().trim().max(80).optional(), team1Rounds: z.number().int().nonnegative(), team2Rounds: z.number().int().nonnegative() })).optional(),
   phaseId: z.string().min(1),
   round: z.number().int().positive().optional(),
 }).strict()

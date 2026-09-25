@@ -1,21 +1,24 @@
 'use client'
+import { scopedFetch } from '@/lib/scoped-fetch'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Check, Clock3, UserPlus, UserRoundPen, X } from 'lucide-react'
 import type { Team, TeamChangeRequest } from '@/lib/types'
+import { useAdminTournament } from '@/components/admin/AdminTournamentContext'
 
 export default function AdminRequestsPage() {
+  const archived = useAdminTournament()?.status === 'archived'
   const [requests, setRequests] = useState<TeamChangeRequest[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState('')
   async function load() {
-    const [requestsResponse, teamsResponse] = await Promise.all([fetch('/api/admin/solicitudes', { cache: 'no-store' }), fetch('/api/admin/equipos', { cache: 'no-store' })])
+    const [requestsResponse, teamsResponse] = await Promise.all([scopedFetch('/api/admin/solicitudes', { cache: 'no-store' }), scopedFetch('/api/admin/equipos', { cache: 'no-store' })])
     if (requestsResponse.ok) setRequests(await requestsResponse.json())
     if (teamsResponse.ok) setTeams(await teamsResponse.json())
   }
   useEffect(() => {
-    Promise.all([fetch('/api/admin/solicitudes', { cache: 'no-store' }), fetch('/api/admin/equipos', { cache: 'no-store' })]).then(async ([requestsResponse, teamsResponse]) => {
+    Promise.all([scopedFetch('/api/admin/solicitudes', { cache: 'no-store' }), scopedFetch('/api/admin/equipos', { cache: 'no-store' })]).then(async ([requestsResponse, teamsResponse]) => {
       if (requestsResponse.ok) setRequests(await requestsResponse.json())
       if (teamsResponse.ok) setTeams(await teamsResponse.json())
     })
@@ -23,7 +26,7 @@ export default function AdminRequestsPage() {
   async function resolve(request: TeamChangeRequest, action: 'approve' | 'reject') {
     const reason = action === 'reject' ? prompt('Motivo del rechazo (opcional)') ?? '' : ''
     setBusy(request.id)
-    const response = await fetch(`/api/admin/solicitudes/${request.id}/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) })
+    const response = await scopedFetch(`/api/admin/solicitudes/${request.id}/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) })
     const result = await response.json()
     setBusy('')
     if (!response.ok) setMessage(typeof result.error === 'string' ? result.error : 'No se pudo resolver la solicitud')
@@ -48,7 +51,7 @@ export default function AdminRequestsPage() {
             {request.type === 'team_logo' && typeof request.payload.logo === 'string' && <div className="mt-2 flex items-center gap-3">{team?.logo && <Image src={team.logo} alt="Logo actual" width={44} height={44} className="size-11 object-contain opacity-40" />}<span className="text-white/25">→</span><Image src={request.payload.logo} alt="Logo solicitado" width={56} height={56} className="size-14 object-contain rounded bg-white/5" /></div>}
             {request.rejectionReason && <p className="mt-1 text-xs text-red-300/70">{request.rejectionReason}</p>}
           </div>
-          {request.status === 'pending' && <div className="flex gap-2"><button disabled={busy === request.id} onClick={() => void resolve(request, 'reject')} className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/50 hover:text-red-300"><X size={15} className="inline mr-1" />Rechazar</button><button disabled={busy === request.id} onClick={() => void resolve(request, 'approve')} className="rounded-lg bg-[#0097D7] px-3 py-2 text-sm font-semibold"><Check size={15} className="inline mr-1" />Aprobar</button></div>}
+          {request.status === 'pending' && <div className="flex gap-2"><button disabled={archived || busy === request.id} onClick={() => void resolve(request, 'reject')} className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/50 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"><X size={15} className="inline mr-1" />Rechazar</button><button disabled={archived || busy === request.id} onClick={() => void resolve(request, 'approve')} className="rounded-lg bg-[#0097D7] px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"><Check size={15} className="inline mr-1" />Aprobar</button></div>}
         </article>
       })}
     </div>

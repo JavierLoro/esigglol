@@ -1,3 +1,4 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { TournamentSetupSchema } from '@/lib/schemas'
@@ -33,14 +34,14 @@ function getTournamentStatus(req: NextRequest) {
   }
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const deny = await requireAdminSession()
   if (deny) return deny
 
   return NextResponse.json(getTournamentStatus(req))
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const deny = await requireAdminSession()
   if (deny) return deny
 
@@ -70,7 +71,8 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function DELETE() {
+async function handleDELETE(_request?: Request) {
+  void _request
   const deny = await requireAdminSession()
   if (deny) return deny
 
@@ -81,3 +83,9 @@ export async function DELETE() {
     return NextResponse.json({ error: 'No se pudo resetear la configuración del torneo' }, { status: 500 })
   }
 }
+
+export const GET = competitionRoute(handleGET, 'lol')
+
+export const POST = competitionRoute(handlePOST, 'lol')
+
+export const DELETE = competitionRoute(handleDELETE, 'lol')

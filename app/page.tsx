@@ -1,77 +1,39 @@
 import LiveSection from '@/components/LiveSection'
+import HomeFilters from '@/components/HomeFilters'
+import { getSiteBranding } from '@/lib/site-branding'
 import MatchCard from '@/components/MatchCard'
 import { getMatches, getTeams, getPhases } from '@/lib/data'
+import { getTournaments } from '@/lib/competitions'
+import { inTournament } from '@/lib/competition-context'
 import { TWITCH_CHANNEL } from '@/lib/env'
 import { getPublishedTournamentData } from '@/lib/publication'
-
+import type { CompetitionSearch } from '@/lib/public-competition'
 export const dynamic = 'force-dynamic'
-
-function currentTimestamp() { return Date.now() }
-
-export default function HomePage() {
-  const teams = getTeams()
-  const { matches, phases } = getPublishedTournamentData(getPhases(), getMatches())
-
-  const now = currentTimestamp()
-  const sortedMatches = [...matches].sort((a, b) => {
-    const aPlayed = !!a.result
-    const bPlayed = !!b.result
-    const aDate = a.scheduledAt ? new Date(a.scheduledAt).getTime() : null
-    const bDate = b.scheduledAt ? new Date(b.scheduledAt).getTime() : null
-
-    // Grupo 0: pendientes con fecha (más próxima primero)
-    // Grupo 1: pendientes sin fecha
-    // Grupo 2: jugados (más reciente primero)
-    const group = (played: boolean, date: number | null) => {
-      if (!played && date !== null) return 0
-      if (!played && date === null) return 1
-      return 2
-    }
-    const ga = group(aPlayed, aDate)
-    const gb = group(bPlayed, bDate)
-    if (ga !== gb) return ga - gb
-
-    if (ga === 0) {
-      // Ambos pendientes con fecha: más próximo primero
-      return aDate! - bDate!
-    }
-    if (ga === 2) {
-      // Ambos jugados: el más reciente primero (menor distancia al presente)
-      return bDate !== null && aDate !== null
-        ? Math.abs(aDate - now) - Math.abs(bDate - now)
-        : 0
-    }
-    return 0
-  })
-
-  const channel = TWITCH_CHANNEL
-
-  return (
-    <div className="flex flex-col">
-      <LiveSection channel={channel} />
-
-      <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col gap-8 w-full">
-        <section>
-          <div className="flex items-center gap-3 mb-4">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-white/60">Partidos</h2>
-            <div className="flex-1 h-px bg-white/8" />
-          </div>
-          {sortedMatches.length === 0 ? (
-            <p className="text-white/40 text-sm">No hay partidos programados todavía.</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {sortedMatches.map(match => (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  teams={teams}
-                  phase={phases.find(p => p.id === match.phaseId)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+export default async function HomePage({ searchParams }: { searchParams: Promise<CompetitionSearch> }) {
+  const search = await searchParams
+  const publishedTournaments = getTournaments().filter(t => t.status === 'published')
+  const selectedTournament = publishedTournaments.find(t => t.id === search.tournament)
+  const game = selectedTournament?.game ?? (search.game === 'lol' || search.game === 'valorant' ? search.game : 'all')
+  const tournaments = selectedTournament ? [selectedTournament] : publishedTournaments.filter(t => game === 'all' || t.game === game)
+  const data = tournaments.map(t => inTournament(t.id, () => ({ teams: getTeams(), ...getPublishedTournamentData(getPhases(), getMatches()) })))
+  const teams = data.flatMap(d => d.teams)
+  const phases = data.flatMap(d => d.phases)
+  const matches = data.flatMap(d => d.matches)
+  const sections = [
+    { name: 'Próximos partidos', items: matches.filter(m => !m.result && m.scheduledAt).sort((a, b) => a.scheduledAt!.localeCompare(b.scheduledAt!)) },
+    { name: 'Pendientes sin fecha', items: matches.filter(m => !m.result && !m.scheduledAt) },
+    { name: 'Resultados recientes', items: matches.filter(m => m.result).sort((a, b) => (b.scheduledAt ?? '').localeCompare(a.scheduledAt ?? '')) },
+  ]
+  return <div>
+    <LiveSection channel={TWITCH_CHANNEL} {...getSiteBranding()} />
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <HomeFilters tournaments={publishedTournaments.map(({ id, name, game }) => ({ id, name, game }))} game={game} tournamentId={selectedTournament?.id} />
+      {sections.map(section => <section key={section.name}>
+        <h2 className="font-bold mb-4">{section.name}</h2>
+        {section.items.length ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {section.items.map(match => <MatchCard key={match.id} match={match} teams={teams} phase={phases.find(p => p.id === match.phaseId)} />)}
+        </div> : <p className="text-white/60">No hay partidos.</p>}
+      </section>)}
     </div>
-  )
+  </div>
 }

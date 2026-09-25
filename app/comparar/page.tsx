@@ -1,3 +1,4 @@
+import { publicTournament, inTournament, type CompetitionSearch } from '@/lib/public-competition'
 import { getTeams, getMatches, getPlayerStatsCache } from '@/lib/data'
 import { getPlayerMastery, getChampionStats, getTopRecentChampions } from '@/lib/data-riot'
 import { getVersion } from '@/lib/ddragon'
@@ -12,10 +13,10 @@ export const dynamic = 'force-dynamic'
 
 function currentTimestamp() { return Date.now() }
 
-export default async function CompararPage({
+async function CompararPage({
   searchParams,
 }: {
-  searchParams: Promise<{ t1?: string; t2?: string }>
+  searchParams: Promise<CompetitionSearch>
 }) {
   const { t1, t2 } = await searchParams
   const isAdmin = await getSessionFromCookies()
@@ -78,4 +79,11 @@ export default async function CompararPage({
       <CompareClient teams={teams} allStats={allStats} matches={matches} lastUpdated={cache.lastUpdated} champData={champData} isAdmin={isAdmin} initialTeam1Id={t1} initialTeam2Id={t2} />
     </div>
   )
+}
+
+export default async function Page({ searchParams }: { searchParams: Promise<CompetitionSearch> }) {
+  const search = await searchParams
+  const tournament = publicTournament(search)
+  if (tournament.game === 'valorant') return <p className="p-8">Comparar está disponible solo para LoL.</p>
+  return inTournament(tournament.id, () => CompararPage({ searchParams: Promise.resolve(search) }))
 }

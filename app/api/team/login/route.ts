@@ -1,3 +1,5 @@
+import db from '@/lib/db'
+import { inTournament } from '@/lib/competition-context'
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { createTeamSession, TEAM_COOKIE_NAME } from '@/lib/auth'
@@ -25,7 +27,9 @@ export async function POST(req: NextRequest) {
   }
   attempts.delete(ip)
   markTeamLogin(parsed.data.teamId)
-  const response = NextResponse.json({ ok: true, team: getTeamById(parsed.data.teamId) })
+  const row = db.prepare('SELECT data FROM teams WHERE id = ?').get(parsed.data.teamId) as { data: string } | undefined
+  const team = row ? inTournament(JSON.parse(row.data).tournamentId, () => getTeamById(parsed.data.teamId)) : undefined
+  const response = NextResponse.json({ ok: true, team })
   response.cookies.set(TEAM_COOKIE_NAME, await createTeamSession(parsed.data.teamId, access.sessionVersion), {
     httpOnly: true, secure: IS_PRODUCTION, sameSite: 'lax', maxAge: 60 * 60 * 12, path: '/',
   })

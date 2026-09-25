@@ -10,7 +10,11 @@ export function isPhasePublished(phase: Phase): boolean {
 /** Returns only matches whose owning phase is currently public. */
 export function getPublishedMatches(phases: Phase[], matches: Match[]): Match[] {
   const publishedIds = new Set(phases.filter(isPhasePublished).map(phase => phase.id))
-  return matches.filter(match => publishedIds.has(match.phaseId))
+  return matches.filter(match => {
+    if (!publishedIds.has(match.phaseId)) return false
+    const phase = phases.find(p => p.id === match.phaseId)!
+    return phase.type !== 'swiss' || (phase.config.confirmedRounds ?? []).includes(match.round)
+  })
 }
 
 /** Resolves a match using the same policy used by every public listing. */

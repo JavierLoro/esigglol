@@ -1,4 +1,5 @@
 'use client'
+import { scopedFetch } from '@/lib/scoped-fetch'
 import { useEffect, useState } from 'react'
 import type { Team } from '@/lib/types'
 
@@ -9,7 +10,7 @@ export default function TeamLoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => { fetch('/api/data/equipos').then(res => res.json()).then((items: Team[]) => setTeams(items)).catch(() => setError('No se pudieron cargar los equipos')) }, [])
+  useEffect(() => { scopedFetch('/api/data/equipos').then(res => res.json()).then((items: Team[]) => setTeams(items)).catch(() => setError('No se pudieron cargar los equipos')) }, [])
 
   async function login(event: React.FormEvent) {
     event.preventDefault(); setLoading(true); setError('')

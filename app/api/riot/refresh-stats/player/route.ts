@@ -1,3 +1,4 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { after } from 'next/server'
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
@@ -6,7 +7,7 @@ import logger from '@/lib/logger'
 
 const log = logger.child({ module: 'refresh-player' })
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const denied = await requireAdminSession()
   if (denied) return denied
 
@@ -47,3 +48,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ status: 'started', summonerName })
 }
+
+export const POST = competitionRoute(handlePOST, 'lol')

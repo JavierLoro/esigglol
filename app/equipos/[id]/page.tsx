@@ -1,4 +1,7 @@
-import { notFound } from 'next/navigation'
+import ValorantRoster from '@/components/ValorantRoster'
+import { publicEntityTournament, inTournament } from '@/lib/public-competition'
+import CompetitionBadge from '@/components/CompetitionBadge'
+import { notFound, redirect } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -144,12 +147,13 @@ function PlayerCard({
   )
 }
 
-export default async function TeamPage({ params }: { params: Promise<{ id: string }> }) {
+async function TeamPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const isAdmin = await getSessionFromCookies()
   const teams = getTeams()
   const team = teams.find(t => t.id === id)
   if (!team) notFound()
+  if (team.game === 'valorant') return <div className="p-8 space-y-4"><h1 className="text-2xl">{team.name}</h1><ValorantRoster players={team.players} /></div>
 
   const cache = getPlayerStatsCache()
   const statsMap = new Map<string, CachedPlayer>(
@@ -236,4 +240,14 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
       )}
     </div>
   )
+}
+
+export default async function Page(props: { params: Promise<{ id: string }>; searchParams: Promise<{ tournament?: string; game?: string }> }) {
+  const { id } = await props.params
+  const tournament = publicEntityTournament('teams', id)
+  const search = await props.searchParams
+  if ((search.tournament && search.tournament !== tournament.id) || (search.game && search.game !== tournament.game)) notFound()
+  const content = await inTournament(tournament.id, () => TeamPage(props))
+  if (!search.tournament || !search.game) redirect(`/equipos/${id}?tournament=${tournament.id}&game=${tournament.game}`)
+  return <><div className="px-6 pt-4"><CompetitionBadge game={tournament.game} name={tournament.name} /></div>{content}</>
 }

@@ -17,6 +17,7 @@ function getLocalIPs(): string[] {
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  distDir: process.env.NEXT_DIST_DIR ?? '.next',
   experimental: {
     staleTimes: {
       dynamic: 0,

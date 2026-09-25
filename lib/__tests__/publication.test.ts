@@ -20,6 +20,13 @@ function match(phaseId: string): Match {
 const BRACKET_TYPES: Phase['type'][] = ['elimination', 'final-four', 'upper-lower']
 
 describe('publication de fases', () => {
+  it('keeps unconfirmed Swiss rounds out of every public match query', () => {
+    const swiss = { ...phase('swiss'), config: { bo: 1 as const, confirmedRounds: [1] } }
+    const first = match(swiss.id)
+    const second = { ...first, id: 'round-2', round: 2 }
+    expect(getPublishedMatches([swiss], [first, second])).toEqual([first])
+    expect(getPublishedMatch(second.id, [swiss], [first, second])).toBeUndefined()
+  })
   it('solo publica brackets confirmados y siempre publica fases no bracket', () => {
     expect(isPhasePublished(phase('elimination'))).toBe(false)
     expect(isPhasePublished(phase('elimination', true))).toBe(true)

@@ -1,4 +1,5 @@
 'use client'
+import { scopedFetch } from '@/lib/scoped-fetch'
 
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Copy, Loader2, RefreshCw, Users } from 'lucide-react'
@@ -48,11 +49,11 @@ export default function TournamentCodeCard({ code, gameNumber, onCopy }: Tournam
     try {
       const [codeDetails, lobbyEvents] = await Promise.all([
         adminRequest<TournamentCodeDetails>(
-          fetch(`/api/admin/partidos/codes?code=${encodeURIComponent(code)}`),
+          scopedFetch(`/api/admin/partidos/codes?code=${encodeURIComponent(code)}`),
           isCodeDetails,
         ),
         adminRequest<LobbyEvent[]>(
-          fetch(`/api/admin/partidos/lobby?code=${encodeURIComponent(code)}`),
+          scopedFetch(`/api/admin/partidos/lobby?code=${encodeURIComponent(code)}`),
           isLobbyEventArray,
         ),
       ])

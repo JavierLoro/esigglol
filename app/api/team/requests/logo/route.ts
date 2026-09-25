@@ -1,3 +1,4 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { mkdir, unlink, writeFile } from 'fs/promises'
@@ -17,7 +18,7 @@ function hasValidSignature(buffer: Buffer, type: string): boolean {
 
 export const runtime = 'nodejs'
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const session = await requireTeamSession()
   if (session instanceof NextResponse) return session
   const form = await req.formData()
@@ -40,3 +41,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Error interno' }, { status: 409 })
   }
 }
+
+export const POST = competitionRoute(handlePOST, 'team')

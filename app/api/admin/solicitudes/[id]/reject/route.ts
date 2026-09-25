@@ -1,3 +1,4 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextResponse } from 'next/server'
 import { unlink } from 'fs/promises'
 import { requireAdminSession } from '@/lib/auth'
@@ -5,7 +6,7 @@ import { ResolveTeamRequestSchema } from '@/lib/schemas'
 import { getTeamChangeRequest, rejectTeamChangeRequest } from '@/lib/team-portal-data'
 import { getUploadFilename, resolveUploadPath } from '@/lib/upload-files'
 
-export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
+async function handlePOST(req: Request, context: { params: Promise<{ id: string }> }) {
   const deny = await requireAdminSession()
   if (deny) return deny
   let raw: unknown = {}
@@ -25,3 +26,5 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   }
   return NextResponse.json(rejected)
 }
+
+export const POST = competitionRoute(handlePOST, 'admin')

@@ -1,3 +1,4 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { UPLOADS_DIR } from '@/lib/env'
@@ -35,7 +36,7 @@ async function removeFileQuietly(filePath: string, filename: string, reason: str
   }
 }
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const denied = await requireAdminSession()
   if (denied) return denied
 
@@ -118,3 +119,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }
+
+export const POST = competitionRoute(handlePOST, 'admin')

@@ -1,4 +1,5 @@
 'use client'
+import { scopedFetch } from '@/lib/scoped-fetch'
 import { useState } from 'react'
 import { Check, Copy, Eye, EyeOff, KeyRound, RefreshCw } from 'lucide-react'
 
@@ -17,20 +18,20 @@ export default function TeamAccessControl({ teamId, teamName }: TeamAccessContro
 
   async function load() {
     setBusy(true)
-    const response = await fetch(`/api/admin/equipos/${teamId}/access`, { cache: 'no-store' })
+    const response = await scopedFetch(`/api/admin/equipos/${teamId}/access`, { cache: 'no-store' })
     if (response.ok) setAccess(await response.json())
     setBusy(false)
   }
   async function generate() {
     if (access?.configured && !confirm('La contraseña anterior dejará de funcionar. ¿Continuar?')) return
     setBusy(true)
-    const response = await fetch(`/api/admin/equipos/${teamId}/access`, { method: 'POST' })
+    const response = await scopedFetch(`/api/admin/equipos/${teamId}/access`, { method: 'POST' })
     if (response.ok) { setAccess(await response.json()); setVisible(true) }
     setBusy(false)
   }
   async function toggle() {
     if (!access?.configured) return
-    const response = await fetch(`/api/admin/equipos/${teamId}/access`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !access.enabled }) })
+    const response = await scopedFetch(`/api/admin/equipos/${teamId}/access`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !access.enabled }) })
     if (response.ok) setAccess(current => current ? { ...current, enabled: !current.enabled } : current)
   }
   async function copy() {

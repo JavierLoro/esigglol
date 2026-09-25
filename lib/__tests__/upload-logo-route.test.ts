@@ -28,7 +28,7 @@ function uploadRequest(teamId: string, file = new File(['logo-bytes'], 'logo.png
   const formData = new FormData()
   formData.set('teamId', teamId)
   formData.set('file', file)
-  return new Request('http://localhost/api/admin/equipos/upload-logo', {
+  return new Request('http://localhost/api/admin/equipos/upload-logo?tournament=legacy-lol', {
     method: 'POST',
     body: formData,
   })

@@ -190,6 +190,21 @@ export const migrations: readonly Migration[] = [
       `)
     },
   },
+  {
+    version: 5,
+    name: 'multiple-tournaments',
+    up(db) {
+      db.exec(`CREATE TABLE tournaments (id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, data TEXT NOT NULL);`)
+      const tournament = { id: 'legacy-lol', name: 'Torneo LoL', slug: 'lol-original', game: 'lol', platform: 'pc', region: 'eu', status: 'published' }
+      db.prepare('INSERT INTO tournaments VALUES (?, ?, ?)').run(tournament.id, tournament.slug, JSON.stringify(tournament))
+      for (const table of ['teams', 'phases', 'matches']) {
+        db.exec(`UPDATE ${table} SET data = json_set(data, '$.tournamentId', 'legacy-lol', '$.game', 'lol');
+          CREATE INDEX idx_${table}_tournament ON ${table}(json_extract(data, '$.tournamentId'));`)
+      }
+      db.exec(`UPDATE player_stats SET key = 'legacy-lol:cache' WHERE key = 'cache';
+        UPDATE tournament_config SET key = 'legacy-lol:' || key WHERE key != 'riot-api-key';`)
+    },
+  },
 ]
 
 interface AppliedMigration {

@@ -1,3 +1,4 @@
+import { currentTournamentId } from './competition-context'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { getTeams, getPlayerStatsCache, savePlayerStatsCache } from '@/lib/data'
@@ -13,12 +14,16 @@ const log = logger.child({ module: 'refresh' })
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
 
-let isRunning = false
-let keyExpired = false
+const states = new Map<string, { isRunning: boolean; keyExpired: boolean }>()
+function state() {
+  const id = currentTournamentId()
+  if (!states.has(id)) states.set(id, { isRunning: false, keyExpired: false })
+  return states.get(id)!
+}
 
 export function getRefreshState() {
   const cache = getPlayerStatsCache()
-  return { lastUpdated: cache.lastUpdated, running: isRunning, keyExpired }
+  return { lastUpdated: cache.lastUpdated, running: state().isRunning, keyExpired: state().keyExpired }
 }
 
 function buildChampionMap(): Map<number, string> {
@@ -125,13 +130,13 @@ async function loadPlayerRow(player: Player, team: Team, championMap: Map<number
 }
 
 export async function runPlayerRefresh(summonerName: string): Promise<PlayerRow> {
-  if (isRunning) throw new Error('Ya hay una actualización en curso')
+  if (state().isRunning) throw new Error('Ya hay una actualización en curso')
 
   const target = getRefreshTarget(summonerName)
   if (!target) throw new Error('Jugador no encontrado')
 
-  isRunning = true
-  keyExpired = false
+  state().isRunning = true
+  state().keyExpired = false
 
   try {
     const championMap = buildChampionMap()
@@ -144,16 +149,16 @@ export async function runPlayerRefresh(summonerName: string): Promise<PlayerRow>
     })
     return row
   } catch (err) {
-    if (err instanceof RiotApiKeyError) keyExpired = true
+    if (err instanceof RiotApiKeyError) state().keyExpired = true
     throw err
   } finally {
-    isRunning = false
+    state().isRunning = false
   }
 }
 
 export async function runRefresh(teamIds?: string[]) {
-  isRunning = true
-  keyExpired = false
+  state().isRunning = true
+  state().keyExpired = false
 
   try {
     const allTeams = getTeams()
@@ -179,7 +184,7 @@ export async function runRefresh(teamIds?: string[]) {
         } catch (err) {
           if (err instanceof RiotApiKeyError) {
             log.error({ summonerName: p.summonerName }, 'Riot API key expired or invalid — aborting refresh')
-            keyExpired = true
+            state().keyExpired = true
             aborted = true
             return
           }
@@ -217,13 +222,13 @@ export async function runRefresh(teamIds?: string[]) {
       if (i + REFRESH_BATCH_SIZE < players.length && !aborted) await delay(REFRESH_BATCH_DELAY_MS)
     }
   } finally {
-    isRunning = false
+    state().isRunning = false
   }
 }
 
 export async function triggerAutoRefresh() {
-  if (isRunning) return
-  if (keyExpired) return
+  if (state().isRunning) return
+  if (state().keyExpired) return
   const cache = getPlayerStatsCache()
   if (cache.lastUpdated) {
     const age = Date.now() - new Date(cache.lastUpdated).getTime()

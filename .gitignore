@@ -67,3 +67,6 @@ next-env.d.ts
 # data dragon assets (downloaded at build/dev time)
 /public/ddragon/
 /data/ddragon-version.txt
+
+/.next-valorant-sandbox/
+/public/valorant/

@@ -1,10 +1,11 @@
+import { publicTournament, inTournament, type CompetitionSearch } from '@/lib/public-competition'
 import { getPhases, getMatchesByPhase, getTeams } from '@/lib/data'
 import GroupsView from '@/components/brackets/GroupsView'
 import SwissView from '@/components/brackets/SwissView'
 import EliminationBracket from '@/components/brackets/EliminationBracket'
 import UpperLowerBracket from '@/components/brackets/UpperLowerBracket'
 import { clsx } from 'clsx'
-import { isPhasePublished } from '@/lib/publication'
+import { getPublishedMatches, isPhasePublished } from '@/lib/publication'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +21,7 @@ const statusColor: Record<string, string> = {
   completed: 'text-white/30 bg-white/5',
 }
 
-export default function FasesPage() {
+function FasesPage() {
   const phases = getPhases().filter(isPhasePublished)
   const teams = getTeams()
 
@@ -33,7 +34,7 @@ export default function FasesPage() {
       )}
 
       {phases.map(phase => {
-        const matches = getMatchesByPhase(phase.id)
+        const matches = getPublishedMatches([phase], getMatchesByPhase(phase.id))
 
         return (
           <section key={phase.id} className={clsx(phase.status === 'completed' && 'opacity-60')}>
@@ -75,4 +76,10 @@ export default function FasesPage() {
       })}
     </div>
   )
+}
+
+export default async function Page({ searchParams }: { searchParams: Promise<CompetitionSearch> }) {
+  const search = await searchParams
+  const tournament = publicTournament(search, true)
+  return inTournament(tournament.id, () => FasesPage())
 }

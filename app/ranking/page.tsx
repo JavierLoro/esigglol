@@ -1,3 +1,7 @@
+import ValorantRanking from '@/components/ValorantRanking'
+import { getTournament } from '@/lib/competitions'
+import { currentTournamentId } from '@/lib/competition-context'
+import { publicTournament, inTournament, type CompetitionSearch } from '@/lib/public-competition'
 import { after } from 'next/server'
 import { getPlayerStatsCache, getTeams } from '@/lib/data'
 import { getSessionFromCookies } from '@/lib/auth'
@@ -15,9 +19,10 @@ const TIER_ORDER: Record<string, number> = {
 }
 const RANK_ORDER: Record<string, number> = { I: 4, II: 3, III: 2, IV: 1 }
 
-export default async function RankingPage() {
+async function RankingPage() {
   const isAdmin = await getSessionFromCookies()
-  after(triggerAutoRefresh)
+  const tournamentId = currentTournamentId()
+  if (getTournament()?.status === 'published') after(() => inTournament(tournamentId, triggerAutoRefresh))
 
   const cache = getPlayerStatsCache()
   const teams = getTeams()
@@ -99,4 +104,11 @@ export default async function RankingPage() {
       {rows.length > 0 && <RankingTable rows={rows} isAdmin={isAdmin} />}
     </div>
   )
+}
+
+export default async function Page({ searchParams }: { searchParams: Promise<CompetitionSearch> }) {
+  const search = await searchParams
+  const tournament = publicTournament(search)
+  if (tournament.game === 'valorant') return inTournament(tournament.id, () => <ValorantRanking tournament={tournament} teams={getTeams()} />)
+  return inTournament(tournament.id, () => RankingPage())
 }

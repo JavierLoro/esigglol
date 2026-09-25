@@ -1,5 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
+test.use({ extraHTTPHeaders: { 'x-tournament-id': 'legacy-lol' } })
+
 const password = 'e2e-admin-password'
 
 interface Team {
@@ -31,7 +33,7 @@ async function login(page: Page) {
   await page.goto('/admin/login')
   await page.getByPlaceholder('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page).toHaveURL(/\/admin$/)
+  await expect(page).toHaveURL(/\/admin\?tournament=legacy-lol&game=lol$/)
 }
 
 async function createTeam(request: APIRequestContext, name: string): Promise<Team> {
@@ -66,7 +68,7 @@ test('permite iniciar y cerrar sesión de administrador', async ({ page }) => {
 
   await page.getByPlaceholder('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page).toHaveURL(/\/admin$/)
+  await expect(page).toHaveURL(/\/admin\?tournament=legacy-lol&game=lol$/)
   await expect(page.getByText('Panel Admin')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible()

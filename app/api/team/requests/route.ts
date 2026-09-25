@@ -1,15 +1,17 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextResponse } from 'next/server'
 import { requireTeamSession } from '@/lib/auth'
 import { NewPlayerRequestSchema, SummonerNameRequestSchema } from '@/lib/schemas'
 import { createTeamChangeRequest, getTeamChangeRequests } from '@/lib/team-portal-data'
 import { generateId, getTeamById } from '@/lib/data'
 
-export async function GET() {
+async function handleGET(_request?: Request) {
+  void _request
   const session = await requireTeamSession()
   return session instanceof NextResponse ? session : NextResponse.json(getTeamChangeRequests(session.teamId))
 }
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const session = await requireTeamSession()
   if (session instanceof NextResponse) return session
   let raw: unknown
@@ -33,3 +35,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Error interno' }, { status: 409 })
   }
 }
+
+export const GET = competitionRoute(handleGET, 'team')
+
+export const POST = competitionRoute(handlePOST, 'team')

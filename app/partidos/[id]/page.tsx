@@ -1,3 +1,5 @@
+import { publicEntityTournament, inTournament } from '@/lib/public-competition'
+import CompetitionBadge from '@/components/CompetitionBadge'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -303,7 +305,7 @@ function GameCard({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function PartidoPage({
+async function PartidoPage({
   params,
 }: {
   params: Promise<{ id: string }>
@@ -312,15 +314,17 @@ export default async function PartidoPage({
   const match = getPublishedMatch(id, getPhases(), getMatches())
   if (!match) notFound()
 
-  if (match.result === null) {
+  if (match.result === null && match.game !== 'valorant') {
     const t1 = match.team1Id !== 'TBD' ? `?t1=${match.team1Id}` : ''
     const t2 = match.team2Id !== 'TBD' ? `${t1 ? '&' : '?'}t2=${match.team2Id}` : ''
-    redirect(`/comparar${t1}${t2}`)
+    redirect(`/comparar${t1}${t2}${t1 || t2 ? "&" : "?"}tournament=${match.tournamentId}&game=lol`)
   }
 
   const phase = getPhaseById(match.phaseId)
   const team1 = match.team1Id !== 'TBD' ? getTeamById(match.team1Id) : undefined
   const team2 = match.team2Id !== 'TBD' ? getTeamById(match.team2Id) : undefined
+  if (match.game === 'valorant') return <div className="p-8 space-y-4"><h1 className="text-2xl">{team1?.name ?? 'TBD'} vs {team2?.name ?? 'TBD'}</h1><p>{phase?.name} · R{match.round} · BO{phase?.config.roundBo?.[String(match.round)] ?? phase?.config.bo}</p><p>{match.scheduledAt ? <LocalDateTime iso={match.scheduledAt} /> : 'Sin fecha'}</p><p>Serie (mapas): {match.result ? `${match.result.team1Score} : ${match.result.team2Score}` : 'Pendiente'}</p>{match.maps?.map((m, i) => <p key={i}>{m.map ?? `Mapa ${i + 1}`} · Rondas: {m.team1Rounds} : {m.team2Rounds}</p>)}</div>
+
 
   const bo: number = phase
     ? (phase.config.roundBo?.[String(match.round)] ?? phase.config.bo ?? 1)
@@ -457,4 +461,14 @@ export default async function PartidoPage({
       </div>
     </main>
   )
+}
+
+export default async function Page(props: { params: Promise<{ id: string }>; searchParams: Promise<{ tournament?: string; game?: string }> }) {
+  const { id } = await props.params
+  const tournament = publicEntityTournament('matches', id)
+  const search = await props.searchParams
+  if ((search.tournament && search.tournament !== tournament.id) || (search.game && search.game !== tournament.game)) notFound()
+  const content = await inTournament(tournament.id, () => PartidoPage(props))
+  if (!search.tournament || !search.game) redirect(`/partidos/${id}?tournament=${tournament.id}&game=${tournament.game}`)
+  return <><div className="px-6 pt-4"><CompetitionBadge game={tournament.game} name={tournament.name} /></div>{content}</>
 }

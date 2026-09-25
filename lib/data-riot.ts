@@ -1,3 +1,4 @@
+import { getTeams } from './data'
 import db from './db'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -48,6 +49,7 @@ export interface RecentChampion {
 // ── Player cooldown ──────────────────────────────────────────────────────────
 
 export function getPlayerLastUpdated(playerId: string): string | null {
+  if (!getTeams().some(t => t.game !== 'valorant' && t.players.some(p => p.id === playerId))) throw new Error('Jugador fuera del torneo LoL')
   const row = db.prepare(
     'SELECT MAX(updated_at) as last FROM player_champion_mastery WHERE player_id = ?'
   ).get(playerId) as { last: string | null } | undefined
@@ -57,6 +59,7 @@ export function getPlayerLastUpdated(playerId: string): string | null {
 // ── Champion mastery ──────────────────────────────────────────────────────────
 
 export function savePlayerMastery(playerId: string, summonerName: string, masteries: Omit<MasteryRow, 'playerId' | 'summonerName'>[]): void {
+  if (!getTeams().some(t => t.game !== 'valorant' && t.players.some(p => p.id === playerId))) throw new Error('Jugador fuera del torneo LoL')
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO player_champion_mastery
       (player_id, summoner_name, champion_id, champion_name, mastery_level, mastery_points, last_played_at, updated_at)
@@ -70,6 +73,7 @@ export function savePlayerMastery(playerId: string, summonerName: string, master
 }
 
 export function getPlayerMastery(playerId: string): MasteryRow[] {
+  if (!getTeams().some(t => t.game !== 'valorant' && t.players.some(p => p.id === playerId))) throw new Error('Jugador fuera del torneo LoL')
   return (db.prepare(`
     SELECT player_id, summoner_name, champion_id, champion_name, mastery_level, mastery_points, last_played_at, updated_at
     FROM player_champion_mastery
@@ -90,6 +94,7 @@ export function getPlayerMastery(playerId: string): MasteryRow[] {
 // ── Match history ─────────────────────────────────────────────────────────────
 
 export function savePlayerMatches(playerId: string, summonerName: string, matches: Omit<MatchRow, 'playerId' | 'summonerName'>[]): void {
+  if (!getTeams().some(t => t.game !== 'valorant' && t.players.some(p => p.id === playerId))) throw new Error('Jugador fuera del torneo LoL')
   const stmt = db.prepare(`
     INSERT OR IGNORE INTO player_match_history
       (player_id, summoner_name, match_id, champion_id, champion_name, position, kills, deaths, assists, win, played_at, queue_id)
@@ -104,11 +109,13 @@ export function savePlayerMatches(playerId: string, summonerName: string, matche
 }
 
 export function getStoredMatchIds(playerId: string): Set<string> {
+  if (!getTeams().some(t => t.game !== 'valorant' && t.players.some(p => p.id === playerId))) throw new Error('Jugador fuera del torneo LoL')
   const rows = db.prepare('SELECT match_id FROM player_match_history WHERE player_id = ?').all(playerId) as Array<{ match_id: string }>
   return new Set(rows.map(r => r.match_id))
 }
 
 export function getPlayerMatchHistory(playerId: string, limit = 100): MatchRow[] {
+  if (!getTeams().some(t => t.game !== 'valorant' && t.players.some(p => p.id === playerId))) throw new Error('Jugador fuera del torneo LoL')
   return (db.prepare(`
     SELECT player_id, summoner_name, match_id, champion_id, champion_name, position, kills, deaths, assists, win, played_at, queue_id
     FROM player_match_history
@@ -136,6 +143,7 @@ export function getPlayerMatchHistory(playerId: string, limit = 100): MatchRow[]
 // KDA medio y partidas jugadas por campeón, filtrado por cola y desde seasonStart.
 // Si minMatches > 0 y hay menos partidas en la ventana temporal, usa las últimas minMatches partidas.
 export function getChampionStats(playerId: string, seasonStartMs: number, queueId = 420, minMatches = 0): ChampionStat[] {
+  if (!getTeams().some(t => t.game !== 'valorant' && t.players.some(p => p.id === playerId))) throw new Error('Jugador fuera del torneo LoL')
   const rows = db.prepare(`
     SELECT
       champion_name,
@@ -205,6 +213,7 @@ function mapChampionRows(rows: Array<Record<string, number | string>>): Champion
 
 // Top 5 campeones más jugados en las últimas N partidas almacenadas
 export function getTopRecentChampions(playerId: string, lastN = 20, top = 5): RecentChampion[] {
+  if (!getTeams().some(t => t.game !== 'valorant' && t.players.some(p => p.id === playerId))) throw new Error('Jugador fuera del torneo LoL')
   return (db.prepare(`
     SELECT champion_name, COUNT(*) AS games, SUM(win) AS wins
     FROM (

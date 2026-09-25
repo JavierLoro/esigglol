@@ -33,7 +33,7 @@ describe('POST /api/admin/fases/generate', () => {
   })
 
   it('rechaza el tipo del contrato aunque contradiga el tipo persistido', async () => {
-    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate?tournament=legacy-lol', {
       method: 'POST',
       body: JSON.stringify({ phaseId: 'phase-1', type: 'swiss' }),
     }))
@@ -48,7 +48,7 @@ describe('POST /api/admin/fases/generate', () => {
       config: { bo: 1, advanceCount: 1, groups: [{ id: 'A', teamIds: ['team-1', 'team-2'] }] },
     })
 
-    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate?tournament=legacy-lol', {
       method: 'POST',
       body: JSON.stringify({ phaseId: 'phase-1' }),
     }))
@@ -76,7 +76,7 @@ describe('POST /api/admin/fases/generate', () => {
       },
     ])
 
-    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate?tournament=legacy-lol', {
       method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
     }))
 
@@ -95,7 +95,7 @@ describe('POST /api/admin/fases/generate', () => {
       .mockReturnValueOnce('zzz-random')
       .mockReturnValueOnce('aaa-random')
 
-    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate?tournament=legacy-lol', {
       method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
     }))
 
@@ -118,7 +118,7 @@ describe('POST /api/admin/fases/generate', () => {
     let sequence = 0
     mocks.generateId.mockImplementation(() => `match-${++sequence}`)
 
-    const request = () => new NextRequest('http://localhost/api/admin/fases/generate', {
+    const request = () => new NextRequest('http://localhost/api/admin/fases/generate?tournament=legacy-lol', {
       method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
     })
     const first = await POST(request())
@@ -145,7 +145,7 @@ describe('POST /api/admin/fases/generate', () => {
     let sequence = 0
     mocks.generateId.mockImplementation(() => `match-${++sequence}`)
 
-    const request = () => new NextRequest('http://localhost/api/admin/fases/generate', {
+    const request = () => new NextRequest('http://localhost/api/admin/fases/generate?tournament=legacy-lol', {
       method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
     })
     const first = await POST(request())
@@ -172,7 +172,7 @@ describe('POST /api/admin/fases/generate', () => {
     let sequence = 0
     mocks.generateId.mockImplementation(() => `match-${++sequence}`)
 
-    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate?tournament=legacy-lol', {
       method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
     }))
 
@@ -198,7 +198,7 @@ describe('POST /api/admin/fases/generate', () => {
     let sequence = 0
     mocks.generateId.mockImplementation(() => `match-${++sequence}`)
 
-    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate?tournament=legacy-lol', {
       method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
     }))
 
@@ -222,7 +222,7 @@ describe('POST /api/admin/fases/generate', () => {
     let sequence = 0
     mocks.generateId.mockImplementation(() => `match-${++sequence}`)
 
-    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate?tournament=legacy-lol', {
       method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
     }))
 
@@ -247,7 +247,7 @@ describe('POST /api/admin/fases/generate', () => {
     let sequence = 0
     mocks.generateId.mockImplementation(() => `match-${++sequence}`)
 
-    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate', {
+    const response = await POST(new NextRequest('http://localhost/api/admin/fases/generate?tournament=legacy-lol', {
       method: 'POST', body: JSON.stringify({ phaseId: 'phase-1' }),
     }))
 

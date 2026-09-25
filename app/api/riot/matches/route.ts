@@ -1,7 +1,8 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextRequest, NextResponse } from 'next/server'
 import { getMatchDetails } from '@/lib/riot'
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const matchId = req.nextUrl.searchParams.get('id')
   if (!matchId) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
 
@@ -15,3 +16,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
+
+export const GET = competitionRoute(handleGET, 'lol')
