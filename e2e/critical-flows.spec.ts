@@ -1,5 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
+test.use({ extraHTTPHeaders: { 'x-tournament-id': 'legacy-lol' } })
+
 const password = 'e2e-admin-password'
 
 interface Team {
@@ -31,7 +33,7 @@ async function login(page: Page) {
   await page.goto('/admin/login')
   await page.getByPlaceholder('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page).toHaveURL(/\/admin$/)
+  await expect(page).toHaveURL(/\/admin\?tournament=legacy-lol&game=lol$/, { timeout: 30_000 })
 }
 
 async function createTeam(request: APIRequestContext, name: string): Promise<Team> {
@@ -66,7 +68,7 @@ test('permite iniciar y cerrar sesión de administrador', async ({ page }) => {
 
   await page.getByPlaceholder('Contraseña').fill(password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page).toHaveURL(/\/admin$/)
+  await expect(page).toHaveURL(/\/admin\?tournament=legacy-lol&game=lol$/)
   await expect(page.getByText('Panel Admin')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible()
@@ -76,6 +78,45 @@ test('permite iniciar y cerrar sesión de administrador', async ({ page }) => {
 
   await page.goto('/admin')
   await expect(page).toHaveURL(/\/admin\/login$/)
+})
+
+test('el responsable de Valorant entra desde su invitación aunque el portapapeles LAN esté bloqueado', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }))
+  await login(page)
+  const draftResponse = await page.request.post('/api/admin/torneos', {
+    data: { name: 'Acceso Valorant', slug: 'acceso-valorant', game: 'valorant', platform: 'pc', region: 'eu', status: 'draft' },
+  })
+  expect(draftResponse.ok()).toBeTruthy()
+  const tournament = await draftResponse.json() as { id: string }
+  const publishedResponse = await page.request.post('/api/admin/torneos', {
+    data: { id: tournament.id, name: 'Acceso Valorant', slug: 'acceso-valorant', game: 'valorant', platform: 'pc', region: 'eu', status: 'published' },
+  })
+  expect(publishedResponse.ok()).toBeTruthy()
+  const teamResponse = await page.request.post(`/api/admin/equipos?tournament=${tournament.id}`, {
+    data: { name: 'Responsables Valorant', logo: '', players: [] },
+  })
+  expect(teamResponse.ok()).toBeTruthy()
+  const team = await teamResponse.json() as Team
+
+  await page.goto(`/admin/equipos?tournament=${tournament.id}&game=valorant`)
+  await page.getByText(team.name, { exact: true }).click()
+  await page.getByRole('button', { name: 'Gestionar acceso' }).click()
+  await page.getByRole('button', { name: `Copiar credenciales de ${team.name}` }).click()
+  const invitation = await page.getByRole('textbox', { name: /Selecciona y copia estos datos manualmente/ }).inputValue()
+  const [, passwordLine, accessLine] = invitation.split('\n')
+  expect(accessLine).toContain(`tournament=${tournament.id}&team=${team.id}`)
+
+  const publicTeams = await page.request.get(`/api/data/equipos?tournament=${tournament.id}`)
+  expect(publicTeams.ok()).toBeTruthy()
+  expect((await publicTeams.json() as Team[]).some(item => item.id === team.id)).toBeTruthy()
+  const teamListResponse = page.waitForResponse(response => response.url().includes('/api/data/equipos'))
+  await page.goto(accessLine.slice('Acceso: '.length))
+  expect((await teamListResponse).status()).toBe(200)
+  await expect(page.getByRole('combobox', { name: 'Equipo' })).toHaveValue(team.id)
+  await page.getByLabel('Contraseña').fill(passwordLine.slice('Contraseña: '.length))
+  await page.getByRole('button', { name: 'Entrar al panel' }).click()
+  await expect(page.getByRole('heading', { name: team.name })).toBeVisible({ timeout: 30_000 })
 })
 
 test('genera un bracket desde el panel de fases', async ({ page }) => {
@@ -99,6 +140,78 @@ test('genera un bracket desde el panel de fases', async ({ page }) => {
   expect(matchesResponse.ok()).toBeTruthy()
   const matches = await matchesResponse.json() as Match[]
   expect(matches.filter(match => match.phaseId === phase.id)).toHaveLength(2)
+})
+
+test('crea una fase nueva, genera y confirma el bracket sin recargar', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.addInitScript(() => Object.defineProperty(Crypto.prototype, 'randomUUID', { value: undefined, configurable: true }))
+  await login(page)
+  const teams = await Promise.all(['A', 'B', 'C', 'D'].map(name => createTeam(page.request, `Draft ${name}`)))
+  await page.goto('/admin/fases')
+  await page.waitForLoadState('networkidle')
+  await page.getByRole('button', { name: 'Añadir fase' }).click()
+  const nameInput = page.getByRole('textbox', { name: /Nombre de la fase/ }).last()
+  const card = nameInput.locator('xpath=../..')
+  await nameInput.fill('Final Four nuevo')
+  await card.getByRole('combobox', { name: /Tipo de la fase/ }).selectOption('final-four')
+  for (const team of teams) await card.getByRole('checkbox', { name: `${team.name}, equipos del bracket de la fase Final Four nuevo` }).check()
+  await card.getByRole('button', { name: 'Generar bracket' }).click()
+  await expect(card.getByRole('button', { name: 'Confirmar' })).toBeVisible()
+  await card.getByRole('button', { name: 'Confirmar' }).click()
+  await expect(card.getByText('Confirmado', { exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('region', { name: /fase Final Four nuevo/ }).getByText('Confirmado', { exact: true })).toBeVisible()
+})
+
+test('conserva la fase nueva cuando falla la generación y permite reintentar', async ({ page }) => {
+  test.setTimeout(120_000)
+  await login(page)
+  const teams = await Promise.all(['A', 'B', 'C', 'D'].map(name => createTeam(page.request, `Reintento ${name}`)))
+  await page.goto('/admin/fases')
+  await page.waitForLoadState('networkidle')
+  await page.getByRole('button', { name: 'Añadir fase' }).click()
+  const nameInput = page.getByRole('textbox', { name: /Nombre de la fase/ }).last()
+  const card = nameInput.locator('xpath=../..')
+  await nameInput.fill('Fase reintento')
+  for (const team of teams) await card.getByRole('checkbox', { name: `${team.name}, equipos del bracket de la fase Fase reintento` }).check()
+  await page.route('**/api/admin/fases/generate**', route => route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"fallo simulado"}' }))
+  await card.getByRole('button', { name: 'Generar bracket' }).click()
+  await expect(page.getByText(/Fase guardada, pero no se generaron los partidos/)).toBeVisible()
+  await page.unroute('**/api/admin/fases/generate**')
+  await card.getByRole('button', { name: 'Generar bracket' }).click()
+  await expect(card.getByRole('button', { name: 'Confirmar' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('textbox', { name: /Fase reintento/ })).toHaveValue('Fase reintento')
+})
+
+test('genera partidos de grupos desde el frontal', async ({ page }) => {
+  test.setTimeout(120_000)
+  await login(page)
+  const teams = await Promise.all(['A', 'B'].map(name => createTeam(page.request, `Grupo ${name}`)))
+  await page.goto('/admin/fases')
+  await page.waitForLoadState('networkidle')
+  await page.getByRole('button', { name: 'Añadir fase' }).click()
+  const nameInput = page.getByRole('textbox', { name: /Nombre de la fase/ }).last()
+  const card = nameInput.locator('xpath=../..')
+  await nameInput.fill('Grupo nuevo')
+  await card.getByRole('combobox', { name: /Tipo de la fase/ }).selectOption('groups')
+  await card.getByRole('button', { name: 'Añadir grupo' }).click()
+  await card.getByRole('spinbutton', { name: /Equipos que pasan por grupo/ }).fill('1')
+  for (const team of teams) await card.getByRole('checkbox', { name: `${team.name}, grupo A de la fase Grupo nuevo` }).check()
+  await card.getByRole('button', { name: 'Generar partidos' }).click()
+  await expect(card.getByText('Generado', { exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('region', { name: /fase Grupo nuevo/ }).getByText('Generado', { exact: true })).toBeVisible()
+})
+
+test('crea un torneo aunque randomUUID no esté disponible en el navegador', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(Crypto.prototype, 'randomUUID', { value: undefined, configurable: true }))
+  await login(page)
+  await page.goto('/admin/torneos')
+  await page.getByRole('textbox', { name: 'Nombre del torneo' }).fill('Torneo HTTP LAN')
+  await page.getByRole('combobox', { name: 'Juego del torneo' }).selectOption('valorant')
+  await page.getByRole('button', { name: 'Crear borrador' }).click()
+  await expect(page.getByRole('textbox', { name: 'Nombre de Torneo HTTP LAN' })).toBeVisible()
 })
 
 test('oculta el bracket en superficies públicas hasta confirmarlo y conserva acceso admin', async ({ page }) => {

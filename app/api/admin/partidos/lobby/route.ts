@@ -1,8 +1,9 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { getLobbyEvents } from '@/lib/tournament'
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const deny = await requireAdminSession()
   if (deny) return deny
 
@@ -17,3 +18,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 502 })
   }
 }
+
+export const GET = competitionRoute(handleGET, 'lol')

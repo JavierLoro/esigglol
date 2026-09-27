@@ -1,3 +1,4 @@
+import CompetitionBadge from './CompetitionBadge'
 import Image from 'next/image'
 import Link from 'next/link'
 import type { Match, Team, Phase } from '@/lib/types'
@@ -21,12 +22,13 @@ export default function MatchCard({ match, teams, phase }: Props) {
 
   return (
     <Link
-      href={`/partidos/${match.id}`}
+      href={`/partidos/${match.id}?tournament=${match.tournamentId ?? "legacy-lol"}&game=${match.game ?? "lol"}`}
       className={clsx(
         'rounded-xl border flex flex-col bg-[#0d1321] overflow-hidden hover:border-[#0097D7]/50 transition-colors',
         played ? 'border-white/10' : 'border-[#0097D7]/30'
       )}
     >
+      <div className="px-4 pt-3"><CompetitionBadge game={match.game} name={match.tournamentName} /></div>
       {/* Header badge */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
         {phase ? (

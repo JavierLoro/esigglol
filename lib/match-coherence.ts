@@ -1,3 +1,4 @@
+import { competitiveDetails } from './game-details'
 import type { Match, MatchResult, Phase } from './types'
 import { getEffectiveBO } from './match-validation'
 
@@ -19,6 +20,20 @@ export function validateAndNormalizeMatch(match: Match, phase: Phase | undefined
   | { ok: true; match: Match }
   | { ok: false; error: string } {
   const bo = getMatchBo(phase, match)
+  const details = competitiveDetails(match, phase?.game ?? match.game ?? 'lol')
+  if (details.game === 'valorant') {
+    const maps = details.maps ?? []
+    if (maps.length > bo) return { ok: false, error: 'Demasiados mapas para la serie' }
+    for (const map of maps) {
+      const high = Math.max(map.team1Rounds, map.team2Rounds)
+      const low = Math.min(map.team1Rounds, map.team2Rounds)
+      if (![map.team1Rounds, map.team2Rounds].every(n => Number.isInteger(n) && n >= 0) || !((high === 13 && low <= 11) || (high >= 14 && high - low === 2))) return { ok: false, error: 'Resultado por mapa inválido: 13 rondas o prórroga con dos de ventaja' }
+    }
+    if (maps.length && (!match.result || maps.filter(m => m.team1Rounds > m.team2Rounds).length > match.result.team1Score || maps.filter(m => m.team2Rounds > m.team1Rounds).length > match.result.team2Score)) return { ok: false, error: 'Los mapas no coinciden con el marcador de serie' }
+    return { ok: true, match }
+  }
+  if (match.maps?.length) return { ok: false, error: 'Los mapas de Valorant no pertenecen a LoL' }
+
   const winsNeeded = Math.ceil(getEffectiveBO(phase ?? { config: { bo: 1 } } as Phase, match.round) / 2)
   const games = match.games?.map(game => game ?? null)
   const riotMatchIds = (match.riotMatchIds ?? []).map(id => id || null)

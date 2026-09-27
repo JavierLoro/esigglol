@@ -1,4 +1,5 @@
 'use client'
+import { scopedFetch } from '@/lib/scoped-fetch'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -28,7 +29,7 @@ export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Pr
     const check = async (): Promise<void> => {
       if (cancelledRef.current) return
       try {
-        const res = await fetch('/api/riot/refresh-stats')
+        const res = await scopedFetch('/api/riot/refresh-stats')
         const data = await res.json() as { lastUpdated: string | null; running: boolean; keyExpired: boolean }
 
         if (cancelledRef.current) return
@@ -63,7 +64,7 @@ export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Pr
 
   useEffect(() => {
     cancelledRef.current = false
-    fetch('/api/riot/refresh-stats')
+    scopedFetch('/api/riot/refresh-stats')
       .then(r => r.json())
       .then((data: { running: boolean; lastUpdated: string | null; keyExpired: boolean }) => {
         if (data.running && !cancelledRef.current) {
@@ -79,7 +80,7 @@ export default function RefreshStatsButton({ lastUpdated, isAdmin, teamIds }: Pr
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/riot/refresh-stats', {
+      const res = await scopedFetch('/api/riot/refresh-stats', {
         method: 'POST',
         headers: teamIds ? { 'Content-Type': 'application/json' } : undefined,
         body: teamIds ? JSON.stringify({ teamIds }) : undefined,

@@ -1,4 +1,5 @@
 'use client'
+import { scopedFetch } from '@/lib/scoped-fetch'
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -29,7 +30,7 @@ export default function RefreshPlayerButton({ summonerName }: Props) {
     if (cancelledRef.current) return
 
     try {
-      const res = await fetch('/api/riot/refresh-stats', { cache: 'no-store' })
+      const res = await scopedFetch('/api/riot/refresh-stats', { cache: 'no-store' })
       const data = await res.json() as { running?: boolean; keyExpired?: boolean }
       if (cancelledRef.current) return
 
@@ -60,7 +61,7 @@ export default function RefreshPlayerButton({ summonerName }: Props) {
     setError(null)
 
     try {
-      const res = await fetch('/api/riot/refresh-stats/player', {
+      const res = await scopedFetch('/api/riot/refresh-stats/player', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ summonerName }),

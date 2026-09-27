@@ -1,8 +1,10 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { UPLOADS_DIR } from '@/lib/env'
 import { getTeamById, updateTeamLogo } from '@/lib/data'
-import { getUploadFilename, resolveUploadPath, uploadUrl } from '@/lib/upload-files'
+import { resolveUploadPath, uploadUrl } from '@/lib/upload-files'
+import { removeUnusedLogo } from '@/lib/logo-cleanup'
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import { randomUUID } from 'crypto'
 import logger from '@/lib/logger'
@@ -35,7 +37,7 @@ async function removeFileQuietly(filePath: string, filename: string, reason: str
   }
 }
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const denied = await requireAdminSession()
   if (denied) return denied
 
@@ -100,11 +102,7 @@ export async function POST(req: Request) {
 
     // Only delete files owned by this application. Existing external/static
     // logo URLs remain untouched, and invalid persisted paths are ignored.
-    const previousFilename = typeof team.logo === 'string' ? getUploadFilename(team.logo) : null
-    const previousFilePath = previousFilename ? resolveUploadPath(previousFilename) : null
-    if (previousFilename && previousFilePath && previousFilePath !== newFilePath) {
-      await removeFileQuietly(previousFilePath, previousFilename, 'replaced-logo')
-    }
+    if (team.logo && team.logo !== publicPath) removeUnusedLogo(team.logo)
 
     log.info({ teamId, filename }, 'Logo uploaded')
 
@@ -118,3 +116,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }
+
+export const POST = competitionRoute(handlePOST, 'admin')

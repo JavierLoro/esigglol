@@ -1,13 +1,17 @@
+import { competitionRoute } from '@/lib/competition-route'
+import { getMatchById } from '@/lib/data'
+import { currentTournamentId, inTournament } from '@/lib/competition-context'
 import { requireAdminSession } from '@/lib/auth'
 import { subscribeToRiotResults, type RiotResultEvent } from '@/lib/riot-events'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   const denied = await requireAdminSession()
   if (denied) return denied
 
+  const tournamentId = currentTournamentId()
   const encoder = new TextEncoder()
   let unsubscribe = () => {}
   let heartbeat: ReturnType<typeof setInterval> | undefined
@@ -19,7 +23,7 @@ export async function GET(request: Request) {
       }
 
       send('ready', { connectedAt: new Date().toISOString() })
-      unsubscribe = subscribeToRiotResults((event: RiotResultEvent) => send('riot-result', event))
+      unsubscribe = subscribeToRiotResults((event: RiotResultEvent) => inTournament(tournamentId, () => { if (getMatchById(event.matchId)) send('riot-result', event) }))
       heartbeat = setInterval(() => {
         try { controller.enqueue(encoder.encode(': heartbeat\n\n')) } catch { cleanup() }
       }, 25_000)
@@ -47,3 +51,5 @@ export async function GET(request: Request) {
     },
   })
 }
+
+export const GET = competitionRoute(handleGET, 'admin')

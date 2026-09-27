@@ -1,3 +1,4 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { GenerateCodesSchema } from '@/lib/schemas'
@@ -6,7 +7,7 @@ import { getTournamentConfig, generateCodes, getCodeDetails, TournamentApiError 
 import type { BOFormat } from '@/lib/types'
 import { randomUUID } from 'crypto'
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const deny = await requireAdminSession()
   if (deny) return deny
 
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const deny = await requireAdminSession()
   if (deny) return deny
 
@@ -78,3 +79,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 502 })
   }
 }
+
+export const GET = competitionRoute(handleGET, 'lol')
+
+export const POST = competitionRoute(handlePOST, 'lol')

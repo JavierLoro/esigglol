@@ -1,6 +1,8 @@
+import { currentTournamentId } from './competition-context'
+import { assertCompetitionWritable } from './competitions'
 import db from './db'
 import type { Player, Role, Team, TeamAccessInfo, TeamChangeRequest, TeamChangeRequestStatus, TeamChangeRequestType } from './types'
-import { StaleWriteError, generateId, getTeamById, getTeams, updateTeam } from './data'
+import { createTeam, StaleWriteError, generateId, getTeamById, getTeams, updateTeam } from './data'
 import { validateTeams } from './domain-validation'
 
 interface AccessRow {
@@ -44,9 +46,13 @@ function requestFromRow(row: RequestRow): TeamChangeRequest {
 }
 
 export function createTeamAccess(teamId: string, passwordHash: string, encryptedPassword: string): TeamAccessInfo {
-  db.prepare(`INSERT INTO team_access (team_id, password_hash, password_encrypted) VALUES (?, ?, ?)`)
-    .run(teamId, passwordHash, encryptedPassword)
-  return getTeamAccess(teamId)!
+  return db.transaction(() => {
+    assertCompetitionWritable()
+    if (!getTeamById(teamId)) throw new Error('Equipo fuera del torneo')
+    db.prepare(`INSERT INTO team_access (team_id, password_hash, password_encrypted) VALUES (?, ?, ?)`)
+      .run(teamId, passwordHash, encryptedPassword)
+    return getTeamAccess(teamId)!
+  }).immediate()
 }
 
 /** Creates credentials for teams that predate the team portal feature. */
@@ -55,8 +61,8 @@ export async function ensureExistingTeamsHaveAccess(): Promise<number> {
     SELECT teams.id
     FROM teams
     LEFT JOIN team_access ON team_access.team_id = teams.id
-    WHERE team_access.team_id IS NULL
-  `).all() as Array<{ id: string }>
+    WHERE team_access.team_id IS NULL AND json_extract(teams.data, '$.tournamentId') = ?
+  `).all(currentTournamentId()) as Array<{ id: string }>
   if (missing.length === 0) return 0
 
   const [{ default: bcrypt }, { encryptTeamPassword, generateTeamPassword }] = await Promise.all([
@@ -89,16 +95,24 @@ export function getTeamAccessSecret(teamId: string): (TeamAccessInfo & { passwor
 }
 
 export function replaceTeamAccess(teamId: string, passwordHash: string, encryptedPassword: string): TeamAccessInfo {
-  db.prepare(`INSERT INTO team_access (team_id, password_hash, password_encrypted, enabled)
-    VALUES (?, ?, ?, 1)
-    ON CONFLICT(team_id) DO UPDATE SET password_hash = excluded.password_hash, password_encrypted = excluded.password_encrypted, enabled = 1, session_version = team_access.session_version + 1`)
-    .run(teamId, passwordHash, encryptedPassword)
-  return getTeamAccess(teamId)!
+  return db.transaction(() => {
+    assertCompetitionWritable()
+    if (!getTeamById(teamId)) throw new Error('Equipo fuera del torneo')
+    db.prepare(`INSERT INTO team_access (team_id, password_hash, password_encrypted, enabled)
+      VALUES (?, ?, ?, 1)
+      ON CONFLICT(team_id) DO UPDATE SET password_hash = excluded.password_hash, password_encrypted = excluded.password_encrypted, enabled = 1, session_version = team_access.session_version + 1`)
+      .run(teamId, passwordHash, encryptedPassword)
+    return getTeamAccess(teamId)!
+  }).immediate()
 }
 
 export function setTeamAccessEnabled(teamId: string, enabled: boolean): TeamAccessInfo | undefined {
-  if (db.prepare('UPDATE team_access SET enabled = ?, session_version = session_version + 1 WHERE team_id = ?').run(enabled ? 1 : 0, teamId).changes !== 1) return undefined
-  return getTeamAccess(teamId)
+  return db.transaction(() => {
+    assertCompetitionWritable()
+    if (!getTeamById(teamId)) throw new Error('Equipo fuera del torneo')
+    if (db.prepare('UPDATE team_access SET enabled = ?, session_version = session_version + 1 WHERE team_id = ?').run(enabled ? 1 : 0, teamId).changes !== 1) return undefined
+    return getTeamAccess(teamId)
+  }).immediate()
 }
 
 export function markTeamLogin(teamId: string): void {
@@ -107,48 +121,55 @@ export function markTeamLogin(teamId: string): void {
 
 export function createTeamWithAccess(team: Team, passwordHash: string, encryptedPassword: string): Team {
   return db.transaction(() => {
-    const created = { ...team, version: 1 }
-    db.prepare('INSERT INTO teams (id, data, version) VALUES (?, ?, 1)').run(team.id, JSON.stringify(created))
+    const created = createTeam(team)
     createTeamAccess(team.id, passwordHash, encryptedPassword)
     return created
   }).immediate()
 }
 
-export function updatePlayerRoles(teamId: string, playerId: string, version: number, primaryRole: Role, secondaryRole?: Exclude<Role, 'Suplente'>): Team {
+export function updatePlayerRoles(teamId: string, playerId: string, version: number, primaryRole: Role, secondaryRole?: Exclude<Role, 'Suplente'>, rosterStatus?: 'starter' | 'substitute'): Team {
   const team = getTeamById(teamId)
   if (!team || team.version !== version) throw new StaleWriteError('Team was modified')
   const player = team.players.find(item => item.id === playerId)
   if (!player) throw new Error('Jugador no encontrado')
-  const players = team.players.map(item => item.id === playerId ? { ...item, primaryRole, ...(secondaryRole ? { secondaryRole } : { secondaryRole: undefined }) } : item)
+  const players = team.players.map(item => item.id === playerId ? { ...item, primaryRole, ...(rosterStatus ? { rosterStatus } : {}), ...(secondaryRole ? { secondaryRole } : { secondaryRole: undefined }) } : item)
   return updateTeam({ ...team, players })
 }
 
 export function createTeamChangeRequest(teamId: string, type: TeamChangeRequestType, payload: Record<string, unknown>, playerId?: string): TeamChangeRequest {
-  const duplicate = db.prepare(`SELECT id FROM team_change_requests
-    WHERE team_id = ? AND type = ? AND COALESCE(player_id, '') = COALESCE(?, '') AND status = 'pending'`).get(teamId, type, playerId ?? null)
-  if (duplicate) throw new Error('Ya existe una solicitud pendiente para este cambio')
-  const id = generateId('request')
-  db.prepare(`INSERT INTO team_change_requests (id, team_id, type, player_id, payload) VALUES (?, ?, ?, ?, ?)`)
-    .run(id, teamId, type, playerId ?? null, JSON.stringify(payload))
-  return getTeamChangeRequest(id)!
+  return db.transaction(() => {
+    assertCompetitionWritable()
+    if (!getTeamById(teamId)) throw new Error('Equipo fuera del torneo')
+    const duplicate = db.prepare(`SELECT id FROM team_change_requests
+      WHERE team_id = ? AND type = ? AND COALESCE(player_id, '') = COALESCE(?, '') AND status = 'pending'`).get(teamId, type, playerId ?? null)
+    if (duplicate) throw new Error('Ya existe una solicitud pendiente para este cambio')
+    const id = generateId('request')
+    db.prepare(`INSERT INTO team_change_requests (id, team_id, type, player_id, payload) VALUES (?, ?, ?, ?, ?)`)
+      .run(id, teamId, type, playerId ?? null, JSON.stringify(payload))
+    return getTeamChangeRequest(id)!
+  }).immediate()
 }
 
 export function getTeamChangeRequest(id: string): TeamChangeRequest | undefined {
   const row = db.prepare('SELECT * FROM team_change_requests WHERE id = ?').get(id) as RequestRow | undefined
-  return row ? requestFromRow(row) : undefined
+  return row && getTeamById(row.team_id) ? requestFromRow(row) : undefined
 }
 
 export function getTeamChangeRequests(teamId?: string): TeamChangeRequest[] {
   const rows = (teamId
     ? db.prepare('SELECT * FROM team_change_requests WHERE team_id = ? ORDER BY created_at DESC').all(teamId)
     : db.prepare('SELECT * FROM team_change_requests ORDER BY CASE status WHEN \'pending\' THEN 0 ELSE 1 END, created_at DESC').all()) as RequestRow[]
-  return rows.map(requestFromRow)
+  return rows.filter(row => getTeamById(row.team_id)).map(requestFromRow)
 }
 
 export function rejectTeamChangeRequest(id: string, reason?: string): TeamChangeRequest | undefined {
-  const result = db.prepare(`UPDATE team_change_requests SET status = 'rejected', resolved_at = CURRENT_TIMESTAMP, rejection_reason = ? WHERE id = ? AND status = 'pending'`)
-    .run(reason?.trim() || null, id)
-  return result.changes === 1 ? getTeamChangeRequest(id) : undefined
+  return db.transaction(() => {
+    assertCompetitionWritable()
+    if (!getTeamChangeRequest(id)) return undefined
+    const result = db.prepare(`UPDATE team_change_requests SET status = 'rejected', resolved_at = CURRENT_TIMESTAMP, rejection_reason = ? WHERE id = ? AND status = 'pending'`)
+      .run(reason?.trim() || null, id)
+    return result.changes === 1 ? getTeamChangeRequest(id) : undefined
+  }).immediate()
 }
 
 export function approveTeamChangeRequest(id: string): { request: TeamChangeRequest; team: Team } | undefined {

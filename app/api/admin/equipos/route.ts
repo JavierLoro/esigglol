@@ -1,3 +1,5 @@
+import { getTournament } from '@/lib/competitions'
+import { competitionRoute } from '@/lib/competition-route'
 import { NextRequest, NextResponse } from 'next/server'
 import { deleteTeam, generateId, getTeamReferences, getTeams, StaleWriteError, updateTeam } from '@/lib/data'
 import { createTeamWithAccess, ensureExistingTeamsHaveAccess } from '@/lib/team-portal-data'
@@ -11,16 +13,17 @@ import { validateTeams, issuesToMessage } from '@/lib/domain-validation'
 
 const log = logger.child({ module: 'equipos' })
 
-export async function GET() {
+async function handleGET(_request?: Request) {
+  void _request
   const deny = await requireAdminSession()
   if (deny) return deny
-  await ensureExistingTeamsHaveAccess()
+  if (getTournament()?.status !== 'archived') await ensureExistingTeamsHaveAccess()
   return NextResponse.json(getTeams(), {
     headers: { 'Cache-Control': 'private, no-store' },
   })
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const deny = await requireAdminSession()
   if (deny) return deny
 
@@ -41,7 +44,7 @@ export async function POST(req: NextRequest) {
   } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
 }
 
-export async function PUT(req: NextRequest) {
+async function handlePUT(req: NextRequest) {
   const deny = await requireAdminSession()
   if (deny) return deny
 
@@ -63,7 +66,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+async function handleDELETE(req: NextRequest) {
   const deny = await requireAdminSession()
   if (deny) return deny
 
@@ -91,3 +94,11 @@ export async function DELETE(req: NextRequest) {
   } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json({ ok: true })
 }
+
+export const GET = competitionRoute(handleGET, 'admin')
+
+export const POST = competitionRoute(handlePOST, 'admin')
+
+export const PUT = competitionRoute(handlePUT, 'admin')
+
+export const DELETE = competitionRoute(handleDELETE, 'admin')

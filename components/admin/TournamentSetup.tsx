@@ -1,4 +1,5 @@
 'use client'
+import { scopedFetch } from '@/lib/scoped-fetch'
 
 import { useState, useEffect } from 'react'
 import type { TournamentConfig } from '@/lib/types'
@@ -34,7 +35,7 @@ export default function TournamentSetup() {
     setLoading(true)
     setLoadError(null)
     try {
-      const res = await fetch('/api/admin/tournament')
+      const res = await scopedFetch('/api/admin/tournament')
       const data = await res.json() as TournamentStatusResponse
       if (!res.ok) throw new Error(data.error || 'No se pudo cargar la configuración')
 
@@ -64,7 +65,7 @@ export default function TournamentSetup() {
     setMsg(null)
 
     try {
-      const res = await fetch('/api/admin/tournament', {
+      const res = await scopedFetch('/api/admin/tournament', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tournamentName }),
@@ -92,7 +93,7 @@ export default function TournamentSetup() {
     setResetting(true)
     setMsg(null)
     try {
-      const res = await fetch('/api/admin/tournament', { method: 'DELETE' })
+      const res = await scopedFetch('/api/admin/tournament', { method: 'DELETE' })
       const data = await res.json() as { error?: string }
       if (!res.ok) {
         setMsg({ type: 'error', text: data.error || 'No se pudo resetear la configuración' })

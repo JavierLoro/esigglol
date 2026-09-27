@@ -1,3 +1,5 @@
+import { publicEntityTournament, inTournament } from '@/lib/public-competition'
+import CompetitionBadge from '@/components/CompetitionBadge'
 import { notFound } from 'next/navigation'
 import { getTeams, getMatches, getPhases, getPlayerStatsCache } from '@/lib/data'
 import { getPublishedMatch, getPublishedMatches } from '@/lib/publication'
@@ -11,7 +13,7 @@ export const dynamic = 'force-dynamic'
 
 function currentTimestamp() { return Date.now() }
 
-export default async function OverlayPartidoPage({ params }: { params: Promise<{ id: string }> }) {
+async function OverlayPartidoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const phases = getPhases()
   const allMatches = getMatches()
@@ -22,6 +24,7 @@ export default async function OverlayPartidoPage({ params }: { params: Promise<{
   const teams = allTeams.filter(t => t.id === match.team1Id || t.id === match.team2Id)
   const matches = getPublishedMatches(phases, allMatches)
 
+  if (match.game === 'valorant') return <div className="p-6"><h1>{teams.map(t => t.name).join(' vs ')}</h1><p>{match.result ? `${match.result.team1Score} : ${match.result.team2Score}` : 'Pendiente'}</p>{match.maps?.map((m, i) => <p key={i}>{m.map ?? `Mapa ${i + 1}`}: {m.team1Rounds} : {m.team2Rounds}</p>)}</div>
   const cache = getPlayerStatsCache()
   const playerMap = new Map(cache.players.map(p => [p.playerId, p]))
 
@@ -62,4 +65,13 @@ export default async function OverlayPartidoPage({ params }: { params: Promise<{
       />
     </div>
   )
+}
+
+export default async function Page(props: { params: Promise<{ id: string }>; searchParams: Promise<{ tournament?: string }> }) {
+  const { id } = await props.params
+  const tournament = publicEntityTournament('matches', id)
+  const search = await props.searchParams
+  if (search.tournament && search.tournament !== tournament.id) notFound()
+  const content = await inTournament(tournament.id, () => OverlayPartidoPage(props))
+  return <><div className="px-6 pt-4"><CompetitionBadge game={tournament.game} name={tournament.name} /></div>{content}</>
 }

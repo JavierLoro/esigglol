@@ -14,6 +14,9 @@ const pendingMatch: Match = {
 }
 
 describe('getPublicMatchHref', () => {
+  it('never sends Valorant opponents to the LoL comparator', () => {
+    expect(getPublicMatchHref({ ...pendingMatch, game: 'valorant', tournamentId: 'val' }, teams)).toBe('/partidos/match-1?tournament=val&game=valorant')
+  })
   it('abre el comparador para un partido pendiente con ambos equipos confirmados', () => {
     expect(getPublicMatchHref(pendingMatch, teams)).toBe('/comparar?t1=team-a&t2=team-b')
   })

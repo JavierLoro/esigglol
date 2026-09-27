@@ -1,15 +1,17 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextResponse } from 'next/server'
 import { after } from 'next/server'
 import { runRefresh, getRefreshState } from '@/lib/refresh'
 import { requireAdminSession } from '@/lib/auth'
 
 // GET: devuelve el estado actual (para polling desde el cliente)
-export async function GET() {
+async function handleGET(_request?: Request) {
+  void _request
   return NextResponse.json(getRefreshState())
 }
 
 // POST: arranca la actualización en background y responde inmediatamente
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const denied = await requireAdminSession()
   if (denied) return denied
 
@@ -26,3 +28,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ status: 'started' })
 }
+
+export const GET = competitionRoute(handleGET, 'lol')
+
+export const POST = competitionRoute(handlePOST, 'lol')

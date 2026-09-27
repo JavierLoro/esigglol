@@ -83,8 +83,8 @@ export function isEntity(value: unknown): value is Record<string, unknown> & { i
   return isRecord(value) && typeof value.id === 'string'
 }
 
-const ROLES = new Set(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente'])
-const SECONDARY_ROLES = new Set(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill'])
+const ROLES = new Set(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Duelista', 'Iniciador', 'Controlador', 'Centinela', 'Flexible', 'Suplente'])
+const SECONDARY_ROLES = new Set(['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Duelista', 'Iniciador', 'Controlador', 'Centinela', 'Flexible'])
 const PHASE_TYPES = new Set(['groups', 'swiss', 'upper-lower', 'final-four', 'elimination'])
 const PHASE_STATUSES = new Set(['upcoming', 'active', 'completed'])
 const BO_FORMATS = new Set([1, 2, 3, 5])

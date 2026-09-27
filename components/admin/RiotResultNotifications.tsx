@@ -14,7 +14,7 @@ export default function RiotResultNotifications() {
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('EventSource' in window)) return
-    const source = new EventSource('/api/admin/riot-events')
+    const source = new EventSource(`/api/admin/riot-events?tournament=${new URLSearchParams(window.location.search).get('tournament') ?? 'legacy-lol'}`)
     const onResult = (message: MessageEvent<string>) => {
       try {
         const event = JSON.parse(message.data) as RiotResultEvent

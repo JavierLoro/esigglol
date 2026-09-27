@@ -6,6 +6,9 @@ import type { TwitchStatus } from '@/lib/twitch'
 
 interface Props {
   channel: string
+  title?: string
+  subtitle?: string
+  logo?: string
 }
 
 export function TwitchStatusBadge({ status }: { status: TwitchStatus }) {
@@ -30,7 +33,7 @@ export function TwitchStatusBadge({ status }: { status: TwitchStatus }) {
   return null
 }
 
-export default function LiveSection({ channel }: Props) {
+export default function LiveSection({ channel, title = 'I Copa Intercampus\nUCLM', subtitle = 'ESI Ciudad Real · Torneo LoL', logo = '/logo-torneo.png' }: Props) {
   const [status, setStatus] = useState<TwitchStatus>('unknown')
 
   useEffect(() => {
@@ -72,11 +75,11 @@ export default function LiveSection({ channel }: Props) {
 
         <div className="relative max-w-7xl mx-auto px-4 py-12 text-center">
           <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#0097D7]/70 mb-4">
-            ESI Ciudad Real &nbsp;·&nbsp; Torneo LoL
+            {subtitle}
           </p>
           <div className="flex items-center justify-center gap-5 sm:gap-8">
             <Image
-              src="/logo-torneo.png"
+              src={logo}
               alt="Logo torneo"
               width={80}
               height={80}
@@ -84,15 +87,13 @@ export default function LiveSection({ channel }: Props) {
               unoptimized
             />
             <h1
-              className="text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white leading-[1.05] text-center"
+              className="min-w-0 whitespace-pre-line break-words text-2xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white leading-[1.05] text-center"
               style={{ textShadow: '0 0 60px rgba(0,151,215,0.3)' }}
             >
-              I Copa Intercampus
-              <br />
-              <span className="text-[#0097D7]">UCLM</span>
+              {title.split('\n').map((line, index) => <span key={index} className={index ? 'block text-[#0097D7]' : 'block'}>{line}</span>)}
             </h1>
             <Image
-              src="/logo-torneo.png"
+              src={logo}
               alt="Logo torneo"
               width={80}
               height={80}

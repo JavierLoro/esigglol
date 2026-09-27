@@ -1,20 +1,22 @@
+import { publicEntityTournament, inTournament } from '@/lib/public-competition'
+import CompetitionBadge from '@/components/CompetitionBadge'
 import { notFound } from 'next/navigation'
 import { getPhaseById, getMatchesByPhase, getTeams } from '@/lib/data'
 import GroupsView from '@/components/brackets/GroupsView'
 import SwissView from '@/components/brackets/SwissView'
 import EliminationBracket from '@/components/brackets/EliminationBracket'
 import UpperLowerBracket from '@/components/brackets/UpperLowerBracket'
-import { isPhasePublished } from '@/lib/publication'
+import { getPublishedMatches, isPhasePublished } from '@/lib/publication'
 
 export const dynamic = 'force-dynamic'
 
-export default async function OverlayFasePage({ params }: { params: Promise<{ id: string }> }) {
+async function OverlayFasePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const phase = getPhaseById(id)
   if (!phase) notFound()
   if (!isPhasePublished(phase)) notFound()
 
-  const matches = getMatchesByPhase(id)
+  const matches = getPublishedMatches([phase], getMatchesByPhase(id))
   const teams = getTeams()
 
   return (
@@ -44,4 +46,13 @@ export default async function OverlayFasePage({ params }: { params: Promise<{ id
       )}
     </div>
   )
+}
+
+export default async function Page(props: { params: Promise<{ id: string }>; searchParams: Promise<{ tournament?: string }> }) {
+  const { id } = await props.params
+  const tournament = publicEntityTournament('phases', id)
+  const search = await props.searchParams
+  if (search.tournament && search.tournament !== tournament.id) notFound()
+  const content = await inTournament(tournament.id, () => OverlayFasePage(props))
+  return <><div className="px-6 pt-4"><CompetitionBadge game={tournament.game} name={tournament.name} /></div>{content}</>
 }

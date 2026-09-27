@@ -44,7 +44,7 @@ export async function proxy(req: NextRequest) {
   }
 
 
-  if (pathname.startsWith('/equipo') && !pathname.startsWith('/equipo/login')) {
+  if ((pathname === '/equipo' || pathname.startsWith('/equipo/')) && pathname !== '/equipo/login') {
     const token = req.cookies.get(TEAM_COOKIE_NAME)?.value
     if (!token || (await readSession(token))?.role !== 'team') {
       return NextResponse.redirect(new URL('/equipo/login', req.url))

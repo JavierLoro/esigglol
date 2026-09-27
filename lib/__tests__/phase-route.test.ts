@@ -37,11 +37,11 @@ const match: Match = {
 }
 
 function request(body: Phase) {
-  return new NextRequest('http://localhost/api/admin/fases', { method: 'PUT', body: JSON.stringify(body) })
+  return new NextRequest('http://localhost/api/admin/fases?tournament=legacy-lol', { method: 'PUT', body: JSON.stringify(body) })
 }
 
 function postRequest(body: Omit<Phase, 'id'>) {
-  return new NextRequest('http://localhost/api/admin/fases', { method: 'POST', body: JSON.stringify(body) })
+  return new NextRequest('http://localhost/api/admin/fases?tournament=legacy-lol', { method: 'POST', body: JSON.stringify(body) })
 }
 
 describe('PUT /api/admin/fases structural lock', () => {

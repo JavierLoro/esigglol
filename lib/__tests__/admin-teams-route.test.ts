@@ -38,7 +38,7 @@ describe('POST /api/admin/equipos', () => {
     const persisted: Team[] = [{ id: 'team-1', name: 'Alpha', logo: '', players: [] }]
     mocks.getTeams.mockReturnValue(persisted)
 
-    const response = await POST(new Request('http://localhost/api/admin/equipos', {
+    const response = await POST(new Request('http://localhost/api/admin/equipos?tournament=legacy-lol', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: ' alpha ', logo: '', players: [] }),

@@ -1,9 +1,11 @@
 'use client'
+import { scopedFetch } from '@/lib/scoped-fetch'
 import { useState, useEffect } from 'react'
 import type { Phase, PhaseType, PhaseStatus, BOFormat, Team, Match } from '@/lib/types'
 import { validatePhaseParticipants } from '@/lib/phase-validation'
 import { Plus, Trash2, Save, GripVertical, Zap, Check, Copy, ChevronDown, ChevronRight } from 'lucide-react'
 import { bracketSizeError, isPowerOfTwoAtLeastFour } from '@/lib/bracket-sizes'
+import { useAdminTournament } from '@/components/admin/AdminTournamentContext'
 import {
   adminRequest,
   errorMessage,
@@ -45,6 +47,7 @@ function isBracketComplete(phase: Phase, matches: Match[]): boolean {
 }
 
 export default function AdminFases() {
+  const archived = useAdminTournament()?.status === 'archived'
   const [phases, setPhases] = useState<Phase[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [allMatches, setAllMatches] = useState<Match[]>([])
@@ -56,13 +59,13 @@ export default function AdminFases() {
   const [loadError, setLoadError] = useState('')
 
   function loadMatches() {
-    return adminRequest<Match[]>(fetch('/api/admin/partidos'), isMatchArray).then(setAllMatches)
+    return adminRequest<Match[]>(scopedFetch('/api/admin/partidos'), isMatchArray).then(setAllMatches)
   }
 
   useEffect(() => {
     Promise.all([
-      adminRequest<Phase[]>(fetch('/api/admin/fases'), isPhaseArray),
-      adminRequest<Team[]>(fetch('/api/admin/equipos'), isTeamArray), loadMatches(),
+      adminRequest<Phase[]>(scopedFetch('/api/admin/fases'), isPhaseArray),
+      adminRequest<Team[]>(scopedFetch('/api/admin/equipos'), isTeamArray), loadMatches(),
     ]).then(([p, t]) => { setPhases(p); setTeams(t) }).catch(error => setLoadError(errorMessage(error)))
   }, [])
 
@@ -89,7 +92,7 @@ export default function AdminFases() {
   }
 
   function addPhase() {
-    const id = `draft-${crypto.randomUUID()}`
+    const id = `draft-${crypto.getRandomValues(new Uint32Array(2)).join('-')}`
     setPhases(prev => [...prev, {
       id,
       name: 'Nueva fase',
@@ -122,7 +125,7 @@ export default function AdminFases() {
       const body = isDraft ? {
         name: phase.name, type: phase.type, status: phase.status, order: phase.order, config: phase.config,
       } : phase
-      const saved = await adminRequest<Phase>(fetch('/api/admin/fases', { method: isDraft ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), isPhase)
+      const saved = await adminRequest<Phase>(scopedFetch('/api/admin/fases', { method: isDraft ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), isPhase)
       setPhases(prev => prev.map(candidate => candidate.id === phase.id ? saved : candidate))
       notify('Guardado')
     } catch (error) {
@@ -143,27 +146,39 @@ export default function AdminFases() {
     setDeleting(id)
     try {
       const phase = phases.find(candidate => candidate.id === id)
-      await adminRequest(fetch('/api/admin/fases', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, version: phase?.version }) }), isOk)
+      await adminRequest(scopedFetch('/api/admin/fases', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, version: phase?.version }) }), isOk)
       setPhases(prev => prev.filter(p => p.id !== id)); setAllMatches(prev => prev.filter(m => m.phaseId !== id)); notify('Fase eliminada')
     } catch (error) { notify(errorMessage(error)) } finally { setDeleting(null) }
   }
 
   async function generateMatches(phase: Phase, type: 'groups' | 'swiss' | 'elimination' | 'final-four' | 'upper-lower', round?: number) {
     const count = type === 'swiss' ? (phase.config.swissTeamIds?.length ?? 0) : (phase.config.bracketTeamIds?.length ?? 0)
-    const sizeError = bracketSizeError(type, count)
+    const sizeError = type === 'groups' ? null : bracketSizeError(type, count)
     if (sizeError) { notify(sizeError); return }
+    const participantErrors = validatePhaseParticipants(phase.type, phase.config)
+    if (participantErrors.length > 0) { notify(participantErrors[0]); return }
     setGenerating(phase.id)
+    let createdPhase = false
+    let generated = false
     try {
       // Guardar primero para que el endpoint tenga la config actualizada
-      await adminRequest(fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(phase) }), isPhase)
-      const data = await adminRequest<{ created: number }>(fetch('/api/admin/fases/generate', {
+      const isDraft = phase.id.startsWith('draft-')
+      const body = isDraft
+        ? { name: phase.name, type: phase.type, status: phase.status, order: phase.order, config: phase.config }
+        : phase
+      const saved = await adminRequest<Phase>(scopedFetch('/api/admin/fases', { method: isDraft ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), isPhase)
+      createdPhase = isDraft
+      if (isDraft) setGenerating(saved.id)
+      setPhases(prev => prev.map(candidate => candidate.id === phase.id ? saved : candidate))
+      const data = await adminRequest<{ created: number }>(scopedFetch('/api/admin/fases/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phaseId: phase.id, round }),
+        body: JSON.stringify({ phaseId: saved.id, round }),
       }), isGeneratedMatchesResponse)
+      generated = true
       await loadMatches()
       notify(data.created > 0 ? `${data.created} partido${data.created !== 1 ? 's' : ''} generado${data.created !== 1 ? 's' : ''}` : 'No hay partidos nuevos que generar')
-    } catch (error) { notify(errorMessage(error)) } finally { setGenerating(null) }
+    } catch (error) { notify(createdPhase ? `${generated ? 'Fase guardada, pero no se pudieron cargar los partidos' : 'Fase guardada, pero no se generaron los partidos'}: ${errorMessage(error)}` : errorMessage(error)) } finally { setGenerating(null) }
   }
 
   function update(id: string, patch: Partial<Phase>) {
@@ -178,7 +193,7 @@ export default function AdminFases() {
     const updated = { ...phase, config: { ...phase.config, confirmedBracket: true } }
     setSaving(phase.id)
     try {
-      const saved = await adminRequest<Phase>(fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) }), isPhase)
+      const saved = await adminRequest<Phase>(scopedFetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) }), isPhase)
       setPhases(prev => prev.map(p => p.id === phase.id ? saved : p)); notify('Bracket confirmado')
     } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
   }
@@ -188,7 +203,7 @@ export default function AdminFases() {
     const updated = { ...phase, config: { ...phase.config, confirmedRounds: confirmed } }
     setSaving(phase.id)
     try {
-      const saved = await adminRequest<Phase>(fetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) }), isPhase)
+      const saved = await adminRequest<Phase>(scopedFetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) }), isPhase)
       setPhases(prev => prev.map(p => p.id === phase.id ? saved : p)); notify(`Ronda ${round} confirmada`)
     } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
   }
@@ -210,7 +225,7 @@ export default function AdminFases() {
               {allPhasesCollapsed ? 'Desplegar fases' : 'Plegar fases'}
             </button>
           )}
-          <button onClick={addPhase} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors">
+          <button onClick={addPhase} disabled={archived} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:cursor-not-allowed disabled:opacity-40">
             <Plus size={15} /> Añadir fase
           </button>
         </div>
@@ -256,21 +271,22 @@ export default function AdminFases() {
                 <input
                   aria-label={`Nombre de la fase ${i + 1}: ${phase.name}`}
                   value={phase.name}
+                  disabled={archived}
                   onChange={e => update(phase.id, { name: e.target.value })}
                   className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-medium text-white focus:outline-none focus:border-[#0097D7]/50"
                 />
               )}
-              <button aria-label={`Eliminar fase ${phase.name}`} onClick={() => deletePhase(phase.id)} disabled={deleting === phase.id || saving === phase.id} className="text-white/20 hover:text-red-400 transition-colors ml-auto disabled:opacity-50">
+              <button aria-label={`Eliminar fase ${phase.name}`} onClick={() => deletePhase(phase.id)} disabled={archived || deleting === phase.id || saving === phase.id} className="text-white/20 hover:text-red-400 transition-colors ml-auto disabled:opacity-50">
                 <Trash2 size={15} />
               </button>
             </div>
 
             {!isCollapsed && (
-            <div
+            <fieldset disabled={archived}
               id={`phase-config-${phase.id}`}
               role="region"
               aria-labelledby={`phase-toggle-${phase.id}`}
-              className="flex flex-col gap-4"
+              className="m-0 min-w-0 border-0 p-0 flex flex-col gap-4 disabled:opacity-70"
             >
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
@@ -739,7 +755,7 @@ export default function AdminFases() {
                 {saving === phase.id ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
-            </div>
+            </fieldset>
             )}
           </div>
         )

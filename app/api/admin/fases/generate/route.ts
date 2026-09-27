@@ -1,3 +1,4 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextRequest, NextResponse } from 'next/server'
 import { createMatches, getPhaseById, getMatches, generateId } from '@/lib/data'
 import { requireAdminSession } from '@/lib/auth'
@@ -11,7 +12,7 @@ import { orderBracketMatches } from '@/lib/bracket-position'
 
 const log = logger.child({ module: 'generate' })
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const deny = await requireAdminSession()
   if (deny) return deny
 
@@ -272,3 +273,5 @@ export async function POST(req: NextRequest) {
   try { createMatches(created) } catch (err) { log.error({ err }, 'DB write failed'); return NextResponse.json({ error: 'Error interno' }, { status: 500 }) }
   return NextResponse.json({ created: created.length })
 }
+
+export const POST = competitionRoute(handlePOST, 'admin')

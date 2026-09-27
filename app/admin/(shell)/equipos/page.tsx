@@ -1,10 +1,13 @@
 'use client'
+import { useSearchParams } from 'next/navigation'
+import { scopedFetch } from '@/lib/scoped-fetch'
 import { useState, useEffect } from 'react'
 import type { Team, Player, Role } from '@/lib/types'
 import Image from 'next/image'
 import { Plus, Trash2, Save, ChevronDown, ChevronRight, Upload, X } from 'lucide-react'
 import { adminRequest, errorMessage, isOk, isPathResponse, isTeam, isTeamArray } from '@/lib/admin-client'
 import TeamAccessControl from '@/components/admin/TeamAccessControl'
+import { useAdminTournament } from '@/components/admin/AdminTournamentContext'
 
 const PRIMARY_ROLES: Role[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente']
 const SECONDARY_ROLES: Exclude<Role, 'Suplente'>[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill']
@@ -12,6 +15,13 @@ const SECONDARY_ROLES: Exclude<Role, 'Suplente'>[] = ['Top', 'Jungle', 'Mid', 'B
 function genId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 6)}` }
 
 export default function AdminEquipos() {
+  const archived = useAdminTournament()?.status === 'archived'
+  const search = useSearchParams()
+  const [selectedGame, setSelectedGame] = useState(search.get('game') ?? 'lol')
+  const tournamentId = search.get('tournament') ?? 'legacy-lol'
+  useEffect(() => { fetch('/api/admin/torneos').then(r => r.ok ? r.json() : []).then((items: Array<{ id: string; game: string }>) => { const tournament = items.find(t => t.id === tournamentId); if (tournament) setSelectedGame(tournament.game) }).catch(() => {}) }, [tournamentId])
+  const valorant = selectedGame === 'valorant'
+  const roles: Role[] = valorant ? ['Duelista', 'Iniciador', 'Controlador', 'Centinela', 'Flexible'] : PRIMARY_ROLES
   const [teams, setTeams] = useState<Team[]>([])
   const [draftIds, setDraftIds] = useState<Set<string>>(() => new Set())
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -22,7 +32,7 @@ export default function AdminEquipos() {
   const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    adminRequest<Team[]>(fetch('/api/admin/equipos'), isTeamArray).then(setTeams).catch(error => setLoadError(errorMessage(error)))
+    adminRequest<Team[]>(scopedFetch('/api/admin/equipos'), isTeamArray).then(setTeams).catch(error => setLoadError(errorMessage(error)))
   }, [])
 
   function notify(text: string) { setMsg(text); setTimeout(() => setMsg(''), 3000) }
@@ -32,7 +42,7 @@ export default function AdminEquipos() {
     setSaving(team.id)
     try {
       if (isDraft) {
-        const created = await adminRequest<Team>(fetch('/api/admin/equipos', {
+        const created = await adminRequest<Team>(scopedFetch('/api/admin/equipos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: team.name, logo: team.logo, players: team.players }),
@@ -45,7 +55,7 @@ export default function AdminEquipos() {
         })
         setExpanded(created.id)
       } else {
-        const saved = await adminRequest<Team>(fetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isTeam)
+        const saved = await adminRequest<Team>(scopedFetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isTeam)
         setTeams(prev => prev.map(candidate => candidate.id === team.id ? saved : candidate))
       }
       notify('Cambios guardados')
@@ -79,7 +89,7 @@ export default function AdminEquipos() {
     setDeleting(id)
     try {
       const team = teams.find(candidate => candidate.id === id)
-      await adminRequest(fetch('/api/admin/equipos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, version: team?.version }) }), isOk)
+      await adminRequest(scopedFetch('/api/admin/equipos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, version: team?.version }) }), isOk)
       setTeams(prev => prev.filter(t => t.id !== id)); notify('Equipo eliminado')
     } catch (error) { notify(errorMessage(error)) } finally { setDeleting(null) }
   }
@@ -95,13 +105,13 @@ export default function AdminEquipos() {
     formData.append('file', file)
     formData.append('teamId', teamId)
     try {
-      const data = await adminRequest<{ path: string }>(fetch('/api/admin/equipos/upload-logo', { method: 'POST', body: formData }), isPathResponse)
+      const data = await adminRequest<{ path: string }>(scopedFetch('/api/admin/equipos/upload-logo', { method: 'POST', body: formData }), isPathResponse)
       updateTeam(teamId, { logo: data.path }); notify('Logo guardado')
     } catch (error) { notify(errorMessage(error)) } finally { setUploading(null) }
   }
 
   function addPlayer(teamId: string) {
-    const player: Player = { id: genId(), summonerName: '', primaryRole: 'Fill' }
+    const player: Player = { id: genId(), summonerName: '', primaryRole: valorant ? 'Flexible' : 'Fill', rosterStatus: 'starter' }
     setTeams(prev => prev.map(t => t.id === teamId ? { ...t, players: [...t.players, player] } : t))
   }
 
@@ -123,7 +133,7 @@ export default function AdminEquipos() {
         <h1 className="text-xl font-bold">Equipos</h1>
         <div className="flex items-center gap-3">
           {(msg || loadError) && <span className={(loadError || msg.startsWith('Error') || msg.startsWith('Sesión')) ? 'text-red-400 text-sm' : 'text-green-400 text-sm'}>{loadError || msg}</span>}
-          <button onClick={addTeam} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors">
+          <button onClick={addTeam} disabled={archived} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:cursor-not-allowed disabled:opacity-40">
             <Plus size={15} /> Añadir equipo
           </button>
         </div>
@@ -147,14 +157,14 @@ export default function AdminEquipos() {
               e.stopPropagation()
               if (draftIds.has(team.id)) cancelDraft(team.id)
               else deleteTeam(team.id)
-            }} disabled={saving === team.id || deleting === team.id} aria-label={`${draftIds.has(team.id) ? 'Cancelar' : 'Eliminar'} equipo ${team.name || 'nuevo'}`} className="text-white/20 hover:text-red-400 transition-colors ml-2 disabled:opacity-50">
+            }} disabled={archived || saving === team.id || deleting === team.id} aria-label={`${draftIds.has(team.id) ? 'Cancelar' : 'Eliminar'} equipo ${team.name || 'nuevo'}`} className="text-white/20 hover:text-red-400 transition-colors ml-2 disabled:opacity-50">
               <Trash2 size={15} />
             </button>
           </div>
 
           {expanded === team.id && (
-            <div id={`team-details-${team.id}`} className="p-4 border-t border-white/10 flex flex-col gap-4">
-              {!draftIds.has(team.id) && <TeamAccessControl teamId={team.id} teamName={team.name} />}
+            <fieldset disabled={archived} id={`team-details-${team.id}`} className="m-0 min-w-0 border-0 border-t border-white/10 p-4 flex flex-col gap-4 disabled:opacity-70">
+              {!draftIds.has(team.id) && <TeamAccessControl teamId={team.id} teamName={team.name} tournamentId={tournamentId} />}
               {/* Datos del equipo */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -217,13 +227,14 @@ export default function AdminEquipos() {
                         className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#0097D7]/50"
                       />
                       <div className="flex items-center gap-2">
+                        {valorant && <select aria-label={`Condición de ${p.summonerName}`} value={p.rosterStatus ?? 'starter'} onChange={e => updatePlayer(team.id, p.id, { rosterStatus: e.target.value as 'starter' | 'substitute' })}><option value="starter">Titular</option><option value="substitute">Suplente</option></select>}
                         <select
                           aria-label={`Rol principal de ${p.summonerName || 'nuevo jugador'} en ${team.name || 'nuevo equipo'}`}
                           value={p.primaryRole}
                           onChange={e => updatePlayer(team.id, p.id, { primaryRole: e.target.value as Role })}
                           className="flex-1 sm:flex-none px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:outline-none"
                         >
-                          {PRIMARY_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                          {roles.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                         <select
                           aria-label={`Rol secundario de ${p.summonerName || 'nuevo jugador'} en ${team.name || 'nuevo equipo'}`}
@@ -232,7 +243,7 @@ export default function AdminEquipos() {
                           className="flex-1 sm:flex-none px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/60 focus:outline-none"
                         >
                           <option value="">— 2º rol</option>
-                          {SECONDARY_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                          {(valorant ? roles : SECONDARY_ROLES).map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                         <button aria-label={`Eliminar jugador ${p.summonerName || 'nuevo'} de ${team.name || 'nuevo equipo'}`} onClick={() => removePlayer(team.id, p.id)} className="ml-auto sm:ml-0 text-white/20 hover:text-red-400 transition-colors">
                           <Trash2 size={14} />
@@ -262,7 +273,7 @@ export default function AdminEquipos() {
                   {saving === team.id ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>
-            </div>
+            </fieldset>
           )}
         </div>
       ))}

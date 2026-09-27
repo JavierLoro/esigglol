@@ -1,3 +1,4 @@
+import { competitionRoute } from '@/lib/competition-route'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { requireAdminSession } from '@/lib/auth'
@@ -11,7 +12,7 @@ async function teamId(context: Context): Promise<string> {
   return (await context.params).id
 }
 
-export async function GET(_req: Request, context: Context) {
+async function handleGET(_req: Request, context: Context) {
   const deny = await requireAdminSession()
   if (deny) return deny
   const id = await teamId(context)
@@ -21,7 +22,7 @@ export async function GET(_req: Request, context: Context) {
   return NextResponse.json({ ...access, passwordHash: undefined, encryptedPassword: undefined, configured: true, password: decryptTeamPassword(access.encryptedPassword) })
 }
 
-export async function POST(_req: Request, context: Context) {
+async function handlePOST(_req: Request, context: Context) {
   const deny = await requireAdminSession()
   if (deny) return deny
   const id = await teamId(context)
@@ -35,13 +36,20 @@ export async function POST(_req: Request, context: Context) {
   return NextResponse.json({ ...info, configured: true, password })
 }
 
-export async function PATCH(req: Request, context: Context) {
+async function handlePATCH(req: Request, context: Context) {
   const deny = await requireAdminSession()
   if (deny) return deny
   const id = await teamId(context)
   let body: { enabled?: unknown }
   try { body = await req.json() as { enabled?: unknown } } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }
   if (typeof body.enabled !== 'boolean') return NextResponse.json({ error: 'Estado inválido' }, { status: 422 })
+  if (!getTeamById(id)) return NextResponse.json({ error: 'Equipo no encontrado' }, { status: 404 })
   const info = setTeamAccessEnabled(id, body.enabled)
   return info ? NextResponse.json(info) : NextResponse.json({ error: 'Acceso no configurado' }, { status: 404 })
 }
+
+export const GET = competitionRoute(handleGET, 'admin')
+
+export const POST = competitionRoute(handlePOST, 'admin')
+
+export const PATCH = competitionRoute(handlePATCH, 'admin')
