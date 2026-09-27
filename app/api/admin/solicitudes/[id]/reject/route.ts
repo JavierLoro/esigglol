@@ -1,10 +1,9 @@
 import { competitionRoute } from '@/lib/competition-route'
 import { NextResponse } from 'next/server'
-import { unlink } from 'fs/promises'
 import { requireAdminSession } from '@/lib/auth'
 import { ResolveTeamRequestSchema } from '@/lib/schemas'
 import { getTeamChangeRequest, rejectTeamChangeRequest } from '@/lib/team-portal-data'
-import { getUploadFilename, resolveUploadPath } from '@/lib/upload-files'
+import { removeUnusedLogo } from '@/lib/logo-cleanup'
 
 async function handlePOST(req: Request, context: { params: Promise<{ id: string }> }) {
   const deny = await requireAdminSession()
@@ -20,9 +19,7 @@ async function handlePOST(req: Request, context: { params: Promise<{ id: string 
   if (!rejected) return NextResponse.json({ error: 'La solicitud ya fue resuelta' }, { status: 409 })
   if (current.type === 'team_logo') {
     const logo = typeof current.payload.logo === 'string' ? current.payload.logo : ''
-    const filename = getUploadFilename(logo)
-    const path = filename ? resolveUploadPath(filename) : null
-    if (path) await unlink(path).catch(() => undefined)
+    if (logo) removeUnusedLogo(logo)
   }
   return NextResponse.json(rejected)
 }

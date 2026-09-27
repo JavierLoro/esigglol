@@ -8,12 +8,14 @@ interface AccessData { configured: boolean; password?: string; enabled?: boolean
 interface TeamAccessControlProps {
   teamId: string
   teamName: string
+  tournamentId: string
 }
 
-export default function TeamAccessControl({ teamId, teamName }: TeamAccessControlProps) {
+export default function TeamAccessControl({ teamId, teamName, tournamentId }: TeamAccessControlProps) {
   const [access, setAccess] = useState<AccessData | null>(null)
   const [visible, setVisible] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [manualCopy, setManualCopy] = useState(false)
   const [busy, setBusy] = useState(false)
 
   async function load() {
@@ -34,10 +36,18 @@ export default function TeamAccessControl({ teamId, teamName }: TeamAccessContro
     const response = await scopedFetch(`/api/admin/equipos/${teamId}/access`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !access.enabled }) })
     if (response.ok) setAccess(current => current ? { ...current, enabled: !current.enabled } : current)
   }
+  function invitation() {
+    return `Equipo: ${teamName}\nContraseña: ${access?.password}\nAcceso: ${window.location.origin}/equipo/login?tournament=${encodeURIComponent(tournamentId)}&team=${encodeURIComponent(teamId)}`
+  }
   async function copy() {
     if (!access?.password) return
-    await navigator.clipboard.writeText(`Equipo: ${teamName}\nContraseña: ${access.password}\nAcceso: ${window.location.origin}/equipo/login`)
-    setCopied(true); window.setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(invitation())
+      setManualCopy(false)
+      setCopied(true); window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setManualCopy(true)
+    }
   }
 
   if (!access) return <button onClick={load} disabled={busy} className="text-xs text-[#33b3e8] hover:text-white"><KeyRound size={13} className="inline mr-1" />{busy ? 'Cargando…' : 'Gestionar acceso'}</button>
@@ -52,5 +62,6 @@ export default function TeamAccessControl({ teamId, teamName }: TeamAccessContro
       <button onClick={toggle} className={`ml-auto rounded-full px-2.5 py-1 text-xs ${access.enabled ? 'bg-green-400/10 text-green-300' : 'bg-red-400/10 text-red-300'}`}>{access.enabled ? 'Acceso activo' : 'Acceso desactivado'}</button>
     </div>
     {access.lastLoginAt && <p className="mt-2 text-xs text-white/25">Último acceso: {new Date(access.lastLoginAt).toLocaleString()}</p>}
+    {manualCopy && access.password && <label className="mt-2 block text-xs text-amber-300">El navegador no permite copiar aquí. Selecciona y copia estos datos manualmente:<textarea readOnly onFocus={event => event.currentTarget.select()} value={invitation()} className="mt-1 block w-full rounded border border-white/20 bg-black/20 p-2 text-sm text-white" rows={3} /></label>}
   </div>
 }

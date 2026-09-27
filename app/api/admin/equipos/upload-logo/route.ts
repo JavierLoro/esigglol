@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { UPLOADS_DIR } from '@/lib/env'
 import { getTeamById, updateTeamLogo } from '@/lib/data'
-import { getUploadFilename, resolveUploadPath, uploadUrl } from '@/lib/upload-files'
+import { resolveUploadPath, uploadUrl } from '@/lib/upload-files'
+import { removeUnusedLogo } from '@/lib/logo-cleanup'
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import { randomUUID } from 'crypto'
 import logger from '@/lib/logger'
@@ -101,11 +102,7 @@ async function handlePOST(req: Request) {
 
     // Only delete files owned by this application. Existing external/static
     // logo URLs remain untouched, and invalid persisted paths are ignored.
-    const previousFilename = typeof team.logo === 'string' ? getUploadFilename(team.logo) : null
-    const previousFilePath = previousFilename ? resolveUploadPath(previousFilename) : null
-    if (previousFilename && previousFilePath && previousFilePath !== newFilePath) {
-      await removeFileQuietly(previousFilePath, previousFilename, 'replaced-logo')
-    }
+    if (team.logo && team.logo !== publicPath) removeUnusedLogo(team.logo)
 
     log.info({ teamId, filename }, 'Logo uploaded')
 

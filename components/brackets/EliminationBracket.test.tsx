@@ -38,4 +38,16 @@ describe('EliminationBracket', () => {
     expect(html.indexOf('Team A')).toBeLessThan(html.indexOf('Team C'))
     expect(html.indexOf('/comparar?t1=A&amp;t2=B')).toBeLessThan(html.indexOf('/comparar?t1=C&amp;t2=D'))
   })
+
+  it('distingue el tercer puesto de la final', () => {
+    const thirdPlace = renderToStaticMarkup(
+      <EliminationBracket matches={[{ ...match('third', 0, 'A', 'B'), round: 98 }]} teams={teams} />,
+    )
+    const final = renderToStaticMarkup(
+      <EliminationBracket matches={[{ ...match('final', 0, 'C', 'D'), round: 2 }]} teams={teams} />,
+    )
+    expect(thirdPlace).toContain('Tercer puesto')
+    expect(thirdPlace).not.toContain('>Final<')
+    expect(final).toContain('>Final<')
+  })
 })

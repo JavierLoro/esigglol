@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   mkdir: vi.fn(),
   writeFile: vi.fn(),
   unlink: vi.fn(),
+  removeUnusedLogo: vi.fn(),
   randomUUID: vi.fn(),
 }))
 
@@ -23,6 +24,7 @@ vi.mock('fs/promises', () => ({
   unlink: mocks.unlink,
 }))
 vi.mock('crypto', () => ({ randomUUID: mocks.randomUUID }))
+vi.mock('@/lib/logo-cleanup', () => ({ removeUnusedLogo: mocks.removeUnusedLogo }))
 
 function uploadRequest(teamId: string, file = new File(['logo-bytes'], 'logo.png', { type: 'image/png' })) {
   const formData = new FormData()
@@ -50,7 +52,7 @@ describe('POST /api/admin/equipos/upload-logo', () => {
     mocks.randomUUID.mockReturnValue('fixed-logo-id')
   })
 
-  it('valida el equipo, persiste la asociación y elimina el logo anterior', async () => {
+  it('valida el equipo, persiste la asociación y solicita limpiar el logo anterior', async () => {
     const team: Team = { id: 'team-1', name: 'Alpha', logo: '/api/uploads/old-logo.png', players: [] }
     mocks.getTeamById.mockReturnValue(team)
     mocks.updateTeamLogo.mockImplementation((_teamId: string, logo: string) => ({ ...team, logo }))
@@ -67,7 +69,7 @@ describe('POST /api/admin/equipos/upload-logo', () => {
       { flag: 'wx' },
     )
     expect(mocks.updateTeamLogo).toHaveBeenCalledWith(team.id, body.path)
-    expect(mocks.unlink).toHaveBeenCalledWith(expect.stringContaining('old-logo.png'))
+    expect(mocks.removeUnusedLogo).toHaveBeenCalledWith('/api/uploads/old-logo.png')
   })
 
   it('no escribe ningún archivo para un equipo inexistente', async () => {
@@ -94,6 +96,6 @@ describe('POST /api/admin/equipos/upload-logo', () => {
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: 'Error interno' })
     expect(mocks.unlink).toHaveBeenCalledWith(expect.stringContaining('logo-fixed-logo-id.png'))
-    expect(mocks.unlink).not.toHaveBeenCalledWith(expect.stringContaining('old-logo.png'))
+    expect(mocks.removeUnusedLogo).not.toHaveBeenCalled()
   })
 })

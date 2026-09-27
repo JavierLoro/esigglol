@@ -92,7 +92,7 @@ export default function AdminFases() {
   }
 
   function addPhase() {
-    const id = `draft-${crypto.randomUUID()}`
+    const id = `draft-${crypto.getRandomValues(new Uint32Array(2)).join('-')}`
     setPhases(prev => [...prev, {
       id,
       name: 'Nueva fase',
@@ -153,20 +153,32 @@ export default function AdminFases() {
 
   async function generateMatches(phase: Phase, type: 'groups' | 'swiss' | 'elimination' | 'final-four' | 'upper-lower', round?: number) {
     const count = type === 'swiss' ? (phase.config.swissTeamIds?.length ?? 0) : (phase.config.bracketTeamIds?.length ?? 0)
-    const sizeError = bracketSizeError(type, count)
+    const sizeError = type === 'groups' ? null : bracketSizeError(type, count)
     if (sizeError) { notify(sizeError); return }
+    const participantErrors = validatePhaseParticipants(phase.type, phase.config)
+    if (participantErrors.length > 0) { notify(participantErrors[0]); return }
     setGenerating(phase.id)
+    let createdPhase = false
+    let generated = false
     try {
       // Guardar primero para que el endpoint tenga la config actualizada
-      await adminRequest(scopedFetch('/api/admin/fases', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(phase) }), isPhase)
+      const isDraft = phase.id.startsWith('draft-')
+      const body = isDraft
+        ? { name: phase.name, type: phase.type, status: phase.status, order: phase.order, config: phase.config }
+        : phase
+      const saved = await adminRequest<Phase>(scopedFetch('/api/admin/fases', { method: isDraft ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), isPhase)
+      createdPhase = isDraft
+      if (isDraft) setGenerating(saved.id)
+      setPhases(prev => prev.map(candidate => candidate.id === phase.id ? saved : candidate))
       const data = await adminRequest<{ created: number }>(scopedFetch('/api/admin/fases/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phaseId: phase.id, round }),
+        body: JSON.stringify({ phaseId: saved.id, round }),
       }), isGeneratedMatchesResponse)
+      generated = true
       await loadMatches()
       notify(data.created > 0 ? `${data.created} partido${data.created !== 1 ? 's' : ''} generado${data.created !== 1 ? 's' : ''}` : 'No hay partidos nuevos que generar')
-    } catch (error) { notify(errorMessage(error)) } finally { setGenerating(null) }
+    } catch (error) { notify(createdPhase ? `${generated ? 'Fase guardada, pero no se pudieron cargar los partidos' : 'Fase guardada, pero no se generaron los partidos'}: ${errorMessage(error)}` : errorMessage(error)) } finally { setGenerating(null) }
   }
 
   function update(id: string, patch: Partial<Phase>) {

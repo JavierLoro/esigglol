@@ -164,7 +164,7 @@ export default function AdminEquipos() {
 
           {expanded === team.id && (
             <fieldset disabled={archived} id={`team-details-${team.id}`} className="m-0 min-w-0 border-0 border-t border-white/10 p-4 flex flex-col gap-4 disabled:opacity-70">
-              {!draftIds.has(team.id) && <TeamAccessControl teamId={team.id} teamName={team.name} />}
+              {!draftIds.has(team.id) && <TeamAccessControl teamId={team.id} teamName={team.name} tournamentId={tournamentId} />}
               {/* Datos del equipo */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>

@@ -69,4 +69,5 @@ next-env.d.ts
 /data/ddragon-version.txt
 
 /.next-valorant-sandbox/
+/.next-e2e/
 /public/valorant/

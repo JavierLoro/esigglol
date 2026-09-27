@@ -16,7 +16,7 @@ export default function TournamentsPage() {
     setName(''); await reload(); window.dispatchEvent(new Event('tournaments-updated'))
   }
   return <div className="space-y-6"><h1 className="text-2xl font-bold">Torneos</h1>{error && <p role="alert">{error}</p>}
-    <form className="flex flex-wrap gap-3" onSubmit={e => { e.preventDefault(); void save({ name, game, slug: `${game}-${crypto.randomUUID()}`, platform: 'pc', region: 'eu', status: 'draft' }) }}>
+    <form className="flex flex-wrap gap-3" onSubmit={e => { e.preventDefault(); void save({ name, game, slug: `${game}-${crypto.getRandomValues(new Uint32Array(2)).join('-')}`, platform: 'pc', region: 'eu', status: 'draft' }) }}>
       <input aria-label="Nombre del torneo" required value={name} onChange={e => setName(e.target.value)} placeholder="Nombre del torneo" className="border rounded p-2" />
       <select aria-label="Juego del torneo" value={game} onChange={e => setGame(e.target.value as 'lol' | 'valorant')}><option value="lol">LoL · PC · Europa</option><option value="valorant">Valorant · PC · Europa</option></select>
       <button className="bg-sky-700 rounded p-2">Crear borrador</button>

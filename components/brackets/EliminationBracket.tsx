@@ -260,7 +260,7 @@ export default function EliminationBracket({ matches, teams, title, teamCount }:
                     'text-[11px] font-bold uppercase tracking-widest',
                     isPlaceholder ? 'text-white/20' : 'text-white/35',
                   )}>
-                    {getRoundName(ri, totalRounds)}
+                    {round === 98 ? 'Tercer puesto' : getRoundName(ri, totalRounds)}
                   </span>
                 </div>
 

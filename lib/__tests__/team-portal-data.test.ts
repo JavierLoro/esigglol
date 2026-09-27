@@ -1,15 +1,27 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 
 describe('team portal data', () => {
   let data: typeof import('../data')
   let portal: typeof import('../team-portal-data')
+  let database: typeof import('../db')
+  let testDir: string
 
   beforeAll(async () => {
-    process.env.DB_PATH = `.tmp/team-portal-${process.pid}.db`
+    testDir = mkdtempSync(path.join(tmpdir(), 'esigglol-team-portal-'))
+    process.env.DB_PATH = path.join(testDir, 'test.db')
     process.env.SESSION_SECRET = 'test-session-secret-0123456789abcdef'
     process.env.ADMIN_PASSWORD_HASH = 'test-placeholder'
     data = await import('../data')
     portal = await import('../team-portal-data')
+    database = await import('../db')
+  })
+
+  afterAll(() => {
+    database?.default.close()
+    if (testDir) rmSync(testDir, { recursive: true, force: true })
   })
 
   it('creates one access record together with a team', () => {
