@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { LayoutDashboard, Users, Trophy, Calendar, LogOut, Inbox } from 'lucide-react'
+import { LayoutDashboard, Users, Trophy, Calendar, LogOut, Inbox, Monitor } from 'lucide-react'
 import { clsx } from 'clsx'
 import RiotResultNotifications from '@/components/admin/RiotResultNotifications'
 import { AdminTournamentProvider } from '@/components/admin/AdminTournamentContext'
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/admin/solicitudes', label: 'Solicitudes', icon: Inbox, global: false },
   { href: '/admin/fases', label: 'Fases', icon: Trophy, global: false },
   { href: '/admin/partidos', label: 'Partidos', icon: Calendar, global: false },
+  { href: '/admin/overlay', label: 'Emisión / OBS', icon: Monitor, global: false },
 ] as const
 
 const scopedPaths = new Set<string>(navItems.filter(item => !item.global).map(item => item.href))

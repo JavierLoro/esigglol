@@ -16,6 +16,7 @@ const child = spawn(process.execPath, [nextBin, 'dev', '--hostname', '127.0.0.1'
     ...process.env,
     ADMIN_PASSWORD_HASH: passwordHash,
     DB_PATH: path.join(dataDir, 'esigglol.db'),
+    NEXT_DIST_DIR: '.next-e2e',
     SESSION_SECRET: 'e2e-only-session-secret-that-is-never-used-outside-tests',
     TOURNAMENT_API_MODE: 'stub',
   },
