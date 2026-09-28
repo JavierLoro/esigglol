@@ -80,6 +80,6 @@ function FasesPage() {
 
 export default async function Page({ searchParams }: { searchParams: Promise<CompetitionSearch> }) {
   const search = await searchParams
-  const tournament = publicTournament(search, true)
+  const tournament = publicTournament(search)
   return inTournament(tournament.id, () => FasesPage())
 }

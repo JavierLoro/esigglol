@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ getTwitchStatus: vi.fn() }))
 vi.mock('@/lib/twitch', () => ({ getTwitchStatus: mocks.getTwitchStatus }))
+vi.mock('@/lib/site-branding', () => ({ getSiteBranding: () => ({ channel: 'nuevo_canal' }) }))
 
 import { GET } from '@/app/api/twitch/status/route'
 
@@ -11,6 +12,7 @@ describe('GET /api/twitch/status', () => {
 
     const response = await GET()
 
+    expect(mocks.getTwitchStatus).toHaveBeenCalledWith('nuevo_canal')
     expect(response.headers.get('Cache-Control')).toBe('no-store')
     await expect(response.json()).resolves.toEqual({
       status: 'unknown',

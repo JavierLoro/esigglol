@@ -1,8 +1,9 @@
 import db from './db'
+import { TWITCH_CHANNEL } from './env'
 
-export interface SiteBranding { title: string; subtitle: string; logo: string }
+export interface SiteBranding { title: string; subtitle: string; logo: string; channel: string }
 export const defaultBranding: SiteBranding = {
-  title: 'I Copa Intercampus\nUCLM', subtitle: 'ESI Ciudad Real · Torneo LoL', logo: '/logo-torneo.png',
+  title: 'I Copa Intercampus\nUCLM', subtitle: 'ESI Ciudad Real · Torneo LoL', logo: '/logo-torneo.png', channel: TWITCH_CHANNEL,
 }
 export function getSiteBranding(): SiteBranding {
   const row = db.prepare('SELECT data FROM tournament_config WHERE key = ?').get('site-branding') as { data: string } | undefined

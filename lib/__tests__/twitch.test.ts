@@ -50,6 +50,21 @@ describe('Twitch live status', () => {
     await expect(getTwitchStatus()).resolves.toMatchObject({ status: 'offline' })
   })
 
+  it('consulta el canal nuevo sin reutilizar el estado del anterior', async () => {
+    process.env.TWITCH_CLIENT_ID = 'client-id'
+    process.env.TWITCH_CLIENT_SECRET = 'client-secret'
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ access_token: 'token', expires_in: 3600 }))
+      .mockResolvedValueOnce(Response.json({ data: [{ id: 'stream-1' }] }))
+      .mockResolvedValueOnce(Response.json({ data: [] }))
+    const getTwitchStatus = await loadStatus()
+
+    await expect(getTwitchStatus('canal_a')).resolves.toMatchObject({ status: 'live' })
+    await expect(getTwitchStatus('canal_b')).resolves.toMatchObject({ status: 'offline' })
+    expect(new URL(fetchMock.mock.calls[1][0] as string).searchParams.get('user_login')).toBe('canal_a')
+    expect(new URL(fetchMock.mock.calls[2][0] as string).searchParams.get('user_login')).toBe('canal_b')
+  })
+
   it('falls back to unknown when Twitch fails', async () => {
     process.env.TWITCH_CLIENT_ID = 'client-id'
     process.env.TWITCH_CLIENT_SECRET = 'client-secret'

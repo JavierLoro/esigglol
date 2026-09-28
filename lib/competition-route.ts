@@ -4,7 +4,7 @@ import { getTournament } from './competitions'
 import { getTeamSessionFromCookies, requireAdminSession } from './auth'
 import db from './db'
 
-type Mode = 'admin' | 'team' | 'public' | 'public-phases' | 'lol'
+type Mode = 'admin' | 'team' | 'public' | 'lol'
 export function competitionRoute<A extends unknown[]>(handler: (...args: A) => Promise<Response>, mode: Mode = 'admin') {
   return async (...args: A): Promise<Response> => {
     const request = args[0] as NextRequest | undefined
@@ -23,7 +23,7 @@ export function competitionRoute<A extends unknown[]>(handler: (...args: A) => P
       id = JSON.parse(row.data).tournamentId
     }
     const tournament = getTournament(id)
-    if (!tournament || ((mode === 'public' || mode === 'public-phases') && tournament.status === 'draft') || (mode === 'public' && tournament.status === 'archived')) return NextResponse.json({ error: 'Torneo no encontrado' }, { status: 404 })
+    if (!tournament || (mode === 'public' && tournament.status !== 'published')) return NextResponse.json({ error: 'Torneo no encontrado' }, { status: 404 })
     if (mode === 'lol' && tournament.game !== 'lol') return NextResponse.json({ error: 'Disponible solo para LoL' }, { status: 422 })
     if (request && !['GET', 'HEAD'].includes(request.method) && tournament.status === 'archived') return NextResponse.json({ error: 'Torneo archivado: reábrelo para editar' }, { status: 409 })
     return inTournament(id, () => handler(...args))

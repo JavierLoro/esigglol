@@ -5,7 +5,6 @@ import MatchCard from '@/components/MatchCard'
 import { getMatches, getTeams, getPhases } from '@/lib/data'
 import { getTournaments } from '@/lib/competitions'
 import { inTournament } from '@/lib/competition-context'
-import { TWITCH_CHANNEL } from '@/lib/env'
 import { getPublishedTournamentData } from '@/lib/publication'
 import type { CompetitionSearch } from '@/lib/public-competition'
 export const dynamic = 'force-dynamic'
@@ -25,7 +24,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     { name: 'Resultados recientes', items: matches.filter(m => m.result).sort((a, b) => (b.scheduledAt ?? '').localeCompare(a.scheduledAt ?? '')) },
   ]
   return <div>
-    <LiveSection channel={TWITCH_CHANNEL} {...getSiteBranding()} />
+    <LiveSection {...getSiteBranding()} />
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
       <HomeFilters tournaments={publishedTournaments.map(({ id, name, game }) => ({ id, name, game }))} game={game} tournamentId={selectedTournament?.id} />
       {sections.map(section => <section key={section.name}>

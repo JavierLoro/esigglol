@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   let path: string | null = null
   try {
     const form = await req.formData()
-    const parsed = z.object({ title: z.string().trim().min(1).max(150), subtitle: z.string().trim().max(150) }).safeParse({ title: form.get('title'), subtitle: form.get('subtitle') })
+    const parsed = z.object({ title: z.string().trim().min(1).max(150), subtitle: z.string().trim().max(150), channel: z.string().trim().max(25).regex(/^[A-Za-z0-9_]*$/).optional() }).safeParse({ title: form.get('title'), subtitle: form.get('subtitle'), channel: form.get('channel') ?? undefined })
     if (!parsed.success) return Response.json({ error: 'El título es obligatorio. Máximo 150 caracteres por campo.' }, { status: 422 })
     const file = form.get('logo')
     let logo = getSiteBranding().logo
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       await writeFile(path, buffer, { flag: 'wx' })
       logo = uploadUrl(filename)
     }
-    const value = { ...parsed.data, logo }
+    const value = { ...getSiteBranding(), ...parsed.data, logo }
     saveSiteBranding(value)
     return Response.json(value)
   } catch {

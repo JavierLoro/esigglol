@@ -66,9 +66,12 @@ describe('competition isolation with SQLite', () => {
     competitions.saveTournament({ ...tournament, status: 'published' })
     inTournament(tournament.id, () => expect(data.updateMatches([{ ...match, scheduledAt: '2026-10-01T18:00:00Z' }])[0].version).toBe(2))
   })
-  it('omits drafts from public tournament discovery', () => {
+  it('lists only published tournaments publicly while keeping drafts and archives for admin', () => {
     const draft = competitions.saveTournament({ name: 'Hidden', slug: 'hidden', game: 'lol', platform: 'pc', region: 'eu', status: 'draft' })
     expect(competitions.getTournaments().some(t => t.id === draft.id)).toBe(false)
     expect(competitions.getTournaments(true).some(t => t.id === draft.id)).toBe(true)
+    const archived = competitions.saveTournament({ name: 'Archived', slug: 'archived', game: 'lol', platform: 'pc', region: 'eu', status: 'archived' })
+    expect(competitions.getTournaments().some(t => t.id === archived.id)).toBe(false)
+    expect(competitions.getTournaments(true).some(t => t.id === archived.id)).toBe(true)
   })
 })

@@ -49,13 +49,11 @@ export default function Navbar() {
     return `${href}?${new URLSearchParams({ game: tournament.game, tournament: tournament.id })}`
   }
   function tournamentOption(href: string, t: Tournament, label: string) {
-    const archived = t.status === 'archived'
-    if (archived && href !== '/fases') return <span key={t.id} aria-disabled="true" className="block px-4 py-3 text-sm text-gray-500 cursor-not-allowed">{label} · Archivado</span>
-    return <Link key={t.id} href={destination(href, t)} onClick={close} className={archived ? `${optionClass} !text-gray-400` : optionClass}>{label}{archived ? ' · Archivado' : ''}</Link>
+    return <Link key={t.id} href={destination(href, t)} onClick={close} className={optionClass}>{label}</Link>
   }
   const selected = tournaments.find(t => t.id === search.get('tournament'))
   const currentGame = search.get('game')
-  const homeHref = selected?.status === 'published' ? destination('/', selected)
+  const homeHref = selected ? destination('/', selected)
     : currentGame === 'lol' || currentGame === 'valorant' ? `/?game=${currentGame}` : '/'
   if (pathname.startsWith('/overlay')) return null
 
@@ -84,7 +82,7 @@ export default function Navbar() {
           <div className="md:absolute md:top-full md:left-0 md:w-72 p-2 rounded-lg bg-[#111a2c] border border-white/10 shadow-xl max-h-[65vh] overflow-y-auto">
             {games.filter(game => href !== '/comparar' || game.id === 'lol').map(game => {
               const options = tournaments.filter(t => t.game === game.id)
-              if (options.length === 0) return <span key={game.id} className="block px-4 py-3 text-sm text-white/40">{game.label} · {status}</span>
+              if (options.length === 0) return null
               if (options.length === 1) return tournamentOption(href, options[0], game.label)
               return <details key={game.id} className="group/game">
                 <summary className={`${optionClass} list-none cursor-pointer flex items-center justify-between`}>{game.label}<ChevronDown size={14} className="group-open/game:rotate-180" /></summary>
@@ -93,6 +91,7 @@ export default function Navbar() {
                 </div>
               </details>
             })}
+            {tournaments.length === 0 && <span className="block px-4 py-3 text-sm text-white/40">{status === 'Sin torneos' ? 'Sin torneos activos' : status}</span>}
           </div>
         </details>)}
         <Link href="/equipo" onClick={close} className={optionClass}>Mi equipo</Link>
@@ -100,6 +99,6 @@ export default function Navbar() {
       </nav>
       <Link href="/admin" className="hidden md:block ml-auto text-xs text-white/40 hover:text-white">Admin</Link>
     </div>
-    {selected && !pathname.startsWith('/admin') && pathname !== '/equipo' && <div className="max-w-7xl mx-auto px-4 pb-2 text-xs text-white/60">{selected.game === 'lol' ? '⚔ LoL' : '◎ Valorant'} · {selected.name}{selected.status === 'archived' ? ' · Archivado' : ''}</div>}
+    {selected && !pathname.startsWith('/admin') && pathname !== '/equipo' && <div className="max-w-7xl mx-auto px-4 pb-2 text-xs text-white/60">{selected.game === 'lol' ? '⚔ LoL' : '◎ Valorant'} · {selected.name}</div>}
   </header>
 }

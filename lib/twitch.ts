@@ -13,9 +13,9 @@ const ERROR_TTL_MS = 10_000
 const REQUEST_TIMEOUT_MS = 5_000
 const TOKEN_EXPIRY_MARGIN_MS = 60_000
 
-let cachedStatus: { value: TwitchStatusResult; expiresAt: number } | undefined
+let cachedStatus: { channel: string; value: TwitchStatusResult; expiresAt: number } | undefined
 let cachedToken: { value: string; expiresAt: number } | undefined
-let statusRequest: Promise<TwitchStatusResult> | undefined
+let statusRequest: { channel: string; promise: Promise<TwitchStatusResult> } | undefined
 
 function result(status: TwitchStatus): TwitchStatusResult {
   return { status, checkedAt: new Date().toISOString() }
@@ -48,13 +48,13 @@ async function getAppAccessToken(): Promise<string> {
   return cachedToken.value
 }
 
-async function requestTwitchStatus(): Promise<TwitchStatusResult> {
-  if (!TWITCH_CHANNEL || !TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) return result('unknown')
+async function requestTwitchStatus(channel: string): Promise<TwitchStatusResult> {
+  if (!channel || !TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) return result('unknown')
 
   try {
     const token = await getAppAccessToken()
     const url = new URL('https://api.twitch.tv/helix/streams')
-    url.searchParams.set('user_login', TWITCH_CHANNEL)
+    url.searchParams.set('user_login', channel)
     const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -73,18 +73,20 @@ async function requestTwitchStatus(): Promise<TwitchStatusResult> {
   }
 }
 
-export async function getTwitchStatus(): Promise<TwitchStatusResult> {
-  if (cachedStatus && cachedStatus.expiresAt > Date.now()) return cachedStatus.value
-  if (statusRequest) return statusRequest
+export async function getTwitchStatus(channel = TWITCH_CHANNEL): Promise<TwitchStatusResult> {
+  if (cachedStatus?.channel === channel && cachedStatus.expiresAt > Date.now()) return cachedStatus.value
+  if (statusRequest?.channel === channel) return statusRequest.promise
 
-  statusRequest = requestTwitchStatus().then(value => {
+  const pending = { channel, promise: requestTwitchStatus(channel).then(value => {
     cachedStatus = {
+      channel,
       value,
       expiresAt: Date.now() + (value.status === 'unknown' ? ERROR_TTL_MS : STATUS_TTL_MS),
     }
     return value
   }).finally(() => {
-    statusRequest = undefined
-  })
-  return statusRequest
+    if (statusRequest === pending) statusRequest = undefined
+  }) }
+  statusRequest = pending
+  return pending.promise
 }

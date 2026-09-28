@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 test('isolates editions and completes a manual Valorant tournament on mobile', async ({ page }) => {
+  test.setTimeout(180_000)
   await page.goto('/admin/login')
   await page.getByPlaceholder('Contraseña').fill('e2e-admin-password')
   await page.getByRole('button', { name: 'Entrar', exact: true }).click()
@@ -91,8 +92,12 @@ test('isolates editions and completes a manual Valorant tournament on mobile', a
   await page.goto('/')
   await expect(page.getByRole('link', { name: /Edition 2/ })).toHaveCount(0)
   await expect(page.getByRole('combobox', { name: 'Torneo' }).locator('option', { hasText: 'Edition 2' })).toHaveCount(0)
+  await expect(page.locator(`nav[aria-label="Navegación principal"] a[href*="${val.id}"]`)).toHaveCount(0)
+  expect((await (await request.get('/api/data/torneos')).json()).some((t: { id: string }) => t.id === val.id)).toBe(false)
   expect((await request.get(`/partidos/${match.id}`)).status()).toBe(404)
-  expect((await request.get(`/fases${scope}`)).ok()).toBeTruthy()
+  expect((await request.get(`/fases${scope}`)).status()).toBe(404)
+  expect((await request.get(`/api/data/fases${scope}`)).status()).toBe(404)
+  expect((await request.get(`/overlay/fases/${phase.id}${scope}`)).status()).toBe(404)
   await page.goto('/admin/valorant')
   await page.getByRole('button', { name: 'Ver fixture de desarrollo' }).click()
   await expect(page.getByText('DATOS SIMULADOS · Fixture privado de desarrollo')).toBeVisible()
