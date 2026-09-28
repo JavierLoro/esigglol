@@ -3,6 +3,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { getPublicMatchHref } from '@/lib/match-navigation'
+import type { ReactNode } from 'react'
+import { getSwissRecords } from '@/lib/swiss'
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const MATCH_H = 96
@@ -44,7 +46,7 @@ function expectedExitSize(w: number, l: number, type: 'advance' | 'eliminate', N
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface Props { phase: Phase; matches: Match[]; teams: Team[] }
+interface Props { phase: Phase; matches: Match[]; teams: Team[]; renderMatch?: (match: Match) => ReactNode; fit?: boolean }
 type PoolType = 'normal' | 'advance' | 'eliminate' | 'decisive'
 
 interface Pool {
@@ -78,16 +80,7 @@ interface RoundColumn {
 
 // ── Data helpers ──────────────────────────────────────────────────────────────
 function computeRecords(matches: Match[], teamIds: string[]) {
-  const records: Record<string, { wins: number; losses: number }> = {}
-  for (const id of teamIds) records[id] = { wins: 0, losses: 0 }
-  for (const m of matches) {
-    if (!m.result) continue
-    const w = m.result.team1Score > m.result.team2Score ? m.team1Id : m.team2Id
-    const l = w === m.team1Id ? m.team2Id : m.team1Id
-    if (records[w]) records[w].wins++
-    if (records[l]) records[l].losses++
-  }
-  return records
+  return getSwissRecords(matches.filter(match => match.winnerId), teamIds)
 }
 
 function getPoolType(wins: number, losses: number, advW: number, elimL: number): PoolType {
@@ -340,17 +333,18 @@ function SwissMatchCard({ match, teamById }: { match: Match; teamById: Map<strin
   )
 }
 
-function PoolBlock({ pool, bo, confirmed, teamById }: { pool: Pool; bo: number; confirmed: boolean; teamById: Map<string, Team> }) {
+function PoolBlock({ pool, bo, confirmed, teamById, renderMatch }: { pool: Pool; bo: number; confirmed: boolean; teamById: Map<string, Team>; renderMatch?: Props['renderMatch'] }) {
   const h = poolHeight(pool, confirmed)
 
   return (
     <div
-      className="rounded-lg border overflow-hidden border-white/[0.08] bg-[#0e1117]"
+      className="swiss-pool rounded-lg border overflow-hidden border-white/[0.08] bg-[#0e1117]"
+      data-record={`${pool.wins}-${pool.losses}`}
       style={{ height: h }}
     >
       <div className="flex items-center justify-center gap-2 px-3" style={{ height: POOL_HEADER_H }}>
         <span className="text-sm font-bold text-white/60">{pool.wins} – {pool.losses}</span>
-        <span className="text-[9px] font-semibold text-white/20 uppercase">BO{bo}</span>
+        <span className="swiss-bo text-[9px] font-semibold text-white/20 uppercase">BO{bo}</span>
       </div>
       {confirmed ? (
         pool.matches.length === 0 ? (
@@ -359,7 +353,7 @@ function PoolBlock({ pool, bo, confirmed, teamById }: { pool: Pool; bo: number; 
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: MATCH_GAP }}>
-            {pool.matches.map(m => <SwissMatchCard key={m.id} match={m} teamById={teamById} />)}
+            {pool.matches.map(m => renderMatch ? <div key={m.id} style={{ height: MATCH_H }}>{renderMatch(m)}</div> : <SwissMatchCard key={m.id} match={m} teamById={teamById} />)}
           </div>
         )
       ) : (
@@ -373,9 +367,9 @@ function PoolBlock({ pool, bo, confirmed, teamById }: { pool: Pool; bo: number; 
             return (
               <div key={id ?? `placeholder-${i}`} className="flex items-center gap-1.5 px-2.5" style={{ height: TEAM_ROW_H }}>
                 {team?.logo ? (
-                  <Image src={team.logo} alt={team.name} width={16} height={16} className="rounded shrink-0" />
+                  <Image src={team.logo} alt={team.name} width={16} height={16} className="swiss-logo rounded shrink-0" />
                 ) : (
-                  <div className="w-4 h-4 rounded bg-white/5 shrink-0" />
+                  <div className="swiss-logo w-4 h-4 rounded bg-white/5 shrink-0" />
                 )}
                 <span className="text-xs text-white/40 truncate">{team?.name ?? (id ?? '—')}</span>
               </div>
@@ -393,9 +387,11 @@ function ExitGroupBlock({ group, teamById }: { group: ExitGroup; teamById: Map<s
   return (
     <div
       className={clsx(
-        'rounded-lg border overflow-hidden',
+        'swiss-exit rounded-lg border overflow-hidden',
         isAdv ? 'border-blue-500/30 bg-blue-950/20' : 'border-red-500/30 bg-red-950/20',
       )}
+      data-exit={group.type}
+      data-record={`${group.wins}-${group.losses}`}
       style={{ height: exitGroupHeight(group) }}
     >
       <div className="flex items-center justify-center gap-2 px-3" style={{ height: EXIT_HEADER_H }}>
@@ -416,9 +412,9 @@ function ExitGroupBlock({ group, teamById }: { group: ExitGroup; teamById: Map<s
             style={{ height: EXIT_TEAM_H }}
           >
             {team?.logo ? (
-              <Image src={team.logo} alt={team.name} width={16} height={16} className={clsx('rounded shrink-0', !isAdv && 'grayscale')} />
+              <Image src={team.logo} alt={team.name} width={16} height={16} className={clsx('swiss-logo rounded shrink-0', !isAdv && 'grayscale')} />
             ) : (
-              <div className="w-4 h-4 rounded bg-white/5 shrink-0" />
+              <div className="swiss-logo w-4 h-4 rounded bg-white/5 shrink-0" />
             )}
             <span className={clsx('text-xs truncate', teamId ? 'text-white/60' : 'text-white/20 italic')}>
               {team?.name ?? (teamId ?? 'TBD')}
@@ -493,7 +489,7 @@ function pushConnectorLines(
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function SwissView({ phase, matches, teams }: Props) {
+export default function SwissView({ phase, matches, teams, renderMatch, fit = false }: Props) {
   const teamIds = phase.config.swissTeamIds ?? []
   const advW = phase.config.advanceWins ?? 2
   const elimL = phase.config.eliminateLosses ?? 2
@@ -530,19 +526,20 @@ export default function SwissView({ phase, matches, teams }: Props) {
   }
 
   const teamById = new Map(teams.map(t => [t.id, t]))
+  const columnWidth = fit ? 320 : COL_W
   const globalMaxH = Math.max(...columns.map(colTotalHeight), HEADER_H)
   const colOffset = (col: RoundColumn) => Math.round((globalMaxH - colTotalHeight(col)) / 2)
 
-  return (
-    <div className="overflow-x-auto pb-2">
+  const board = (
+    <div className="swiss-view overflow-x-auto pb-2" style={fit ? { padding: 0, overflow: 'visible' } : undefined}>
       <div style={{ display: 'flex', alignItems: 'flex-start', minWidth: 'max-content' }}>
         {columns.map((col, ci) => (
           <div key={col.round} style={{ display: 'flex', alignItems: 'flex-start' }}>
-            <div style={{ width: COL_W, flexShrink: 0, height: globalMaxH, display: 'flex', flexDirection: 'column' }}>
+            <div className="swiss-column" data-round={col.pools.length ? col.round : undefined} style={{ width: columnWidth, flexShrink: 0, height: globalMaxH, display: 'flex', flexDirection: 'column' }}>
               {/* Header — always at the top */}
               {col.pools.length > 0 ? (
                 <div style={{ height: HEADER_H }} className="flex items-center justify-center">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/25">
+                  <span className="swiss-round-title text-[10px] font-bold uppercase tracking-widest text-white/25">
                     Ronda {col.round}
                   </span>
                 </div>
@@ -566,6 +563,7 @@ export default function SwissView({ phase, matches, teams }: Props) {
                       bo={col.bo}
                       confirmed={col.confirmed}
                       teamById={teamById}
+                      renderMatch={renderMatch}
                     />
                   ) : (
                     <ExitGroupBlock
@@ -591,4 +589,10 @@ export default function SwissView({ phase, matches, teams }: Props) {
       </div>
     </div>
   )
+  if (!fit) return board
+  const width = columns.length * columnWidth + (columns.length - 1) * CONN_W
+  // The shared bracket already has fixed geometry; viewBox scales it without hydration or measurement.
+  return <svg className="obs-fit-frame" viewBox={`0 0 ${width} ${globalMaxH}`} width="100%" height="100%">
+    <foreignObject className="obs-fit-board" width={width} height={globalMaxH}>{board}</foreignObject>
+  </svg>
 }

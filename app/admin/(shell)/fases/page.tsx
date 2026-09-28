@@ -741,10 +741,10 @@ export default function AdminFases() {
               <button
                 onClick={() => copyOverlayUrl(phase.id)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-white/40 text-sm hover:text-white hover:border-white/30 transition-colors"
-                title="Copiar URL del overlay"
+                title="Copiar vista fija de la fase; usa Emisión / OBS para las URLs permanentes"
               >
                 <Copy size={14} />
-                Overlay
+                Vista fija
               </button>
               <button
                 onClick={() => savePhase(phase)}
