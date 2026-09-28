@@ -3,9 +3,9 @@ import db from './db'
 import { currentTournamentId } from './competition-context'
 import type { Tournament } from './types'
 
-export function getTournaments(includeDrafts = false): Tournament[] {
+export function getTournaments(includeHidden = false): Tournament[] {
   const rows = db.prepare('SELECT data FROM tournaments ORDER BY rowid').all() as { data: string }[]
-  return rows.map(row => JSON.parse(row.data) as Tournament).filter(t => includeDrafts || t.status !== 'draft')
+  return rows.map(row => JSON.parse(row.data) as Tournament).filter(t => includeHidden || t.status === 'published')
 }
 export function getTournament(id = currentTournamentId()): Tournament | undefined {
   const row = db.prepare('SELECT data FROM tournaments WHERE id = ?').get(id) as { data: string } | undefined

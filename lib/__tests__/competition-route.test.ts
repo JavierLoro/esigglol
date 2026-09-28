@@ -26,7 +26,7 @@ describe('competition HTTP boundary', () => {
     expect((await wrap(handler, 'lol')(new NextRequest(url))).status).toBe(422)
     competitions.saveTournament({ ...draft, status: 'archived' })
     expect((await wrap(handler, 'public')(new NextRequest(url))).status).toBe(404)
-    expect((await wrap(handler, 'public-phases')(new NextRequest(url))).status).toBe(200)
+    expect((await wrap(handler, 'public')(new NextRequest(url))).status).toBe(404)
     expect((await wrap(handler, 'admin')(new NextRequest(url, { method: 'POST' }))).status).toBe(409)
   })
 })

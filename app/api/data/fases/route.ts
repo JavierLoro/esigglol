@@ -12,4 +12,4 @@ async function handleGET(_request?: Request) {
   return res
 }
 
-export const GET = competitionRoute(handleGET, 'public-phases')
+export const GET = competitionRoute(handleGET, 'public')

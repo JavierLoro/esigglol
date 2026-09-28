@@ -80,6 +80,19 @@ test('permite iniciar y cerrar sesión de administrador', async ({ page }) => {
   await expect(page).toHaveURL(/\/admin\/login$/)
 })
 
+test('personaliza el subtítulo y el canal de Twitch desde Apariencia', async ({ page }) => {
+  await login(page)
+  await page.goto('/admin/apariencia')
+  await page.getByRole('textbox', { name: /Subtítulo/ }).fill('ESI Ciudad Real · Torneo Valorant')
+  await page.getByRole('textbox', { name: 'Canal de Twitch' }).fill('esi_valorant')
+  await page.getByRole('button', { name: 'Guardar banner' }).click()
+  await expect(page.getByRole('status')).toContainText('Banner guardado')
+  const branding = await page.request.get('/api/admin/apariencia')
+  expect(await branding.json()).toMatchObject({ subtitle: 'ESI Ciudad Real · Torneo Valorant', channel: 'esi_valorant' })
+  await page.goto('/')
+  await expect(page.getByText('ESI Ciudad Real · Torneo Valorant')).toBeVisible()
+})
+
 test('el responsable de Valorant entra desde su invitación aunque el portapapeles LAN esté bloqueado', async ({ page }) => {
   test.setTimeout(90_000)
   await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }))
