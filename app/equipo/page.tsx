@@ -2,11 +2,12 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Check, Clock3, ImageUp, LogOut, Plus, RefreshCw, Send, Shield } from 'lucide-react'
-import type { Player, Role, Team, TeamChangeRequest } from '@/lib/types'
+import type { Player, Role, Team, TeamChangeRequest, TeamPendingMatch } from '@/lib/types'
+import TeamMatchSchedule from '@/components/TeamMatchSchedule'
 
 const PRIMARY: Role[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente']
 const SECONDARY: Exclude<Role, 'Suplente'>[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill']
-type PortalData = { team: Team; requests: TeamChangeRequest[] }
+type PortalData = { team: Team; requests: TeamChangeRequest[]; matches: TeamPendingMatch[] }
 
 export default function TeamPanelPage() {
   const [data, setData] = useState<PortalData | null>(null)
@@ -19,7 +20,8 @@ export default function TeamPanelPage() {
   async function load() {
     const response = await fetch('/api/team', { cache: 'no-store' })
     if (response.status === 401 || response.status === 403) { window.location.assign('/equipo/login'); return }
-    if (response.ok) setData(await response.json())
+    if (!response.ok) throw new Error('No se pudo actualizar el panel')
+    setData(await response.json())
   }
   useEffect(() => {
     fetch('/api/team', { cache: 'no-store' }).then(async response => {
@@ -68,6 +70,18 @@ export default function TeamPanelPage() {
         </div>
       </header>
       {message && <div role="status" className="mt-4 rounded-lg border border-[#0097D7]/25 bg-[#0097D7]/10 px-4 py-2 text-sm text-[#7dd3fc]">{message}</div>}
+
+      <section className="mt-8" aria-labelledby="pending-matches">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 id="pending-matches" className="text-lg font-semibold">Partidos pendientes ({data.matches.length})</h2>
+          <button onClick={() => { void load().catch(() => notify('No se pudo actualizar la lista')) }} className="text-sm text-[#33b3e8] hover:text-white">Actualizar partidos</button>
+        </div>
+        <p className="text-sm text-white/50 mb-3">Acuerda el horario con tu rival. Cualquiera de los dos equipos puede guardar o cambiar la fecha; se aplica al momento. Las horas se muestran en tu zona local.</p>
+        <div className="border-y border-white/10 divide-y divide-white/10">
+          {data.matches.length === 0 && <p className="py-5 text-sm text-white/50">No tienes partidos pendientes publicados.</p>}
+          {data.matches.map(match => <TeamMatchSchedule key={`${match.id}:${match.version}`} match={match} onSaved={async () => { await load(); notify('Fecha del partido guardada') }} />)}
+        </div>
+      </section>
 
       <section className="mt-8">
         <div className="flex items-end justify-between gap-3 mb-3"><div><h2 className="text-lg font-semibold">Plantilla</h2><p className="text-sm text-white/35">Los cambios de rol se aplican al momento.</p></div><button onClick={() => setAdding(true)} className="text-sm text-[#33b3e8] hover:text-white"><Plus size={15} className="inline mr-1" />Solicitar jugador</button></div>
