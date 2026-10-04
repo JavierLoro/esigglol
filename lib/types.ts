@@ -151,6 +151,11 @@ export interface Match {
   tournamentCallbackToken?: string // nonce embedded in Riot metadata to authenticate callbacks
 }
 
+export type TeamPendingMatch = Pick<Match, 'id' | 'version' | 'round' | 'scheduledAt'> & {
+  phaseName: string
+  opponentName: string
+}
+
 // ── Tournament API ──────────────────────────────────────────────────────────
 
 export interface TournamentConfig {

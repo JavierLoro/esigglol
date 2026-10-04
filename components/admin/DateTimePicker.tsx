@@ -27,6 +27,7 @@ interface Props {
 export default function DateTimePicker({ value, onChange, className, label = 'Fecha y hora' }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   // Date formatting depends on the browser's time zone. Wait until hydration
   // before deriving a Date so an admin editor in another zone never gets a
@@ -51,18 +52,27 @@ export default function DateTimePicker({ value, onChange, className, label = 'Fe
   }
 
   function handleTimeChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const [h, m] = e.target.value.split(':').map(Number)
+    const time = e.target.value
+    if (!time) return
     const base = selected ? new Date(selected) : new Date()
-    onChange(localDateTimeToIso(base, `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`))
+    onChange(localDateTimeToIso(base, time))
   }
 
   return (
-    <div ref={ref} className={clsx('relative', className)}>
+    <div ref={ref} className={clsx('relative', className)} onKeyDown={event => {
+      if (open && event.key === 'Escape') {
+        event.stopPropagation()
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }}>
       {/* Trigger input */}
       <div className="flex items-center gap-2">
         <button
+          ref={triggerRef}
           type="button"
           aria-label={label}
+          aria-expanded={open}
           onClick={() => setOpen(p => !p)}
           className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white hover:border-white/20 transition-colors text-left"
         >
@@ -123,7 +133,7 @@ export default function DateTimePicker({ value, onChange, className, label = 'Fe
               selected: '[&>button]:bg-[#0097D7] [&>button]:text-white [&>button]:hover:bg-[#33b3e8]',
               outside: '[&>button]:text-white/20',
               disabled: '[&>button]:opacity-30 [&>button]:cursor-not-allowed',
-              chevron: 'w-4 h-4',
+              chevron: 'w-4 h-4 fill-current',
             }}
           />
 
@@ -139,7 +149,7 @@ export default function DateTimePicker({ value, onChange, className, label = 'Fe
             />
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={() => { setOpen(false); triggerRef.current?.focus() }}
               className="px-3 py-1 rounded-lg bg-[#0097D7] text-white text-xs font-bold hover:bg-[#33b3e8] transition-colors"
             >
               OK

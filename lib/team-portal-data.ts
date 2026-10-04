@@ -1,9 +1,17 @@
 import { currentTournamentId } from './competition-context'
-import { assertCompetitionWritable } from './competitions'
+import { assertCompetitionWritable, getTournament } from './competitions'
 import db from './db'
 import type { Player, Role, Team, TeamAccessInfo, TeamChangeRequest, TeamChangeRequestStatus, TeamChangeRequestType } from './types'
-import { createTeam, StaleWriteError, generateId, getTeamById, getTeams, updateTeam } from './data'
+import { createTeam, StaleWriteError, generateId, getTeamById, getTeams, updateTeam, getMatches, getPhases } from './data'
 import { validateTeams } from './domain-validation'
+import { getPublishedMatches } from './publication'
+
+export function getTeamPendingMatches(teamId: string) {
+  if (getTournament()?.status !== 'published' || !getTeamById(teamId)) return []
+  return getPublishedMatches(getPhases(), getMatches())
+    .filter(match => (match.team1Id === teamId || match.team2Id === teamId) && match.result === null && !match.winnerId)
+    .sort((a, b) => (a.scheduledAt ? Date.parse(a.scheduledAt) : Infinity) - (b.scheduledAt ? Date.parse(b.scheduledAt) : Infinity) || a.round - b.round || a.id.localeCompare(b.id))
+}
 
 interface AccessRow {
   team_id: string
