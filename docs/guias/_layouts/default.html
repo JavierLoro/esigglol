@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{{ site.description | escape }}">
+  <title>{{ site.title | escape }}</title>
+  <link rel="stylesheet" href="{{ '/assets/style.css' | relative_url }}">
+</head>
+<body>
+  <a class="skip" href="#contenido">Saltar al contenido</a>
+  <header>
+    <a class="brand" href="{{ '/' | relative_url }}">ESIgg<span>.lol</span></a>
+    <nav aria-label="Accesos rápidos">
+      <a href="#admin-global">Admin global</a>
+      <a href="#admin-equipo">Admin de equipo</a>
+      <a href="https://esigglol.jlc-dev.me">Abrir aplicación ↗</a>
+    </nav>
+  </header>
+  <main id="contenido" tabindex="-1">{{ content }}</main>
+  <footer>
+    <a href="https://github.com/{{ site.repository }}/edit/{{ site.source_branch }}/docs/guias/index.md">Editar esta guía en GitHub</a>
+    <a href="#contenido">Volver al inicio ↑</a>
+  </footer>
+</body>
+</html>
