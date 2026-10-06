@@ -1,0 +1,13 @@
+title: ESIgg.lol · Guías de uso
+description: Manual para la organización del torneo y los responsables de equipo.
+lang: es
+source_branch: main
+url: https://javierloro.github.io
+baseurl: /esigglol
+repository: JavierLoro/esigglol
+markdown: kramdown
+kramdown:
+  input: GFM
+  toc_levels: "2..3"
+exclude:
+  - README.md

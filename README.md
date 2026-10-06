@@ -225,6 +225,8 @@ externo o restaurar una base de datos.
 
 ## Documentación
 
+- [Guías de uso para admin global y admin de equipo](docs/guias/index.md)
+- [Mantenimiento y publicación de las guías en GitHub Pages](docs/guias/README.md)
 - [Formatos de torneo](docs/tournament-formats.md)
 - [Integración con Riot Tournament API](docs/riot-tournament-api.md)
 - [Copias, verificación y restauración](docs/backups.md)
