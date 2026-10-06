@@ -55,20 +55,19 @@ describe('POST /api/admin/equipos/upload-logo', () => {
   it('valida el equipo, persiste la asociación y solicita limpiar el logo anterior', async () => {
     const team: Team = { id: 'team-1', name: 'Alpha', logo: '/api/uploads/old-logo.png', players: [] }
     mocks.getTeamById.mockReturnValue(team)
-    mocks.updateTeamLogo.mockImplementation((_teamId: string, logo: string) => ({ ...team, logo }))
+    mocks.updateTeamLogo.mockImplementation((_teamId: string, logo: string) => ({ ...team, logo, version: 2 }))
 
     const response = await POST(uploadRequest(team.id))
 
     expect(response.status).toBe(200)
-    const body = await response.json() as { path: string }
-    expect(body.path).toBe('/api/uploads/logo-fixed-logo-id.png')
+    expect(await response.json()).toEqual({ path: '/api/uploads/logo-fixed-logo-id.png', version: 2 })
     expect(mocks.getTeamById).toHaveBeenCalledWith(team.id)
     expect(mocks.writeFile).toHaveBeenCalledWith(
       expect.stringContaining('logo-fixed-logo-id.png'),
       expect.any(Buffer),
       { flag: 'wx' },
     )
-    expect(mocks.updateTeamLogo).toHaveBeenCalledWith(team.id, body.path)
+    expect(mocks.updateTeamLogo).toHaveBeenCalledWith(team.id, '/api/uploads/logo-fixed-logo-id.png')
     expect(mocks.removeUnusedLogo).toHaveBeenCalledWith('/api/uploads/old-logo.png')
   })
 

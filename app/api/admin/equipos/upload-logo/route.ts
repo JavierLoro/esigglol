@@ -106,7 +106,7 @@ async function handlePOST(req: Request) {
 
     log.info({ teamId, filename }, 'Logo uploaded')
 
-    return NextResponse.json({ path: publicPath })
+    return NextResponse.json({ path: publicPath, version: persistedTeam.version })
   } catch (err) {
     if (newFileNeedsCleanup && newFilePath) {
       await removeFileQuietly(newFilePath, filename, 'association-failed')

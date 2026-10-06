@@ -7,6 +7,7 @@ import {
   isMatchArray,
   isNonEmptyMatchArray,
   isOk,
+  isPathResponse,
   isPhaseArray,
   isTeamArray,
   isTournamentCodesResponse,
@@ -76,6 +77,9 @@ describe('contratos de respuestas del panel admin', () => {
   })
 
   it('exige respuestas no vacías y contadores válidos para las mutaciones', () => {
+    expect(isPathResponse({ path: '/logo.png', version: 2 })).toBe(true)
+    expect(isPathResponse({ path: '/logo.png' })).toBe(false)
+    expect(isPathResponse({ path: '/logo.png', version: 0 })).toBe(false)
     expect(isNonEmptyMatchArray([match])).toBe(true)
     expect(isNonEmptyMatchArray([])).toBe(false)
     expect(isGeneratedMatchesResponse({ created: 2 })).toBe(true)

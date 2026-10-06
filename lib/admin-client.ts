@@ -229,6 +229,6 @@ export function isGeneratedMatchesResponse(value: unknown): value is { created: 
   return isRecord(value) && isFiniteInteger(value.created) && value.created >= 0
 }
 
-export function isPathResponse(value: unknown): value is { path: string } {
-  return isRecord(value) && typeof value.path === 'string' && value.path.length > 0
+export function isPathResponse(value: unknown): value is { path: string; version: number } {
+  return isRecord(value) && typeof value.path === 'string' && value.path.length > 0 && isPositiveInteger(value.version)
 }
