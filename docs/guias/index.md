@@ -80,6 +80,12 @@ se conservan. Si quieres mantener los datos, usa **Archivar torneo**.
 4. En Valorant, indica también si el jugador es titular o suplente.
 5. Guarda los cambios y espera la confirmación de guardado.
 
+Para cambiar el logo de un equipo guardado, pulsa **Subir logo** y espera
+**Logo guardado**. Después puedes guardar los demás cambios o eliminar el
+equipo sin recargar la página. Mientras se sube el archivo, esas acciones
+permanecen desactivadas. Solo se pueden eliminar equipos sin referencias
+en fases o partidos.
+
 Comprueba los datos antes de crear fases. Si aparece un error de validación,
 corrige el campo indicado; una ficha visible en el formulario no garantiza
 que ya esté guardada.

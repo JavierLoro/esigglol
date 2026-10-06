@@ -105,8 +105,8 @@ export default function AdminEquipos() {
     formData.append('file', file)
     formData.append('teamId', teamId)
     try {
-      const data = await adminRequest<{ path: string }>(scopedFetch('/api/admin/equipos/upload-logo', { method: 'POST', body: formData }), isPathResponse)
-      updateTeam(teamId, { logo: data.path }); notify('Logo guardado')
+      const data = await adminRequest(scopedFetch('/api/admin/equipos/upload-logo', { method: 'POST', body: formData }), isPathResponse)
+      updateTeam(teamId, { logo: data.path, version: data.version }); notify('Logo guardado')
     } catch (error) { notify(errorMessage(error)) } finally { setUploading(null) }
   }
 
@@ -157,7 +157,7 @@ export default function AdminEquipos() {
               e.stopPropagation()
               if (draftIds.has(team.id)) cancelDraft(team.id)
               else deleteTeam(team.id)
-            }} disabled={archived || saving === team.id || deleting === team.id} aria-label={`${draftIds.has(team.id) ? 'Cancelar' : 'Eliminar'} equipo ${team.name || 'nuevo'}`} className="text-white/20 hover:text-red-400 transition-colors ml-2 disabled:opacity-50">
+            }} disabled={archived || saving === team.id || deleting === team.id || uploading === team.id} aria-label={`${draftIds.has(team.id) ? 'Cancelar' : 'Eliminar'} equipo ${team.name || 'nuevo'}`} className="text-white/20 hover:text-red-400 transition-colors ml-2 disabled:opacity-50">
               <Trash2 size={15} />
             </button>
           </div>
@@ -200,7 +200,7 @@ export default function AdminEquipos() {
                           if (file) uploadLogo(team.id, file)
                           e.target.value = ''
                         }}
-                        disabled={uploading === team.id || draftIds.has(team.id)}
+                        disabled={uploading === team.id || saving === team.id || deleting === team.id || draftIds.has(team.id)}
                         aria-label={`Subir logo de ${team.name || 'nuevo equipo'}`}
                       />
                     </label>
@@ -266,7 +266,7 @@ export default function AdminEquipos() {
                 )}
                 <button
                   onClick={() => saveTeam(team)}
-                  disabled={saving === team.id}
+                  disabled={saving === team.id || deleting === team.id || uploading === team.id}
                   className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
                 >
                   <Save size={14} />

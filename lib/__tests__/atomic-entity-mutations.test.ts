@@ -5,7 +5,7 @@ describe('atomic entity mutations', () => {
   let data: typeof import('../data')
 
   beforeAll(async () => {
-    process.env.DB_PATH = `.tmp/atomic-entities-${process.pid}.db`
+    process.env.DB_PATH = ':memory:'
     data = await import('../data')
   })
 
