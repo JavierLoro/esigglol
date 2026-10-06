@@ -1,0 +1,71 @@
+name: Guías · GitHub Pages
+
+on:
+  push:
+    branches: [main, feature/github-pages-guias]
+    paths:
+      - 'docs/guias/**'
+      - '.github/workflows/guias-pages.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/guias/**'
+      - '.github/workflows/guias-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guias-pages-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Enlazar el documento de la rama publicada
+        env:
+          SOURCE_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          with Path('docs/guias/_config.yml').open('a') as config:
+              config.write('\nsource_branch: ' + json.dumps(os.environ['SOURCE_BRANCH']) + '\n')
+          PY
+      - name: Generar la web desde el manual
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs/guias
+          destination: ./_site
+      - name: Comprobar el sitio generado
+        run: |
+          test -s _site/index.html
+          test -s _site/assets/style.css
+          grep -q 'id="admin-global"' _site/index.html
+          grep -q 'id="admin-equipo"' _site/index.html
+          grep -q 'id="markdown-toc"' _site/index.html
+          if grep -Eq '\{\{|\{%|\{:toc\}' _site/index.html; then
+            echo 'Quedan instrucciones de plantilla sin renderizar.' >&2
+            exit 1
+          fi
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./_site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar las guías
+        id: deployment
+        uses: actions/deploy-pages@v4
