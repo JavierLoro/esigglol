@@ -23,7 +23,7 @@ consultar sin iniciar sesión.
 
 | Operación | Admin global | Admin de equipo |
 | --- | --- | --- |
-| Crear, publicar y archivar torneos | Sí | No |
+| Crear, publicar, archivar y eliminar torneos | Sí | No |
 | Gestionar equipos, fases y resultados | Sí | No |
 | Generar o desactivar accesos de equipos | Sí | No |
 | Modificar roles de su plantilla | Sí | Sí, se aplica al momento |
@@ -62,6 +62,15 @@ edición seleccionada. En móvil están disponibles en el menú inferior.
 El estado del torneo y la confirmación de los cuadros controlan su publicación.
 Al finalizar la competición, usa **Archivar torneo** para conservar la edición
 y bloquear su edición.
+
+Para borrar una edición definitivamente, en **Torneos** pulsa **Eliminar torneo**
+en su ficha y revisa el nombre del aviso antes de confirmar. Puedes cancelar
+para conservarla. Esta opción solo está disponible para el admin global y
+funciona con torneos en borrador, publicados o archivados.
+
+La eliminación no se puede deshacer: borra sus equipos, accesos, solicitudes,
+fases, partidos, estadísticas y configuración de emisión. Los demás torneos
+se conservan. Si quieres mantener los datos, usa **Archivar torneo**.
 
 ### 3. Preparar equipos y jugadores
 

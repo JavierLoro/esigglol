@@ -34,3 +34,34 @@ export function saveTournament(input: Omit<Tournament, 'id'> & { id?: string }):
     return tournament
   }).immediate()
 }
+
+/** Atomically delete an edition and return its uploads for unused-file cleanup. */
+export function deleteTournament(id: string): string[] | undefined {
+  return db.transaction(() => {
+    if (!getTournament(id)) return undefined
+    const teamIds = "SELECT id FROM teams WHERE json_extract(data, '$.tournamentId') = ?"
+    const uploads = db.prepare(`
+      SELECT json_extract(data, '$.logo') AS logo FROM teams WHERE id IN (${teamIds})
+      UNION
+      SELECT json_extract(payload, '$.logo') AS logo FROM team_change_requests
+      WHERE team_id IN (${teamIds}) AND type = 'team_logo'
+    `).all(id, id) as { logo: string | null }[]
+    for (const table of ['player_champion_mastery', 'player_match_history']) {
+      db.prepare(`DELETE FROM ${table} WHERE player_id IN (
+        SELECT json_extract(player.value, '$.id') FROM teams, json_each(teams.data, '$.players') AS player
+        WHERE json_extract(teams.data, '$.tournamentId') = ?
+      )`).run(id)
+    }
+    for (const table of ['team_access', 'team_change_requests']) {
+      db.prepare(`DELETE FROM ${table} WHERE team_id IN (${teamIds})`).run(id)
+    }
+    for (const table of ['matches', 'phases', 'teams']) {
+      db.prepare(`DELETE FROM ${table} WHERE json_extract(data, '$.tournamentId') = ?`).run(id)
+    }
+    for (const table of ['player_stats', 'tournament_config']) {
+      db.prepare(`DELETE FROM ${table} WHERE instr(key, ?) = 1`).run(`${id}:`)
+    }
+    db.prepare('DELETE FROM tournaments WHERE id = ?').run(id)
+    return uploads.flatMap(({ logo }) => logo ? [logo] : [])
+  }).immediate()
+}
