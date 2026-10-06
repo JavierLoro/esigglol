@@ -225,6 +225,11 @@ externo o restaurar una base de datos.
 
 ## Documentación
 
+Al añadir, modificar o eliminar funcionalidades del admin global o del admin
+de equipo, actualiza [docs/guias/index.md](docs/guias/index.md) en el mismo
+cambio con los pasos, permisos y opciones del rol afectado. Ese documento
+es la fuente de las guías publicadas en GitHub Pages.
+
 - [Guías de uso para admin global y admin de equipo](docs/guias/index.md)
 - [Mantenimiento y publicación de las guías en GitHub Pages](docs/guias/README.md)
 - [Formatos de torneo](docs/tournament-formats.md)
