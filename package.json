@@ -3,6 +3,8 @@
   "version": "1.2.1",
   "private": true,
   "scripts": {
+    "audit:cloudflare": "node scripts/audit-cloudflare.mjs",
+    "test:audit-cloudflare": "node --test scripts/__tests__/audit-cloudflare.test.mjs",
     "sync-valorant": "tsx scripts/sync-valorant.ts",
     "sync-ddragon": "tsx scripts/sync-ddragon.ts",
     "generate-session-secret": "tsx scripts/generate-session-secret.ts",

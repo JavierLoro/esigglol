@@ -7,7 +7,7 @@ export default defineConfig({
     // Route wrappers use the real competition repository even when handlers are mocked.
     // A plain `npm test` must never open or migrate the application database.
     env: { DB_PATH: ':memory:' },
-    exclude: ['e2e/**', '.next/**', '.next-e2e/**', '.next-valorant-sandbox/**', '.tmp/**', 'node_modules/**'],
+    exclude: ['e2e/**', '.next/**', '.next-e2e/**', '.next-valorant-sandbox/**', '.tmp/**', 'node_modules/**', 'tools/cloudflare-poc/**', 'scripts/__tests__/audit-cloudflare.test.mjs'],
   },
   resolve: { alias: { '@': path.resolve(__dirname) } },
 })

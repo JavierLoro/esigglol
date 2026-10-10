@@ -1,0 +1,51 @@
+name: Cloudflare feasibility (local only)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  feasibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            tools/cloudflare-poc/package-lock.json
+      - run: npm ci
+      - run: npm run test:audit-cloudflare
+      # Keep the inventory useful as main evolves without requiring generated
+      # evidence edits in every unrelated feature PR. Upload the current report.
+      - run: npm run audit:cloudflare
+      - run: npm ci --prefix tools/cloudflare-poc
+      - run: npm run check:app --prefix tools/cloudflare-poc
+      - run: npm run build --prefix tools/cloudflare-poc
+      - run: npm test --prefix tools/cloudflare-poc
+      - name: Bundle size (no remote deployment)
+        working-directory: tools/cloudflare-poc
+        run: npm run bundle:report > .wrangler/bundle-report.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloudflare-local-feasibility
+          path: |
+            docs/deploy-cloudflare/inventory.json
+            docs/deploy-cloudflare/inventory.md
+            tools/cloudflare-poc/.wrangler/probe-results.json
+            tools/cloudflare-poc/.wrangler/bundle-report.txt
+          include-hidden-files: true
+          if-no-files-found: warn

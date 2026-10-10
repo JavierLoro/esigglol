@@ -15,6 +15,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "tools/cloudflare-poc/node_modules/**",
+    "tools/cloudflare-poc/dist/**",
+    "tools/cloudflare-poc/.wrangler/**",
+    "tools/cloudflare-poc/.next/**",
   ]),
 ]);
 
