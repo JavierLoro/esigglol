@@ -1,11 +1,12 @@
 import { competitionRoute } from '@/lib/competition-route'
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
-import { mkdir, unlink, writeFile } from 'fs/promises'
+import { mkdir, unlink, writeFile } from '@/lib/file-store'
 import { requireTeamSession } from '@/lib/auth'
 import { UPLOADS_DIR } from '@/lib/env'
 import { createTeamChangeRequest } from '@/lib/team-portal-data'
 import { resolveUploadPath, uploadUrl } from '@/lib/upload-files'
+import { StorageQuotaError } from '@/lib/storage-quota'
 
 const TYPES: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }
 
@@ -33,7 +34,10 @@ async function handlePOST(req: Request) {
   const path = resolveUploadPath(filename)
   if (!path) return NextResponse.json({ error: 'Archivo inválido' }, { status: 400 })
   await mkdir(UPLOADS_DIR, { recursive: true })
-  await writeFile(path, buffer, { flag: 'wx' })
+  try { await writeFile(path, buffer, { flag: 'wx' }) } catch (error) {
+    if (error instanceof StorageQuotaError) return NextResponse.json({ error: error.message }, { status: 429 })
+    throw error
+  }
   try {
     return NextResponse.json(createTeamChangeRequest(session.teamId, 'team_logo', { logo: uploadUrl(filename) }), { status: 201 })
   } catch (error) {

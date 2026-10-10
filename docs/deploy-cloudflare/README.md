@@ -1,6 +1,6 @@
-# Despliegue dual: fase de viabilidad
+# Despliegue dual: aplicación experimental y viabilidad
 
-Esta carpeta desarrolla la [issue #136](https://github.com/JavierLoro/esigglol/issues/136). **Todavía no permite desplegar esigglol completo en Cloudflare.** Docker/Node continúa siendo el destino soportado.
+Esta carpeta desarrolla la [issue #136](https://github.com/JavierLoro/esigglol/issues/136). La [aplicación completa experimental](application.md) está desplegada con SQLite en Durable Objects, R2 y assets. Docker/Node conserva el destino estable. Los documentos F0 siguientes describen la PoC D1 anterior y su HOLD; no son la arquitectura de la aplicación desplegada.
 
 Orden de lectura:
 
@@ -16,9 +16,9 @@ Orden de lectura:
 |---|---|---|
 | F0: inventario y PoC local | Implementados; evidencia local documentada | Completar piloto remoto y decisiones de atomicidad/jobs/CPU |
 | F0: Workers Free y facturación | Piloto privado desplegado en Free; R2 Standard activado por el titular | Completar mediciones y paridad del producto; [controles y resultado](pilot.md) |
-| F1–F6 | Pendientes | GO explícito de F0; PRs incrementales |
+| Aplicación con Durable Objects | Implementada y desplegada como beta | [Arquitectura, evidencia y gates pendientes](application.md) |
 
-No se añade un `deploy:cloudflare` de producto, ni se modifica el esquema SQLite, sus datos, Docker, Compose, backups, GHCR o redeploy. La PoC tiene su propio lockfile y no cambia las versiones de React/Next de la aplicación.
+La PoC histórica mantiene su propio lockfile. La adaptación de producto añade comandos cloud, adaptadores y validación independiente; no cambia el esquema del producto, Compose, backups Docker, GHCR ni redeploy. React pasa a 19.2.6; Next.js permanece en 16.2.1.
 
 ## Reproducir el inventario
 

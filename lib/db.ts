@@ -2,6 +2,7 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import { mkdirSync } from 'fs'
 import { runMigrations } from './db-migrations'
+import type { DatabaseContract } from './database-contract'
 
 const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), 'data', 'esigglol.db')
 
@@ -20,4 +21,12 @@ function getDb(): Database.Database {
   return _db
 }
 
-export default getDb()
+// Imports and builds must not open or migrate the application database.
+const database: DatabaseContract & { close(): void } = {
+  prepare(sql) { return getDb().prepare(sql) },
+  exec(sql) { getDb().exec(sql) },
+  transaction(callback) { return getDb().transaction(callback) },
+  close() { _db?.close(); _db = null },
+}
+
+export default database

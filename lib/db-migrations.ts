@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3'
+import type { DatabaseContract } from './database-contract'
 
 /**
  * A schema migration is deliberately a small synchronous function because the
@@ -8,7 +8,7 @@ import type Database from 'better-sqlite3'
 export interface Migration {
   version: number
   name: string
-  up: (db: Database.Database) => void
+  up: (db: DatabaseContract) => void
 }
 
 /**
@@ -234,7 +234,7 @@ function validateMigrations(available: readonly Migration[]): void {
   }
 }
 
-function ensureMigrationTable(db: Database.Database): void {
+function ensureMigrationTable(db: DatabaseContract): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version    INTEGER PRIMARY KEY,
@@ -244,7 +244,7 @@ function ensureMigrationTable(db: Database.Database): void {
   `)
 }
 
-function getAppliedMigrations(db: Database.Database): AppliedMigration[] {
+function getAppliedMigrations(db: DatabaseContract): AppliedMigration[] {
   return db.prepare(
     'SELECT version, name FROM schema_migrations ORDER BY version ASC',
   ).all() as AppliedMigration[]
@@ -256,7 +256,7 @@ function getAppliedMigrations(db: Database.Database): AppliedMigration[] {
  * partially-applied schema behind.
  */
 export function runMigrations(
-  db: Database.Database,
+  db: DatabaseContract,
   available: readonly Migration[] = migrations,
 ): void {
   validateMigrations(available)

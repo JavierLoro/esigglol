@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, writeFile, unlink } from 'node:fs/promises'
+import { mkdir, writeFile, unlink } from '@/lib/file-store'
 import { z } from 'zod'
 import { requireAdminSession } from '@/lib/auth'
 import { getSiteBranding, saveSiteBranding } from '@/lib/site-branding'
 import { UPLOADS_DIR } from '@/lib/env'
 import { resolveUploadPath, uploadUrl } from '@/lib/upload-files'
+import { StorageQuotaError } from '@/lib/storage-quota'
 
 export const runtime = 'nodejs'
 export async function GET() {
@@ -37,7 +38,8 @@ export async function POST(req: Request) {
     const value = { ...getSiteBranding(), ...parsed.data, logo }
     saveSiteBranding(value)
     return Response.json(value)
-  } catch {
+  } catch (error) {
+    if (error instanceof StorageQuotaError) return Response.json({ error: error.message }, { status: 429 })
     if (path) await unlink(path).catch(() => {})
     return Response.json({ error: 'No se pudo guardar el banner.' }, { status: 500 })
   }

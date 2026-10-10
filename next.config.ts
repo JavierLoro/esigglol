@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
     NEXT_PUBLIC_GIT_SHA: process.env.COMMIT_SHA ?? '',
   },
-  allowedDevOrigins: getLocalIPs(),
+  allowedDevOrigins: process.env.NODE_ENV === 'development' ? getLocalIPs() : [],
   images: {
     remotePatterns: [
       {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { PROFILE_ICONS_DIR } from '@/lib/env'
 import { ensureProfileIcon } from '@/lib/ddragon'
-import { readFile } from 'fs/promises'
+import { readFile } from '@/lib/file-store'
 import path from 'path'
 
 export async function GET(

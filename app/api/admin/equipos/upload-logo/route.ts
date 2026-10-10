@@ -5,9 +5,10 @@ import { UPLOADS_DIR } from '@/lib/env'
 import { getTeamById, updateTeamLogo } from '@/lib/data'
 import { resolveUploadPath, uploadUrl } from '@/lib/upload-files'
 import { removeUnusedLogo } from '@/lib/logo-cleanup'
-import { writeFile, mkdir, unlink } from 'fs/promises'
+import { writeFile, mkdir, unlink } from '@/lib/file-store'
 import { randomUUID } from 'crypto'
 import logger from '@/lib/logger'
+import { StorageQuotaError } from '@/lib/storage-quota'
 
 const log = logger.child({ module: 'upload-logo' })
 
@@ -108,6 +109,7 @@ async function handlePOST(req: Request) {
 
     return NextResponse.json({ path: publicPath, version: persistedTeam.version })
   } catch (err) {
+    if (err instanceof StorageQuotaError) return NextResponse.json({ error: err.message }, { status: 429 })
     if (newFileNeedsCleanup && newFilePath) {
       await removeFileQuietly(newFilePath, filename, 'association-failed')
     }
