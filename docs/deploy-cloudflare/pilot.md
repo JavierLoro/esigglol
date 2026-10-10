@@ -4,7 +4,7 @@
 
 ## Recursos y controles verificados
 
-Worker, D1 y bucket R2 nuevos con nombre `esigglol-feasibility-pilot`; solo datos sintéticos. El titular activó R2 en el dashboard. D1 y R2 se ubicaron en WEUR; esto no fija el lugar de ejecución de Workers. No se migraron datos del producto ni se configuró su dominio.
+Worker, D1 y bucket R2 nuevos con nombre `esigglol-feasibility-pilot`; solo datos sintéticos. El titular activó R2 en el dashboard. D1 y R2 se ubicaron en WEUR; esto no fija el lugar de ejecución de Workers. No se migraron datos del producto. El dominio personalizado del piloto se añadió después de las pruebas, como se registra abajo.
 
 La API de upload confirmó **Workers Free** al rechazar `limits.cpu_ms` con error 100328: esa opción exige Paid. Se retiró el límite configurable y se mantuvo Free, cuyo presupuesto publicado es 10 ms CPU. `usage_model: standard` por sí solo no prueba Free. El endpoint de suscripciones devolvió 10000 por falta de permiso; no se activó ni modificó ningún plan de pago.
 
@@ -18,9 +18,18 @@ La API de upload confirmó **Workers Free** al rechazar `limits.cpu_ms` con erro
 | Objetos | Dos nombres fijos con textos de 13 y 9 bytes; sin uploads arbitrarios; borrado automático a partir de 24 horas |
 | Alerta de gasto | `esigglol pilot budget alert`, activa a **1 USD** de consumo facturable de toda la cuenta, al correo del titular; verificada por GET |
 | Endpoint al terminar | `workers.dev` desactivado por API y verificado por GET; preview URLs desactivadas; sin dominio/ruta de producción |
+| Dominio personalizado del piloto | `esiggesports.jlc-dev.me`, añadido el 2026-10-10 a petición del titular; HTTPS verificado, 401 sin Bearer; mismas cuotas y caducidad |
 | Automatización de despliegue | Ninguna; nueva ventana de acceso requiere intervención explícita |
 
 La alerta **no detiene consumo ni cargos**. El contador limita la ejecución de la fixture y el trabajo R2, pero las peticiones rechazadas siguen invocando Workers y, si llevan credencial válida, consultando D1. No cubre otros recursos de la cuenta ni escrituras directas de administradores. No existe aquí un tope global garantizado de 0 €. Referencias: [alertas](https://developers.cloudflare.com/billing/manage/budget-alerts/), [R2 pricing](https://developers.cloudflare.com/r2/pricing/). Revisar consumo agregado antes de otra ventana.
+
+### Dominio personalizado del piloto
+
+`https://esiggesports.jlc-dev.me` apunta al mismo Worker aislado mediante un Custom Domain, verificado por API. Cloudflare creó su registro DNS proxied y certificado. Una petición HTTPS sin credencial devuelve 401 con `WWW-Authenticate: Bearer` y `Cache-Control: no-store`. No se modificaron los recursos ni las rutas del servidor Proxmox.
+
+El hostname está activo aunque `workers.dev` esté desactivado: cerrar esa URL no cierra un Custom Domain. Sus preview URLs permanecen desactivadas. El Bearer, el límite persistente de peticiones y las cuotas R2 siguen vigentes; a partir de la caducidad absoluta del 2026-10-11 15:44:15 UTC el guard devuelve 503 sin ejecutar la fixture. No se amplió la ventana ni se reiniciaron contadores. Para cerrar también el hostname hay que retirar su asociación al Worker en Domains & Routes o mediante la API de Worker Domains.
+
+Este dominio todavía sirve el piloto técnico, no el producto completo ni su login. Cambiar el hostname no elimina el gate F0 HOLD ni los trabajos pendientes de la migración. Referencia: [Workers Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
 
 ### Bloqueo de operaciones R2
 
