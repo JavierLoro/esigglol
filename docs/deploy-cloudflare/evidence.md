@@ -1,5 +1,7 @@
 # Evidencia local de F0
 
+Este registro conserva la evidencia de la PoC local inicial. La continuación remota del 2026-10-10, sus controles de gasto y CPU se registran por separado en [pilot.md](pilot.md); no convierten estos resultados locales en pruebas de producción.
+
 Revisión: 2026-10-10. Base de producto `6a431db`, Node local `24.19.0`; CI configurada con Node 22. Versiones exactas de la fixture en `tools/cloudflare-poc/package-lock.json`.
 
 ## Resultados

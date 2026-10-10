@@ -26,6 +26,9 @@ export async function POST(request) {
     const result = await env.DB.prepare("UPDATE probe_records SET version = version + 1 WHERE id = 'cas' AND version = 0").run()
     return Response.json({ changed: result.meta.changes }, { status: result.meta.changes === 1 ? 200 : 409 })
   }
+  if (['write-file', 'delete-file', 'delete-after'].includes(operation) && !env.FILES) {
+    return Response.json({ error: 'R2 not configured' }, { status: 503 })
+  }
   if (operation === 'write-file') {
     await env.FILES.put('probe-object.txt', 'r2-round-trip', { httpMetadata: { contentType: 'text/plain' } })
     return Response.json({ written: true })
@@ -34,10 +37,15 @@ export async function POST(request) {
     await env.FILES.delete('probe-object.txt')
     return Response.json({ deleted: true })
   }
+  if (operation === 'delete-after') {
+    await env.FILES.delete('probe-after.txt')
+    return Response.json({ deleted: true })
+  }
   return Response.json({ error: 'Unknown operation' }, { status: 400 })
 }
 
 export async function GET() {
+  if (!env.FILES) return Response.json({ error: 'R2 not configured' }, { status: 503 })
   const object = await env.FILES.get('probe-object.txt')
   if (!object) return new Response(null, { status: 404 })
   const headers = new Headers()

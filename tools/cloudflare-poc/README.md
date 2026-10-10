@@ -38,7 +38,7 @@ Para preview manual, el plugin lee los secretos del directorio del bundle. El ha
 ## Aislamiento y límites
 
 - Lockfile independiente: producto React `19.2.4`, fixture `19.2.6` según peers de vinext. No hay upgrade global ni `--legacy-peer-deps`.
-- D1 tiene ID nulo ficticio, R2 nombre de fixture, `workers_dev` y preview URLs desactivados. No hay script de deploy, recursos remotos, token ni Account ID. Esto evita un deploy accidental listo para usar; un administrador aún puede reconfigurar Wrangler.
+- La configuración local mantiene un D1 ID ficticio, R2 de fixture y `workers_dev`/preview URLs desactivados. El empaquetado [remoto](remote/README.md) es un paso separado y explícito, con credencial, caducidad y presupuesto persistente; no convierte la fixture en una aplicación de producto.
 - El workflow solo construye/ejecuta localmente y publica evidencia; no solicita secretos.
 - El login de prueba emite sesiones sin contraseña; **no publicar esta fixture como una aplicación segura o de producción**.
 - Los batches/CAS diagnósticos no cubren las transacciones anidadas de producto. R2/D1 locales no certifican latencia/consumo/consistencia operativa en cuenta real.

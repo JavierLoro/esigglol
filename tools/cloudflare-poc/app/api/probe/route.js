@@ -8,11 +8,11 @@ export function GET() {
 }
 
 export async function POST() {
-  await env.FILES.delete('probe-after.txt')
+  if (env.FILES) await env.FILES.delete('probe-after.txt')
   const token = await signProbeSession()
   const cookieStore = await cookies()
-  cookieStore.set(COOKIE, token, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 300 })
-  after(async () => {
+  cookieStore.set(COOKIE, token, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 300, secure: env.PROBE_REMOTE === '1' })
+  if (env.FILES) after(async () => {
     // A bounded diagnostic side effect, not a reliable background job.
     await env.FILES.put('probe-after.txt', 'completed')
   })

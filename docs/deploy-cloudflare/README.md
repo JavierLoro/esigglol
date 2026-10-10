@@ -15,7 +15,7 @@ Orden de lectura:
 | Fase | Estado | Condición para avanzar |
 |---|---|---|
 | F0: inventario y PoC local | Implementados; evidencia local documentada | Completar piloto remoto y decisiones de atomicidad/jobs/CPU |
-| F0: Workers Free y facturación | Pendiente, sin cuenta ni recursos remotos usados | Medición en una cuenta Free y revisión de activación R2 |
+| F0: Workers Free y facturación | Piloto privado desplegado en Free; R2 Standard activado por el titular | Completar mediciones y paridad del producto; [controles y resultado](pilot.md) |
 | F1–F6 | Pendientes | GO explícito de F0; PRs incrementales |
 
 No se añade un `deploy:cloudflare` de producto, ni se modifica el esquema SQLite, sus datos, Docker, Compose, backups, GHCR o redeploy. La PoC tiene su propio lockfile y no cambia las versiones de React/Next de la aplicación.

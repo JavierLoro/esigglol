@@ -2,7 +2,7 @@
 
 Generar: `npm run audit:cloudflare`. Verificar: `npm run audit:cloudflare -- --check`.
 
-Base auditada: `6a431dbfc6dfd953e1709afad375f0cf0f0ddfee`. 174 módulos; 67 entradas.
+Base auditada: `51619281f29e4a5c4cfed1f4bb104f0935dc2310`. 174 módulos; 67 entradas.
 
 Análisis conservador de imports de runtime (incluidos dinámicos literales), layouts ancestros y proxy. No ejecuta código de producto. `candidate` significa candidato sin señales detectadas, **no compatible probado**. Las dependencias transitivas de paquetes y los imports calculados requieren revisión manual.
 

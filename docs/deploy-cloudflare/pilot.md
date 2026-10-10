@@ -1,12 +1,49 @@
-# Piloto remoto pendiente y presupuesto
+# Piloto remoto privado y presupuesto
 
-**Estado: no ejecutado.** La fixture local no exige cuenta, ni verifica habilitación/facturación/CPU en Cloudflare. El gate F0 sigue en HOLD. Este documento define la continuación revisable; no da por realizados los pasos.
+**Estado: piloto aislado desplegado el 2026-10-10; gate F0 en HOLD.** No es esigglol completo. La aplicación de torneo continúa en Docker. El [empaquetado remoto](../../tools/cloudflare-poc/remote/README.md) protege la fixture y añade un presupuesto persistente; la configuración local permanece separada.
+
+## Recursos y controles verificados
+
+Worker, D1 y bucket R2 nuevos con nombre `esigglol-feasibility-pilot`; solo datos sintéticos. El titular activó R2 en el dashboard. D1 y R2 se ubicaron en WEUR; esto no fija el lugar de ejecución de Workers. No se migraron datos del producto ni se configuró su dominio.
+
+La API de upload confirmó **Workers Free** al rechazar `limits.cpu_ms` con error 100328: esa opción exige Paid. Se retiró el límite configurable y se mantuvo Free, cuyo presupuesto publicado es 10 ms CPU. `usage_model: standard` por sí solo no prueba Free. El endpoint de suscripciones devolvió 10000 por falta de permiso; no se activó ni modificó ningún plan de pago.
+
+| Control | Estado verificado |
+|---|---|
+| Acceso al Worker | Bearer aleatorio en todos los paths; secretos fuera de Git; credencial retirada antes del framework |
+| Caducidad | 2026-10-11 15:44:15 UTC, absoluta; no depende de memoria de un isolate |
+| Corte de trabajo | 1.000 peticiones autorizadas **totales**, reservadas atómicamente en D1; 429 al agotarse y 503 si D1 falla |
+| Bucket | Standard; `r2.dev` desactivado; ningún dominio personalizado |
+| Objetos | Dos nombres fijos con textos de 12 y 9 bytes; sin uploads arbitrarios; borrado automático a partir de 24 horas |
+| Alerta de gasto | `esigglol pilot budget alert`, activa a **1 USD** de consumo facturable de toda la cuenta, al correo del titular; verificada por GET |
+| Endpoint al terminar | `workers.dev` desactivado por API y verificado por GET; preview URLs desactivadas; sin dominio/ruta de producción |
+| Automatización de despliegue | Ninguna; nueva ventana de acceso requiere intervención explícita |
+
+La alerta **no detiene consumo ni cargos**. El contador limita la ejecución de la fixture y el trabajo R2, pero las peticiones rechazadas siguen invocando Workers y, si llevan credencial válida, consultando D1. No cubre otros recursos de la cuenta ni escrituras directas de administradores. No existe aquí un tope global garantizado de 0 €. Referencias: [alertas](https://developers.cloudflare.com/billing/manage/budget-alerts/), [R2 pricing](https://developers.cloudflare.com/r2/pricing/). Revisar consumo agregado antes de otra ventana.
+
+## Resultado remoto del 2026-10-10
+
+Base de producto `5161928` más los cambios de `feat/cloudflare-remote-pilot`. Upload por conector Cloudflare, versión Worker `f136888d-88ac-47bd-b763-075be7560313`, `nodejs_compat`, compatibility date `2026-10-10`; startup informado por API: 13 ms, **no CPU de invocación**. Fixture y versiones independientes del producto. Los diez assets se embeben en código para el upload: no se certificó el binding nativo ASSETS.
+
+Smoke remoto: **88 peticiones, pasa**. Se comprueban SSR/identificadores, proxy, asset, 401 en todos los paths sin Bearer, cookie segura/JWT, rollback D1, ocho escritores CAS (un ganador y siete 409), R2 write/read con MIME/ETag, delete/404 y side effect acotado de `after()`. Ambos objetos sintéticos se eliminan al terminar. No son mutaciones ni jobs del producto. Contador persistente final: **82 de 1.000** peticiones autorizadas; las seis sin Bearer no consumieron D1/R2.
+
+CPU obtenida de Workers Observability (`$workers.cpuTimeMs`), filtrando servicio/versión y tomando las últimas 20 invocaciones GET 200 por caso en orden temporal. p50/p95/p99 son los valores ordenados en posiciones 10/19/20; p99 con 20 muestras equivale al máximo y no caracteriza colas de producción. La latencia se mide en el cliente y contiene el proxy/red del entorno de pruebas.
+
+| Caso, 20 muestras | CPU p50/p95/p99 ms | Latencia p50/p95 ms | Resultado |
+|---|---|---|---|
+| SSR | 16 / 23 / 33 | 275 / 4.261 | Sin margen frente a 10 ms Free |
+| JSON / bindings | 5 / 8 / 11 | 261 / 279 | p99 por encima del presupuesto publicado |
+| JWT | 6 / 10 / 13 | 248 / 268 | Margen insuficiente en la cola |
+
+Primera SSR: 86 ms CPU. Las invocaciones muestreadas tienen outcome `ok`: la flexibilidad ocasional de isolates no demuestra cumplimiento sostenido del presupuesto. **NO-GO para afirmar SSR a coste cero con esta fixture/configuración; F0 del producto sigue HOLD.** Optimizar o evaluar otra estrategia antes de avanzar; no subir a Paid para hacer pasar el gate. Faltan atomicidad de mutaciones reales, jobs/checkpoints/leases, bcrypt/roles completos, restore, assets nativos y métricas de consumo por operación del producto. No se interpreta la alerta como prueba de coste final ni se dispone de una factura cerrada.
+
+Verificación local del nuevo artefacto: build y seis tests pasan, incluido presupuesto concurrente al límite en workerd. ESLint y `git diff --check` pasan. Inventario regenerado contra `5161928`: solo cambia la base auditada, sin cambios en las señales del producto.
 
 ## Recursos y acceso
 
 Usar una cuenta/entorno de **preview aislado**, confirmar Workers Free y crear D1/R2 nuevos exclusivamente para el piloto. No reutilizar secretos, nombres, datos o dominio de producción. El nombre y D1 ID de la fixture son deliberadamente ficticios; no convertir su configuración local en configuración de producto.
 
-Antes de publicar cualquier probe remota, protegerla con Cloudflare Access o una credencial diagnóstica aleatoria y quitar el emisor de sesiones sin contraseña. No subir `.dev.vars`, secretos temporales ni datos del despacho/club. Token de CI de alcance mínimo por cuenta y servicio; producción fuera de los permisos del piloto. No hay workflow de despliegue remoto en esta PR.
+Antes de publicar cualquier probe remota, protegerla con Cloudflare Access o una credencial diagnóstica aleatoria. El emisor de sesión de esta fixture es exclusivamente diagnóstico y queda detrás de esa credencial; nunca equivale al login del producto. No subir `.dev.vars`, secretos temporales ni datos del despacho/club. Token de CI de alcance mínimo por cuenta y servicio; producción fuera de los permisos del piloto. No hay workflow de despliegue remoto en esta PR.
 
 ## Límites de referencia
 
@@ -23,7 +60,7 @@ Fuentes: [Workers](https://developers.cloudflare.com/workers/platform/limits/), 
 
 R2 requiere [añadir una suscripción mediante checkout](https://developers.cloudflare.com/r2/get-started/). La franquicia gratuita no elimina la facturación de excesos. Registrar activación, condiciones de cobro, cuenta responsable y alertas antes de crear recursos. No activar Workers Paid u otro servicio de pago de forma implícita.
 
-**Presupuesto propuesto, pendiente de decisión:** coste objetivo 0 €, aviso al alcanzar el 50 % y 80 % de cualquier cuota relevante, detener carga artificial al 80 % y revisar antes de continuar. Las alertas no son un límite de gasto garantizado. Si no existe un mecanismo de corte adecuado para R2, mantener el piloto privado, con número de solicitudes/objetos limitado y un responsable de interrupción.
+**Presupuesto del piloto:** objetivo 0 €, 120 solicitudes HTTP como máximo por ejecución del smoke y 1.000 autorizadas para toda la ventana; dos objetos diminutos. El corte de trabajo y la desactivación del endpoint son las restricciones efectivas de esta fixture; la alerta de 1 USD es detección posterior. Los avisos al 50 %/80 % de cuotas de producto siguen como propuesta para una futura implantación, no como controles ya configurados.
 
 ## Cargas y métricas a registrar
 
