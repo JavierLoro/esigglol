@@ -34,7 +34,12 @@ test('built vinext Worker: SSR, proxy, JWT, after, D1 rollback/CAS and R2 lifecy
     let ready = false
     for (let attempt = 0; attempt < 120; attempt++) {
       if (child.exitCode !== null) throw new Error(`Worker exited: ${logs}`)
-      try { ready = (await fetch(`${base}/api/probe`, { signal: AbortSignal.timeout(1000) })).ok } catch { /* wait for local startup */ }
+      try {
+        // Binding presence is not readiness of the local D1/R2 proxy services.
+        ready = (await fetch(`${base}/api/probe`, { signal: AbortSignal.timeout(1000) })).ok &&
+          (await fetch(`${base}/api/quota`, { signal: AbortSignal.timeout(1000) })).ok &&
+          (await fetch(`${base}/api/after`, { signal: AbortSignal.timeout(1000) })).ok
+      } catch { /* wait for local startup */ }
       if (ready) break
       await delay(250)
     }
@@ -55,7 +60,7 @@ test('built vinext Worker: SSR, proxy, JWT, after, D1 rollback/CAS and R2 lifecy
     assert.equal((await fetch(`${base}/api/private`, { headers: { Cookie: 'feasibility_session=invalid' } })).status, 401)
     assert.equal((await fetch(`${base}/api/storage`, { method: 'POST', body: '{}' })).status, 401)
     const signed = await fetch(`${base}/api/probe`, { method: 'POST' })
-    assert.equal(signed.status, 200)
+    assert.equal(signed.status, 200, signed.status === 200 ? undefined : await signed.text())
     const cookieHeader = signed.headers.get('set-cookie')
     assert.match(cookieHeader, /HttpOnly/i)
     assert.match(cookieHeader, /SameSite=Lax/i)

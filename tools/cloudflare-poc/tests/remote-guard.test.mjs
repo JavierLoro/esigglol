@@ -3,13 +3,13 @@ import { test } from 'node:test'
 import { protectWorker } from '../remote/guard.mjs'
 
 const token = 'test-only-credential-with-at-least-32-characters'
-const env = { PROBE_ACCESS_TOKEN: token, PROBE_EXPIRES_AT: '2099-01-01T00:00:00Z', DB: { prepare() { return { async first() { return { requests: 1 } } } } } }
+const env = { PROBE_REMOTE: '1', PROBE_ACCESS_TOKEN: token, PROBE_EXPIRES_AT: '2099-01-01T00:00:00Z', DB: { prepare() { return { async first() { return { requests: 1 } } } } } }
 
 test('remote guard denies every diagnostic and asset path before dispatch', async () => {
   let calls = 0
   const guarded = protectWorker({ fetch() { calls++; return new Response('unexpected') } })
   for (const pathname of ['/', '/probe.svg', '/api/probe', '/api/storage', '/api/private', '/api/after']) {
-    for (const authorization of ['', 'Bearer invalid', `Basic ${token}`]) {
+    for (const authorization of ['', 'Bearer invalid', `Basic ${token}`, token]) {
       const response = await guarded.fetch(new Request(`https://pilot.test${pathname}`, { headers: { Authorization: authorization } }), env, {})
       assert.equal(response.status, 401)
     }
@@ -19,7 +19,7 @@ test('remote guard denies every diagnostic and asset path before dispatch', asyn
 
 test('remote guard fails closed without a credential or after expiration', async () => {
   const guarded = protectWorker({ fetch() { throw new Error('must not dispatch') } })
-  for (const invalid of [{}, { ...env, PROBE_ACCESS_TOKEN: 'short' }, { ...env, PROBE_EXPIRES_AT: 'invalid' }, { ...env, PROBE_EXPIRES_AT: '2000-01-01T00:00:00Z' }]) {
+  for (const invalid of [{}, { ...env, PROBE_REMOTE: '0' }, { ...env, PROBE_ACCESS_TOKEN: 'short' }, { ...env, PROBE_EXPIRES_AT: 'invalid' }, { ...env, PROBE_EXPIRES_AT: '2000-01-01T00:00:00Z' }]) {
     assert.equal((await guarded.fetch(new Request('https://pilot.test/'), invalid, {})).status, 503)
   }
 })

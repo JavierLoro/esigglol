@@ -10,10 +10,11 @@ export function protectWorker(worker) {
   return {
     async fetch(request, env, ctx) {
       const expires = Date.parse(env.PROBE_EXPIRES_AT ?? '')
-      if (!env.PROBE_ACCESS_TOKEN || env.PROBE_ACCESS_TOKEN.length < 32 || !Number.isFinite(expires) || Date.now() >= expires) {
+      if (env.PROBE_REMOTE !== '1' || !env.PROBE_ACCESS_TOKEN || env.PROBE_ACCESS_TOKEN.length < 32 || !Number.isFinite(expires) || Date.now() >= expires) {
         return Response.json({ error: 'Pilot unavailable' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
       }
-      const provided = request.headers.get('Authorization')?.replace(/^Bearer /, '') ?? ''
+      const authorization = request.headers.get('Authorization') ?? ''
+      const provided = authorization.startsWith('Bearer ') ? authorization.slice(7) : ''
       const encoder = new TextEncoder()
       const [actual, expected] = await Promise.all([
         crypto.subtle.digest('SHA-256', encoder.encode(provided)),

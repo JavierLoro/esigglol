@@ -4,6 +4,8 @@ import { performance } from 'node:perf_hooks'
 const base = process.env.PROBE_BASE_URL
 const token = process.env.PROBE_ACCESS_TOKEN
 if (!base || !token) throw new Error('PROBE_BASE_URL and PROBE_ACCESS_TOKEN are required')
+const latencySamples = Number(process.env.PROBE_LATENCY_SAMPLES ?? 20)
+if (!Number.isInteger(latencySamples) || latencySamples < 0 || latencySamples > 20) throw new Error('PROBE_LATENCY_SAMPLES must be between 0 and 20')
 const target = new URL(base)
 if (target.protocol !== 'https:' && target.hostname !== '127.0.0.1') throw new Error('Use HTTPS or the local loopback harness')
 let requests = 0
@@ -15,7 +17,7 @@ const request = async (pathname, options = {}, authorized = true) => {
   if (cookie) headers.set('Cookie', cookie)
   return fetch(`${base}${pathname}`, { ...options, headers, redirect: 'manual', signal: AbortSignal.timeout(15000) })
 }
-for (const pathname of ['/', '/probe.svg', '/api/probe', '/api/storage', '/api/private', '/api/after']) {
+for (const pathname of ['/', '/probe.svg', '/api/probe', '/api/storage', '/api/private', '/api/after', '/api/quota']) {
   assert.equal((await request(pathname, {}, false)).status, 401)
 }
 const home = await request('/')
@@ -62,11 +64,18 @@ if (!bindings.r2) {
   }
   assert.equal(completed, true)
   assert.equal((await post('delete-after')).status, 200)
+  const quota = await (await request('/api/quota')).json()
+  assert.equal(quota.scope, 'pilot-lifetime')
+  assert.equal(quota.limits.classA, 100)
+  assert.equal(quota.limits.classB, 1000)
+  assert.ok(quota.used.classA >= 2)
+  assert.ok(quota.used.classB >= 3)
 }
 const latency = {}
 for (const [name, pathname] of [['ssr', '/'], ['json', '/api/probe'], ['jwt', '/api/private']]) {
+  if (!latencySamples) continue
   const samples = []
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < latencySamples; i++) {
     const start = performance.now()
     const response = await request(pathname)
     assert.equal(response.status, 200)
@@ -74,6 +83,6 @@ for (const [name, pathname] of [['ssr', '/'], ['json', '/api/probe'], ['jwt', '/
     samples.push(performance.now() - start)
   }
   samples.sort((a, b) => a - b)
-  latency[name] = { requests: 20, wallMsP50: samples[9], wallMsP95: samples[18] }
+  latency[name] = { requests: latencySamples, wallMsP50: samples[Math.ceil(latencySamples * 0.5) - 1], wallMsP95: samples[Math.ceil(latencySamples * 0.95) - 1] }
 }
 console.log(JSON.stringify({ base, requests, bindings, cas: { winners: 1, conflicts: 7 }, rollback: true, cpuMs: null, latency }, null, 2))

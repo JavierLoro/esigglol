@@ -13,13 +13,26 @@ La API de upload confirmó **Workers Free** al rechazar `limits.cpu_ms` con erro
 | Acceso al Worker | Bearer aleatorio en todos los paths; secretos fuera de Git; credencial retirada antes del framework |
 | Caducidad | 2026-10-11 15:44:15 UTC, absoluta; no depende de memoria de un isolate |
 | Corte de trabajo | 1.000 peticiones autorizadas **totales**, reservadas atómicamente en D1; 429 al agotarse y 503 si D1 falla |
+| Corte R2 | 100 escrituras A, 1.000 lecturas B y 1 MiB acumulado de payload/metadatos; 32 KiB por payload. Reservas persistentes y atómicas antes de R2; sin reinicio ni devolución automática |
 | Bucket | Standard; `r2.dev` desactivado; ningún dominio personalizado |
-| Objetos | Dos nombres fijos con textos de 12 y 9 bytes; sin uploads arbitrarios; borrado automático a partir de 24 horas |
+| Objetos | Dos nombres fijos con textos de 13 y 9 bytes; sin uploads arbitrarios; borrado automático a partir de 24 horas |
 | Alerta de gasto | `esigglol pilot budget alert`, activa a **1 USD** de consumo facturable de toda la cuenta, al correo del titular; verificada por GET |
 | Endpoint al terminar | `workers.dev` desactivado por API y verificado por GET; preview URLs desactivadas; sin dominio/ruta de producción |
 | Automatización de despliegue | Ninguna; nueva ventana de acceso requiere intervención explícita |
 
 La alerta **no detiene consumo ni cargos**. El contador limita la ejecución de la fixture y el trabajo R2, pero las peticiones rechazadas siguen invocando Workers y, si llevan credencial válida, consultando D1. No cubre otros recursos de la cuenta ni escrituras directas de administradores. No existe aquí un tope global garantizado de 0 €. Referencias: [alertas](https://developers.cloudflare.com/billing/manage/budget-alerts/), [R2 pricing](https://developers.cloudflare.com/r2/pricing/). Revisar consumo agregado antes de otra ventana.
+
+### Bloqueo de operaciones R2
+
+`lib/r2-budget.mjs` aplica el corte a cada get/head/put remoto, incluyendo lecturas 404, fallos/reintentos y la escritura de `after()`. La cuota se reserva con un solo UPDATE condicional que incluye operaciones y bytes UTF-8/metadatos: no hay un check separado de la escritura. Cuota agotada devuelve 429; falta de tabla/contador o fallo de D1 devuelve 503 antes de contactar R2. El trabajo diferido reserva antes de la respuesta y usa un permiso de un solo uso, para no emitir cookie ni programar trabajo si no cabe. Payload desconocido, streaming/multipart/list, metadatos arbitrarios e Infrequent Access quedan fuera del adaptador y bloqueados.
+
+Actualización desplegada con versión Worker `5314d425-3aac-43e7-bbcd-de7f19bed682`; startup API 20 ms. **14 tests locales pasan**, incluyendo carreras de ocho adaptadores contra la última reserva A/B/bytes, error de R2 sin devolución, fallo de D1, payloads desconocidos/excesivos y reservas de `after()` de un solo uso y comparación numérica con parámetros de texto de la API D1. El artefacto compilado comprueba 429 para rutas de lectura/escritura/after, 503 sin la tabla y que borrar sigue disponible al agotar R2. El harness local espera consultas D1 y lecturas R2 reales antes de empezar, no solo presencia de bindings.
+
+Smoke remoto del adaptador en la versión `2add9c89-ef84-4936-97d7-f2edf707b6e5`: **30 peticiones, pasa**, con `PROBE_LATENCY_SAMPLES=0` para no repetir benchmarks. Dos reservas A, tres B y **52 bytes** (payload más metadatos); ambos objetos se eliminan y la cuota permanece. La reserva con CAST de la versión final también rechazó tres intentos por encima de los límites en D1 remoto, con cero filas/cambios y sin modificar esos contadores. La URL se desactivó al terminar y se verificó por GET. Las métricas de CPU de la sección siguiente pertenecen a la versión anterior y no se atribuyen a este nuevo upload; el gate no cambia.
+
+El almacenamiento se acota de forma conservadora mediante **bytes acumulados reservados**, no una estimación de tamaño actual que pudiera quedar desincronizada al borrar o reemplazar. No se devuelve reserva aunque R2 falle o el objeto se elimine; borrar sigue permitido porque DeleteObject es gratuito. Son límites de toda la vida del piloto, mucho menores que Free. No se renuevan por mes: el día de facturación y el consumo agregado de la cuenta no están conectados al adaptador. La migración `0003_r2_budget.sql` no reinicia contadores existentes; no borrar/resembrar esa tabla para reabrir cuota sin una decisión expresa.
+
+`/api/quota` permite revisar límites y reservas, detrás del Bearer, mediante D1 y sin R2. El guard requiere explícitamente PROBE_REMOTE=1; una configuración remota incompleta no activa el modo local sin cuotas. El adaptador opera solo sobre el bucket privado del piloto, que había quedado vacío tras el smoke anterior. Una futura aplicación debe pasar todas sus operaciones por un control equivalente y reservar margen para consumo de otras fuentes; estos límites no son un tope de facturación global.
 
 ## Resultado remoto del 2026-10-10
 
