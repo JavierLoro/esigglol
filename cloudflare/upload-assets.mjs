@@ -1,30 +1,18 @@
-import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
-import { createHash } from 'node:crypto'
 import { createInterface } from 'node:readline'
+import { readStaticAssets, manifestFingerprint, assertAssetBuild } from './asset-manifest.mjs'
 
 const root = path.resolve('dist/client')
-const types = { js: 'application/javascript', mjs: 'application/javascript', css: 'text/css', json: 'application/json', html: 'text/html', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', ico: 'image/x-icon', woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf' }
-const manifest = {}
-const files = new Map()
-function walk(directory, prefix = '') {
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    if (entry.name.startsWith('.') || entry.name.endsWith('.zip') || entry.name === 'PublicContentCatalog.json') continue
-    const relative = path.posix.join(prefix, entry.name)
-    if (entry.isDirectory()) { walk(path.join(directory, entry.name), relative); continue }
-    const content = readFileSync(path.join(root, relative))
-    if (content.byteLength > 25 * 1024 * 1024) throw new Error(`Static asset exceeds Free limit: ${relative}`)
-    const type = types[relative.split('.').pop()] ?? 'application/octet-stream'
-    const hash = createHash('sha256').update(type).update(content).digest('hex').slice(0, 32)
-    manifest[`/${relative}`] = { hash, size: content.byteLength }
-    files.set(hash, { relative, type })
-  }
-}
-walk(root)
-if (Object.keys(manifest).length > 20000) throw new Error('Static asset count exceeds Free limit')
+const { manifest, files } = readStaticAssets(root)
+const manifestPath = '.wrangler/application-asset-manifest.json'
+const fingerprint = manifestFingerprint(manifest)
 if (process.argv.includes('--manifest')) {
+  mkdirSync('.wrangler', { recursive: true })
+  writeFileSync(manifestPath, JSON.stringify({ manifestFingerprint: fingerprint }), { mode: 0o600 })
   process.stdout.write(JSON.stringify(manifest))
 } else {
+  assertAssetBuild(JSON.parse(readFileSync(manifestPath, 'utf8')), manifest)
   // The connector creates a one-hour, upload-only JWT. It is supplied on stdin,
   // never as an argument or log entry; no account API token is needed here.
   if (process.stdin.isTTY) process.stdin.setRawMode(true)
@@ -40,7 +28,9 @@ if (process.argv.includes('--manifest')) {
   if (session.bucket_count !== 0) {
     let group = []; let bytes = 0
     for (const hash of session.hashes ?? files.keys()) {
-      const size = manifest[`/${files.get(hash).relative}`].size
+      const file = files.get(hash)
+      if (!file) throw new Error('Assets changed after starting the upload session; create a new session')
+      const size = manifest[`/${file.relative}`].size
       if (group.length && (group.length >= 100 || bytes + size > 16 * 1024 * 1024)) { buckets.push(group); group = []; bytes = 0 }
       group.push(hash); bytes += size
     }
@@ -60,7 +50,8 @@ if (process.argv.includes('--manifest')) {
     console.log(`Uploaded ${bucket.length} static assets`)
   }
   if (!completion) throw new Error('Missing assets completion token')
+  assertAssetBuild({ manifestFingerprint: fingerprint }, readStaticAssets(root).manifest)
   mkdirSync('.wrangler', { recursive: true })
-  writeFileSync('.wrangler/application-assets.json', JSON.stringify({ jwt: completion }), { mode: 0o600 })
+  writeFileSync('.wrangler/application-assets.json', JSON.stringify({ jwt: completion, manifestFingerprint: fingerprint }), { mode: 0o600 })
   console.log(`Static assets ready: ${Object.keys(manifest).length} files`)
 }

@@ -98,8 +98,26 @@ npm run deploy:cloudflare
 El conector puede crear la sesión de upload, asociar recursos, subir módulos
 y gestionar el dominio. `upload-assets.mjs` recibe por stdin exclusivamente el
 JWT temporal de upload; `prepare-upload.mjs` genera multipart en `.wrangler`,
-sin imprimir secretos. Estos archivos operativos no se versionan. La CI
-comprueba build, tipos, SQL, HTTP y tamaño sin desplegar ni cargar credenciales.
+sin imprimir secretos. El manifiesto generado con `--manifest` guarda una
+huella local; la subida y la preparación rechazan assets de otra compilación.
+Después de cada build hay que generar la sesión con el manifiesto completo,
+subir los archivos pendientes y publicar el Worker con ese JWT de assets.
+No uses `keep_assets` para publicar un servidor recién compilado: conserva
+el manifiesto anterior y puede dejar los nuevos chunks JavaScript en 404.
+Estos archivos operativos no se versionan. La CI comprueba build, tipos,
+SQL, HTTP, JavaScript/CSS y tamaño sin desplegar ni cargar credenciales.
+
+Tras publicar, verifica también el frontal del dominio con la misma compilación:
+
+```bash
+npm run verify:cloudflare:frontend -- https://esiggesports.jlc-dev.me
+```
+
+Esta comprobación solo lee seis páginas públicas y todos los JavaScript/CSS
+del build, incluidos chunks que se cargan después de navegar. No necesita
+sesión de administrador, no activa el setup ni crea datos de prueba.
+Una página HTML con HTTP 200 no basta: si los menús se quedan en «Cargando…»,
+comprueba que sus scripts también devuelven 200 y su tipo de contenido correcto.
 
 ## Acceso y operación
 
@@ -133,6 +151,8 @@ transitorios tienen reintentos limitados; se conserva el fallback de ranking.
 | Recuperación aislada | Fixture SQL + R2 restaurada; SQL solo no recupera un logo borrado; el consumo no se reembolsa |
 | HTTP workerd | 49 comprobaciones; auth, alta/publicación, equipos, fases/generación, R2, jobs y reinicio |
 | HTTP remoto | 39 comprobaciones; web/assets, auth, equipos/R2, revocación y bookmark PITR |
+| Frontal | 6 páginas y 60 JavaScript/CSS verificados en workerd y dominio; menús Fases, Ranking y Comparar comprobados en navegador |
+| Despliegue de assets | La preparación rechaza huellas de otra compilación; regresión de chunks 404 cubierta por tests |
 | Bundle | 603,13 KiB gzip; 719 assets públicos |
 | Arranque remoto | 20 ms |
 | Dominio | HTTPS activo, portada pública y redirect de admin sin sesión |

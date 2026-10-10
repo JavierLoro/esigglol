@@ -2,12 +2,16 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 
 import path from 'node:path'
 import { randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
+import { readStaticAssets, assertAssetBuild } from './asset-manifest.mjs'
+
+const assets = JSON.parse(readFileSync('.wrangler/application-assets.json', 'utf8'))
+assertAssetBuild(assets, readStaticAssets().manifest)
+if (typeof assets.jwt !== 'string' || !assets.jwt) throw new Error('Missing assets completion token')
 
 mkdirSync('.wrangler', { recursive: true })
 const secretPath = '.wrangler/application-secrets.json'
 if (!existsSync(secretPath)) writeFileSync(secretPath, JSON.stringify({ SESSION_SECRET: randomBytes(48).toString('base64url'), ADMIN_PASSWORD_HASH: await bcrypt.hash(randomBytes(32).toString('base64url'), 12), BOOTSTRAP_TOKEN: randomBytes(32).toString('base64url'), BOOTSTRAP_EXPIRES: new Date(Date.now() + 86400000).toISOString() }), { mode: 0o600 })
 const secrets = JSON.parse(readFileSync(secretPath, 'utf8'))
-const assets = JSON.parse(readFileSync('.wrangler/application-assets.json', 'utf8'))
 const boundary = `esigglol-${randomBytes(16).toString('hex')}`
 const metadata = { main_module: 'index.mjs', compatibility_date: '2026-10-10', compatibility_flags: ['nodejs_compat'],
   migrations: process.argv.includes('--existing') ? undefined : { new_tag: 'v1', new_sqlite_classes: ['EsiggApplication', 'FileBudget'] },

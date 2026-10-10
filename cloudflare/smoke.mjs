@@ -4,6 +4,8 @@ import path from 'node:path'
 import os from 'node:os'
 import assert from 'node:assert/strict'
 import bcrypt from 'bcryptjs'
+import { readStaticAssets } from './asset-manifest.mjs'
+import { verifyFrontend } from './frontend-check.mjs'
 
 const directory = path.resolve('dist/server')
 function modules(dir, prefix = '') {
@@ -46,6 +48,11 @@ try {
   runtime = start()
   await request('/api/health', 200)
   await request('/', 200)
+  const frontend = await verifyFrontend('https://app.test', {
+    manifest: readStaticAssets().manifest,
+    request: (url, init) => runtime.dispatchFetch(url, init),
+  })
+  console.log(`Cloudflare frontend: ${frontend.pages} pages and ${frontend.assets} JavaScript/CSS assets verified`)
   const image = await request('/_next/image?url=%2Flogo-torneo.png&w=384&q=75', 302)
   await request(image.response.headers.get('location'), 200)
   await request('/api/metrics', 200)
