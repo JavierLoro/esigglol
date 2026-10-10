@@ -2,9 +2,9 @@
 
 # ESIgg.lol
 
-**Gestión de torneos de League of Legends y Valorant para ESIUCLM**
+**Plataforma para organizar torneos de League of Legends y Valorant**
 
-[![Aplicación](https://img.shields.io/badge/aplicación-esigglol.jlc--dev.me-C89B3C)](https://esigglol.jlc-dev.me)
+[![Instancia ESIUCLM](https://img.shields.io/badge/instancia_ESIUCLM-esigglol.jlc--dev.me-C89B3C)](https://esigglol.jlc-dev.me)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)
@@ -17,6 +17,13 @@ ESIgg.lol permite organizar varias ediciones de torneos, gestionar equipos y
 publicar fases, resultados y fuentes para OBS. Los organizadores trabajan desde
 un panel protegido; cada equipo tiene su propio portal; y los espectadores
 consultan la competición desde la web pública.
+
+El proyecto nació para los torneos de ESIUCLM y actualmente puede utilizarse
+para torneos de LoL y Valorant de cualquier organizador, con su propia
+instalación, equipos y ediciones. Desde **Administración → Apariencia** se pueden
+configurar el título, subtítulo, logo y canal de Twitch de la portada; esta
+configuración es común a todos los torneos de la instalación. Los valores
+iniciales conservan la identidad del torneo original de ESIUCLM.
 
 El despliegue soportado utiliza **Node.js y Docker con SQLite**. La migración a
 Cloudflare está en una [fase de viabilidad](docs/deploy-cloudflare/README.md): la
