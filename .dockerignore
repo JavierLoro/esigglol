@@ -12,3 +12,4 @@ coverage
 npm-debug.log*
 .DS_Store
 .vercel
+tools/cloudflare-poc
