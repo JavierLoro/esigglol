@@ -130,7 +130,7 @@ npm run collect-stats-prod "Nombre#TAG"
 
 ## `seed-data.ts`
 
-Carga datos de ejemplo/prueba en la base de datos (equipos, fases, partidos ficticios).
+Añade equipos y jugadores ficticios al torneo de LoL inicial (`legacy-lol`). No crea fases ni partidos.
 
 **Cuándo usarlo:** Para poblar una instancia vacía en desarrollo o para demostración.
 
@@ -139,7 +139,7 @@ Carga datos de ejemplo/prueba en la base de datos (equipos, fases, partidos fict
 npx tsx scripts/seed-data.ts
 ```
 
-**Advertencia:** Borra y reemplaza los datos existentes. No usar en producción.
+**Advertencia:** Conserva los equipos existentes y añade nuevos en cada ejecución. No usar en producción.
 
 ---
 
