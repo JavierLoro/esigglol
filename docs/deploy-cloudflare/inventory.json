@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "baseCommit": "6a431dbfc6dfd953e1709afad375f0cf0f0ddfee",
+  "baseCommit": "51619281f29e4a5c4cfed1f4bb104f0935dc2310",
   "method": "Conservative static AST inventory; runtime imports plus inherited layouts and proxy. No proof of runtime compatibility; computed imports and third-party internals need manual review.",
   "counts": {
     "deferred-work": 20,

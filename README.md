@@ -27,8 +27,8 @@ iniciales conservan la identidad del torneo original de ESIUCLM.
 
 El despliegue soportado utiliza **Node.js y Docker con SQLite**. La migración a
 Cloudflare está en una [fase de viabilidad](docs/deploy-cloudflare/README.md): la
-PoC aislada funciona localmente, pero el despliegue completo y el piloto en una
-cuenta real siguen pendientes.
+PoC aislada funciona localmente y tiene un piloto privado en Workers Free.
+El despliegue completo y el gate de viabilidad siguen pendientes.
 
 [Inicio rápido](#inicio-rápido) · [Configuración](#configuración) ·
 [Desarrollo](#desarrollo-y-validación) · [Despliegue](#docker-y-despliegue) ·
@@ -264,7 +264,7 @@ copias de datos en Git, logs o incidencias.
 | Operar y recuperar SQLite | [Backups](docs/backups.md) |
 | Usar herramientas de mantenimiento | [Scripts](docs/scripts.md) |
 | Consultar la estructura técnica | [Arquitectura](docs/architecture.md), [modelo de datos](docs/data-model.md), [API y métricas](docs/api-reference.md) |
-| Revisar la viabilidad de Cloudflare | [Estado F0, PoC y piloto pendiente](docs/deploy-cloudflare/README.md) |
+| Revisar la viabilidad de Cloudflare | [Estado F0, PoC y piloto privado](docs/deploy-cloudflare/README.md) |
 | Mantener las guías publicadas | [Publicación en GitHub Pages](docs/guias/README.md) |
 
 Al añadir, modificar o eliminar funcionalidades del admin global o del portal
