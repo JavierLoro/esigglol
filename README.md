@@ -2,7 +2,7 @@
 
 # ESIgg.lol
 
-**Gestor de torneos de League of Legends para ESIUCLM**
+**Gestión de torneos de League of Legends y Valorant para ESIUCLM**
 
 [![Aplicación](https://img.shields.io/badge/aplicación-esigglol.jlc--dev.me-C89B3C)](https://esigglol.jlc-dev.me)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
@@ -13,237 +13,254 @@
 
 </div>
 
-ESIgg.lol reúne la gestión y publicación de un torneo de League of Legends. Los
-organizadores preparan equipos, fases y partidos desde un panel protegido; los
-participantes consultan y mantienen la información permitida de su equipo; y
-los espectadores siguen cuadros, resultados y estadísticas desde la web
-pública.
+ESIgg.lol permite organizar varias ediciones de torneos, gestionar equipos y
+publicar fases, resultados y fuentes para OBS. Los organizadores trabajan desde
+un panel protegido; cada equipo tiene su propio portal; y los espectadores
+consultan la competición desde la web pública.
 
-## Funcionalidades
+El despliegue soportado utiliza **Node.js y Docker con SQLite**. La migración a
+Cloudflare está en una [fase de viabilidad](docs/deploy-cloudflare/README.md): la
+PoC aislada funciona localmente, pero el despliegue completo y el piloto en una
+cuenta real siguen pendientes.
 
-### Sitio público
+[Inicio rápido](#inicio-rápido) · [Configuración](#configuración) ·
+[Desarrollo](#desarrollo-y-validación) · [Despliegue](#docker-y-despliegue) ·
+[Documentación](#documentación)
 
-- Fases de grupos, sistema suizo, eliminación simple, Final Four y Upper/Lower.
-- Cuadros y resultados actualizados a partir de los partidos del torneo.
-- Ranking, estadísticas de jugadores e historial de partidas.
-- Fichas de equipos y comparador cara a cara.
-- Overlays de fases y partidos para emisiones.
-- Estado e integración del canal de Twitch.
+## Qué permite hacer
 
-### Administración
+### Competición y administración
 
-- Gestión de equipos, jugadores, fases y partidos.
-- Generación y avance de cuadros con confirmación del administrador.
-- Corrección de resultados con recálculo de los cruces dependientes.
-- Subida de logos y edición segura mediante control de versiones por entidad.
-- Generación de códigos de torneo, eventos de lobby y recogida de estadísticas
-  mediante las API de Riot.
-- Configuración de la Riot API key sin reiniciar la aplicación.
-- Gestión de accesos de equipos y aprobación o rechazo de sus solicitudes.
+- Crear ediciones de LoL o Valorant, prepararlas como borrador, publicarlas y
+  archivarlas. Cada edición mantiene sus equipos, fases y partidos.
+- Organizar grupos, suizo, eliminación simple, Final Four y Upper/Lower.
+- Generar y avanzar cuadros con confirmación del administrador, y corregir
+  resultados recalculando los cruces dependientes.
+- Gestionar plantillas, logos, accesos de equipos y solicitudes de cambios.
+- Consultar cuadros, resultados, fichas de equipos y comparaciones en la web
+  pública, e integrar el canal de Twitch.
+- Configurar tres fuentes permanentes de OBS por torneo: marcador, previa y
+  resumen de fase, con selección de contenido y opciones visuales.
+
+Publicar una edición no publica automáticamente sus cuadros o rondas suizas.
+Consulta [la guía de uso](docs/guias/index.md) para el flujo de administración y
+[la gestión de ediciones](docs/multiple-tournaments.md) para sus estados y alcance.
+
+### Integraciones por juego
+
+| Juego | Funcionalidad | Límites actuales |
+|---|---|---|
+| League of Legends | Estadísticas e historial de partidas; códigos de torneo, eventos de lobby y recogida de resultados mediante Riot | Las consultas requieren una clave compatible; Tournament API usa `stub` por defecto y necesita acceso autorizado para partidas reales |
+| Valorant (PC, EU) | Resultados manuales de series y mapas; ranking a partir del leaderboard oficial del acto activo | Funciona sin API para la competición manual; el ranking puede tener cobertura parcial y requiere `VALORANT_API_KEY`. Sin códigos de torneo, lobbies, vetos ni historial personal integrado |
+
+Las claves de LoL y Valorant se configuran por separado. Las condiciones de
+acceso, privacidad y cobertura de Valorant están en
+[la documentación de ediciones](docs/multiple-tournaments.md).
 
 ### Portal de equipos
 
-Cada equipo dispone de un acceso independiente en `/equipo/login`. Desde
-`/equipo` puede consultar su plantilla, ajustar los roles permitidos y enviar
-solicitudes para cambiar el logo, corregir un Riot ID o incorporar un jugador.
-Los cambios que afectan a la identidad o composición del equipo requieren la
-revisión de un administrador.
+Cada equipo entra con sus credenciales en `/equipo/login`. Desde `/equipo`
+consulta su plantilla, ajusta los roles permitidos y solicita cambios de logo,
+Riot ID o incorporación de jugadores. Los cambios de identidad o composición
+requieren la revisión de un administrador.
 
 ## Accesos
 
 | Área | Ruta | Acceso |
 |---|---|---|
 | Web pública | `/` | Público |
-| Administración | `/admin` | Contraseña de administrador |
-| Portal de equipos | `/equipo` | Credenciales propias del equipo |
-| Overlays | `/overlay/fases/[id]`, `/overlay/partidos/[id]` | Público |
-| Estado del servicio | `/api/health` | Público |
-| Métricas | `/api/metrics` | Público |
+| Administración | `/admin` → `/admin/login` | Contraseña global |
+| Portal de equipos | `/equipo` → `/equipo/login` | Credenciales del equipo |
+| Fuentes OBS por edición | `/overlay/torneos/[id]/marcador`, `/overlay/torneos/[id]/previa`, `/overlay/torneos/[id]/fase` | Público |
+| Vistas OBS fijas | `/overlay/fases/[id]`, `/overlay/partidos/[id]` | Público |
+| Estado y métricas | `/api/health`, `/api/metrics` | Público |
 
-## Tecnología
-
-| Capa | Tecnología |
-|---|---|
-| Framework | Next.js 16 con App Router y React 19 |
-| Interfaz | Tailwind CSS v4 y lucide-react |
-| Lenguaje | TypeScript 5 en modo estricto |
-| Persistencia | SQLite con better-sqlite3 y modo WAL |
-| Autenticación | JWT con jose y contraseñas bcrypt |
-| Validación | Zod v4 |
-| Observabilidad | Pino y métricas Prometheus |
-| Pruebas | Vitest y Playwright |
+En OBS, añade las fuentes como **Navegador** a 1920 × 1080. La selección se guarda
+por edición en **Emisión / OBS** y las fuentes abiertas se actualizan cada
+30 segundos. Consulta [la guía de overlays](docs/overlays-obs/README.md).
 
 ## Inicio rápido
 
 ### Desarrollo local
 
-Requiere Node.js 22 o posterior y npm.
+Requiere **Node.js 22 o posterior y npm**. Desde un checkout del repositorio:
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local
 npm run generate-session-secret
-npx tsx scripts/gen-password-hash.ts <contraseña>
-npm run dev
+npx tsx scripts/gen-password-hash.ts 'replace-with-your-local-password'
 ```
 
-Copia en `.env.local` el secreto y el hash generados. La aplicación estará
-disponible en `http://localhost:3000`. `npm run dev` sincroniza antes los datos
-de Data Dragon.
-
-### Docker
-
-Requiere Docker Desktop o Docker Engine con Compose.
-
-```bash
-cp .env.example .env.local
-docker compose -f docker-compose.dev.yml up --build
-```
-
-El entorno de desarrollo construye la imagen local y monta `./data` para
-conservar SQLite. Después de modificar el código, vuelve a construir la imagen.
-
-## Configuración
-
-Las credenciales y secretos deben permanecer fuera del repositorio. Usa
-`.env.local` en desarrollo y el gestor de secretos del despliegue en producción.
-
-| Variable | Obligatoria | Valor por defecto | Uso |
-|---|---:|---|---|
-| `ADMIN_PASSWORD_HASH` | Sí | — | Hash bcrypt de la contraseña de administración |
-| `SESSION_SECRET` | Sí | — | Firma de sesiones JWT; mínimo 32 caracteres |
-| `RIOT_API_KEY` | No | Vacío | Consultas a Riot y operaciones de Tournament API |
-| `RIOT_REGION` | No | `euw1` | Región de Riot |
-| `TOURNAMENT_API_MODE` | No | `stub` | Proveedor `stub` o `production` de Tournament API |
-| `TWITCH_CHANNEL` | No | Vacío | Canal mostrado en la portada |
-| `TWITCH_CLIENT_ID` | No | Vacío | Consulta del estado del directo |
-| `TWITCH_CLIENT_SECRET` | No | Vacío | Consulta del estado del directo |
-| `DB_PATH` | No | `./data/esigglol.db` | Ruta del archivo SQLite |
-| `REFRESH_AUTO_INTERVAL_MS` | No | `21600000` | Edad mínima antes de refrescar estadísticas |
-| `REFRESH_BATCH_SIZE` | No | `3` | Jugadores procesados por lote |
-| `REFRESH_BATCH_DELAY_MS` | No | `30000` | Espera entre lotes, en milisegundos |
-| `LOG_LEVEL` | No | `info` | Nivel de logs de Pino |
-| `LOG_PRETTY` | No | `false` | Formato legible para desarrollo |
-
-El modo `stub` sirve para desarrollo y pruebas. Los códigos válidos para
-partidas reales requieren acceso de producción autorizado por Riot, una clave
-compatible y `TOURNAMENT_API_MODE=production`. La guía de
-[Tournament API](docs/riot-tournament-api.md) describe la configuración y sus
-restricciones. Al desplegar con Compose, la variable también debe estar
-declarada en `services.app.environment`; mientras no se reenvíe al contenedor,
-la aplicación conservará el modo `stub` predeterminado.
-
-`ADMIN_PASSWORD_HASH` contiene caracteres `$`. Escríbelo entre comillas simples
-para evitar que el shell los expanda:
+**Antes de arrancar**, edita `.env.local`: copia la línea `SESSION_SECRET=...`
+generada y pega el hash bcrypt en `ADMIN_PASSWORD_HASH`, entre comillas simples
+para conservar sus caracteres `$`:
 
 ```dotenv
 ADMIN_PASSWORD_HASH='$2b$12$...'
+SESSION_SECRET=replace-with-the-generated-secret
 ```
+
+El bloque anterior muestra el formato; sustituye ambos valores por los que
+has generado. No hacen falta claves de Riot para gestionar equipos, fases y
+resultados manuales.
+
+```bash
+npm run dev
+```
+
+Abre `http://localhost:3000` y entra en `/admin/login` con la contraseña que
+usaste al generar el hash. La base de datos y sus migraciones se crean al
+acceder a los datos; no hay un paso manual de migración.
+
+`npm run dev` y `npm run build` sincronizan antes los recursos de Data Dragon y
+el catálogo de Valorant. La primera descarga oficial de Valorant puede rondar
+**1,5 GB**; se extraen los recursos necesarios y se elimina el ZIP temporal.
+Su sincronización automática es opcional: si falla, conserva el catálogo previo
+o usa las alternativas visuales disponibles. Véase
+[Recursos de Valorant](docs/valorant-assets.md) para sincronización manual y ZIP local.
+
+### Ejecución local con Docker
+
+Requiere Docker con Compose y un `.env.local` con las dos credenciales ya
+configuradas. Prepara `data` y `backups` con permisos de lectura y escritura
+para UID **1000**, el usuario de los servicios:
+
+```bash
+mkdir -p data backups
+docker compose -f docker-compose.dev.yml up --build
+```
+
+La aplicación queda en `http://localhost:3000`. Este Compose construye y ejecuta
+**la imagen de producción localmente**: después de cambiar el código, repite el
+build. Para recarga en caliente, usa `npm run dev`.
+
+## Configuración
+
+[`.env.example`](.env.example) es el punto de partida. Usa `.env.local` en
+desarrollo y proporciona los secretos al entorno de producción sin versionarlos.
+
+| Variable | Obligatoria | Valor por defecto | Uso |
+|---|---:|---|---|
+| `ADMIN_PASSWORD_HASH` | Sí | — | Hash bcrypt de la contraseña global |
+| `SESSION_SECRET` | Sí | — | Firma JWT; mínimo 32 caracteres |
+| `RIOT_API_KEY` | No | Vacío | Consultas de LoL y Tournament API |
+| `VALORANT_API_KEY` | No | Vacío | Consultas de Valorant; no hereda `RIOT_API_KEY` |
+| `RIOT_REGION` | No | `euw1` | Región de LoL |
+| `TOURNAMENT_API_MODE` | No | `stub` | `stub` o `production` para Tournament API |
+| `TWITCH_CHANNEL` | No | Vacío | Canal mostrado en la portada |
+| `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | No | Vacío | Consulta del estado del directo |
+| `DB_PATH` | No | `./data/esigglol.db` | Archivo SQLite |
+| `REFRESH_AUTO_INTERVAL_MS` | No | `21600000` | Edad mínima para refrescar estadísticas |
+| `REFRESH_BATCH_SIZE` | No | `3` | Jugadores por lote |
+| `REFRESH_BATCH_DELAY_MS` | No | `30000` | Espera entre lotes en milisegundos |
+| `LOG_LEVEL`, `LOG_PRETTY` | No | `info`, `false` | Nivel de logs y formato legible |
+
+Los códigos para partidas reales de LoL requieren acceso de producción
+autorizado por Riot, una clave compatible y `TOURNAMENT_API_MODE=production`.
+La [guía de Tournament API](docs/riot-tournament-api.md) describe la configuración.
+
+En **Compose de producción**, `app` solo recibe las variables enumeradas en
+`services.app.environment`. Actualmente no incluye `VALORANT_API_KEY` ni
+`TOURNAMENT_API_MODE`: añádelas a esa lista si necesitas esas integraciones y
+proporciónalas desde el entorno del host. Definirlas únicamente en `.env.local`
+no las pasa a ese servicio. El Compose local sí carga ese archivo para `app`.
 
 ## Desarrollo y validación
 
+El proyecto usa Next.js 16 (App Router), React 19, TypeScript estricto,
+Tailwind CSS v4 y SQLite (`better-sqlite3`, WAL). La autenticación utiliza JWT
+con `jose` y bcrypt; Zod valida entradas; Pino y Prometheus aportan observabilidad.
+
 | Comando | Acción |
 |---|---|
-| `npm run dev` | Arranca Next.js con recarga en caliente |
-| `npm run lint` | Ejecuta ESLint |
-| `npm test` | Ejecuta las pruebas de Vitest |
-| `npm run test:watch` | Ejecuta Vitest en modo interactivo |
-| `npm run test:e2e` | Ejecuta las pruebas E2E de Playwright |
-| `npm run test:e2e:ui` | Abre la interfaz de Playwright |
-| `npm run build` | Genera el build de producción |
-| `npm run start` | Arranca el build de producción |
-| `npm run sync-ddragon` | Actualiza manualmente los datos de Data Dragon |
-| `npm run collect-stats-dev` | Recoge estadísticas respetando límites de una dev key |
-| `npm run collect-stats-prod` | Recoge estadísticas con configuración de producción |
+| `npm run dev` | Desarrollo con recarga en caliente |
+| `npm run lint` | ESLint |
+| `npm test` / `npm run test:watch` | Vitest, una ejecución o modo interactivo |
+| `npm run test:e2e` / `npm run test:e2e:ui` | Playwright, consola o interfaz |
+| `npm run build` / `npm run start` | Compilar y arrancar en producción |
+| `npm run sync-ddragon` / `npm run sync-valorant` | Sincronizar recursos de cada juego |
+| `npm run dev:valorant-sandbox` | Entorno de pruebas de Valorant con base aislada |
+| `npm run collect-stats-dev` / `npm run collect-stats-prod` | Recogida de estadísticas de LoL |
+| `npm run backup` | Crear una copia consistente de SQLite |
 
-El hook de pre-commit ejecuta ESLint con correcciones automáticas sobre los
-archivos JavaScript y TypeScript preparados para el commit.
+Consulta [Scripts de utilidad](docs/scripts.md) para argumentos y requisitos.
+El hook de pre-commit ejecuta ESLint con correcciones sobre los archivos de
+código preparados para el commit.
 
 ### Datos de prueba
 
-El seed añade equipos y jugadores ficticios sin borrar los datos existentes:
+Con `.env.local` configurado, el seed añade equipos y jugadores ficticios al
+torneo de LoL inicial (`legacy-lol`), conservando los existentes. No crea fases
+ni partidos y cada ejecución añade nuevos equipos:
 
 ```bash
-npx tsx scripts/seed-data.ts
-npx tsx scripts/seed-data.ts --teams 4
-npx tsx scripts/seed-data.ts --players 5
+npx tsx scripts/seed-data.ts --teams 4 --players 5
 ```
 
-No lo ejecutes sobre una base de datos de producción.
+Úsalo en una base de desarrollo. Para probar Valorant por separado, ejecuta
+`npm run dev:valorant-sandbox`: usa `.tmp/valorant-sandbox/sandbox.db` y escucha
+solo en `http://127.0.0.1:3200`. La contraseña local, fixtures y configuración de
+la clave se explican en [la guía de ediciones](docs/multiple-tournaments.md).
 
 ## Docker y despliegue
 
 | Archivo | Uso |
 |---|---|
-| `docker-compose.dev.yml` | Construye la aplicación localmente |
-| `docker-compose.yml` | Usa la imagen publicada en GHCR y activa Watchtower |
+| [`docker-compose.dev.yml`](docker-compose.dev.yml) | Build local de la app y worker de backups |
+| [`docker-compose.yml`](docker-compose.yml) | Imagen `ghcr.io/javierloro/esigglol:latest`, backups y Watchtower |
+
+Antes de iniciar producción, configura las variables del host que necesita
+`app`, prepara los volúmenes con permisos para UID 1000 y crea `.env.local`
+con la configuración del worker `backup`, que lo requiere como `env_file`.
+Ambos servicios deben usar el mismo `DB_PATH` dentro del volumen `/app/data`.
+Conserva esa ruta montada si personalizas la ubicación de SQLite.
 
 ```bash
-# Producción
-docker compose up -d
-
-# Estado y logs
+docker compose up -d --build
 docker compose ps
-docker compose logs -f app
+docker compose logs -f app backup
 ```
 
-El servicio `app` de producción recibe desde el host las variables declaradas
-en `services.app.environment`. El servicio `backup` carga su configuración
-desde `.env.local`; además, `BACKUP_HOST_PATH` debe definirse para Compose en el
-shell o en un archivo `.env`, porque determina el volumen antes de arrancar los
-contenedores.
+`--build` construye el worker de backups; la app utiliza la imagen publicada.
+Los pushes a `main` ejecutan lint, pruebas y build, publican la imagen en GHCR
+y solicitan el redespliegue al servicio interno mediante Tailscale. El Compose
+de producción también incluye Watchtower para vigilar la imagen publicada.
 
-Los pushes a `main` ejecutan el siguiente flujo:
+### Persistencia y copias de seguridad
 
-1. ESLint, pruebas y build de producción.
-2. Construcción y publicación de la imagen en
-   `ghcr.io/javierloro/esigglol:latest`.
-3. Conexión de GitHub Actions a la red privada mediante Tailscale.
-4. Solicitud autenticada al servicio interno de redespliegue.
+El volumen `./data` conserva SQLite y recursos locales asociados, incluidos
+los logos subidos. El worker `backup` crea snapshots **de SQLite** mediante la
+API de copia en línea, los valida y conserva los siete más recientes por defecto,
+con una copia al arrancar y otra cada 24 horas. Los archivos subidos necesitan
+su propia copia; no están dentro del snapshot de la base de datos.
 
-El Compose de producción también incluye Watchtower para vigilar la imagen
-publicada como mecanismo de actualización del host.
+Las copias se montan en `./backups` por defecto. Para otro destino,
+`BACKUP_HOST_PATH` debe estar en el shell o en el archivo `.env` de Compose;
+ponerlo solo en `.env.local` del worker no cambia el volumen.
 
-## Persistencia y copias de seguridad
-
-SQLite se conserva en `./data`. Los contenedores se ejecutan con el usuario
-`1000`, por lo que ese directorio debe permitir escritura a dicho usuario.
-
-El worker `backup` usa la API de copia en línea de SQLite, valida cada snapshot
-y aplica una política de retención. Sus principales variables son:
-
-| Variable | Valor por defecto | Uso |
-|---|---|---|
-| `BACKUP_ENABLED` | `true` | Activa el worker |
-| `BACKUP_INTERVAL_SECONDS` | `86400` | Intervalo entre copias |
-| `BACKUP_RUN_ON_START` | `true` | Crea una copia al arrancar |
-| `BACKUP_RETENTION_COUNT` | `7` | Número de snapshots conservados |
-| `BACKUP_HOST_PATH` | `./backups` | Directorio del host para las copias |
-
-Consulta [Copias de seguridad](docs/backups.md) antes de configurar un volumen
-externo o restaurar una base de datos.
+Consulta [Copias, verificación y restauración](docs/backups.md) para retención,
+copias manuales y restauración. Conserva copias fuera del volumen principal y
+prueba la recuperación antes de necesitarla. No publiques secretos, claves ni
+copias de datos en Git, logs o incidencias.
 
 ## Documentación
 
-Al añadir, modificar o eliminar funcionalidades del admin global o del admin
-de equipo, actualiza [docs/guias/index.md](docs/guias/index.md) en el mismo
-cambio con los pasos, permisos y opciones del rol afectado. Ese documento
-es la fuente de las guías publicadas en GitHub Pages.
+| Necesito… | Leer |
+|---|---|
+| Administrar la competición o el portal de equipo | [Guías de uso](docs/guias/index.md) |
+| Entender ediciones, publicación y límites de Valorant | [Torneos de LoL y Valorant](docs/multiple-tournaments.md) |
+| Configurar cuadros y avance | [Formatos de torneo](docs/tournament-formats.md) |
+| Preparar la emisión | [Overlays OBS](docs/overlays-obs/README.md) |
+| Activar códigos y eventos de LoL | [Riot Tournament API](docs/riot-tournament-api.md) |
+| Actualizar imágenes y catálogo de Valorant | [Recursos de Valorant](docs/valorant-assets.md) |
+| Operar y recuperar SQLite | [Backups](docs/backups.md) |
+| Usar herramientas de mantenimiento | [Scripts](docs/scripts.md) |
+| Consultar la estructura técnica | [Arquitectura](docs/architecture.md), [modelo de datos](docs/data-model.md), [API y métricas](docs/api-reference.md) |
+| Revisar la viabilidad de Cloudflare | [Estado F0, PoC y piloto pendiente](docs/deploy-cloudflare/README.md) |
+| Mantener las guías publicadas | [Publicación en GitHub Pages](docs/guias/README.md) |
 
-- [Guías de uso para admin global y admin de equipo](docs/guias/index.md)
-- [Mantenimiento y publicación de las guías en GitHub Pages](docs/guias/README.md)
-- [Formatos de torneo](docs/tournament-formats.md)
-- [Integración con Riot Tournament API](docs/riot-tournament-api.md)
-- [Copias, verificación y restauración](docs/backups.md)
-- [Scripts de utilidad](docs/scripts.md)
-- [Arquitectura](docs/architecture.md)
-- [Referencia de API y métricas](docs/api-reference.md)
-
-## Seguridad
-
-- No publiques contraseñas, claves de Riot, secretos de Twitch ni
-  `SESSION_SECRET` en Git, logs o incidencias.
-- Rota una credencial desde el proveedor correspondiente y actualízala en el
-  gestor de secretos del despliegue.
-- Conserva las copias de SQLite fuera del volumen principal y prueba el proceso
-  de restauración antes de necesitarlo.
+Al añadir, modificar o eliminar funcionalidades del admin global o del portal
+de equipo, actualiza [docs/guias/index.md](docs/guias/index.md) en el mismo cambio
+con pasos, permisos y opciones del rol afectado. Es la fuente de las guías
+publicadas en GitHub Pages.
