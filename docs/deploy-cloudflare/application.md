@@ -63,6 +63,9 @@ ni su clave `esigglol-application` para recuperar cuota.
 La asociación a un logo exige que esté live. Un tombstone impide referenciar
 un archivo mientras se borra. Los logos staging/live sin referencias y más
 de cinco minutos, y los borrados pendientes, se reconcilian por alarmas.
+Cada alarma procesa como máximo diez borrados y programa los lotes restantes,
+los archivos todavía jóvenes y los reintentos. Los logos referenciados se
+filtran antes de limitar el lote: no pueden bloquear la limpieza de otros.
 
 ## Compilar y desplegar
 
@@ -126,9 +129,11 @@ transitorios tienen reintentos limitados; se conserva el fallback de ranking.
 | Build Next.js de producción | Pasa |
 | Cloudflare SQL | Rollback real, anidación, rollback de migración, tombstones |
 | Cuota concurrente | 1.010 reservas simultáneas: exactamente 1.000 admitidas |
-| HTTP workerd | 47 comprobaciones; auth, alta/publicación, equipos, fases/generación, R2, jobs y reinicio |
+| Ciclo de archivos | 20 logos de equipos, branding y solicitud pendiente protegidos; huérfanos en varios lotes, alarma futura y reintento tras fallo |
+| Recuperación aislada | Fixture SQL + R2 restaurada; SQL solo no recupera un logo borrado; el consumo no se reembolsa |
+| HTTP workerd | 49 comprobaciones; auth, alta/publicación, equipos, fases/generación, R2, jobs y reinicio |
 | HTTP remoto | 39 comprobaciones; web/assets, auth, equipos/R2, revocación y bookmark PITR |
-| Bundle | 603,36 KiB gzip; 719 assets públicos |
+| Bundle | 603,13 KiB gzip; 719 assets públicos |
 | Arranque remoto | 20 ms |
 | Dominio | HTTPS activo, portada pública y redirect de admin sin sesión |
 
@@ -136,10 +141,13 @@ La verificación remota crea y elimina exclusivamente sus propios torneos
 de prueba. No activa la contraseña del administrador del titular.
 
 La issue #136 sigue abierta: esta beta no equivale a cerrar todos los gates.
-Quedan el ensayo de recuperación completo **SQL + R2**, importación de datos
+Quedan el procedimiento y ensayo de recuperación operativo completo **SQL + R2**, importación de datos
 Docker si se solicita, mediciones prolongadas de CPU/cuotas y validación de
 las integraciones Riot/Valorant/Twitch con credenciales reales. Se verificó
-la obtención de un bookmark PITR; **no se hizo un restore remoto**. Restaurar
+la obtención de un bookmark PITR; **no se hizo un restore remoto**. El test
+`files.test.mjs` restaura una fixture de equipo y logo en workerd aislado;
+no es una copia completa, un procedimiento de producción ni una prueba de
+PITR remoto. Restaurar
 SQL no recupera un logo ya borrado en R2: antes de operar una recuperación
 hay que conservar la copia correspondiente de ambos almacenes. Los scripts
 de backup/restore SQLite de Docker continúan con su función original.

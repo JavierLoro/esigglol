@@ -100,7 +100,10 @@ se conservan. Si quieres mantener los datos, usa **Archivar torneo**.
 
 Para cambiar el logo de un equipo guardado, pulsa **Subir logo** y espera
 **Logo guardado**. Después puedes guardar los demás cambios o eliminar el
-equipo sin recargar la página. Mientras se sube el archivo, esas acciones
+equipo sin recargar la página. En Cloudflare, los archivos de subidas
+abandonadas se limpian automáticamente cuando llevan más de cinco minutos
+sin estar asociados a ningún equipo, solicitud pendiente o apariencia.
+Mientras se sube el archivo, esas acciones
 permanecen desactivadas. Solo se pueden eliminar equipos sin referencias
 en fases o partidos.
 

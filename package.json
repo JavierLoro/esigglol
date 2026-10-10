@@ -31,7 +31,7 @@
     "build:cloudflare": "npm run types:cloudflare && vite build --config cloudflare/vite.config.mjs",
     "types:cloudflare": "mkdir -p cloudflare/generated && wrangler types --config cloudflare/wrangler.jsonc cloudflare/generated/env.d.ts",
     "check:cloudflare": "tsc --noEmit -p cloudflare/tsconfig.json",
-    "test:cloudflare": "node cloudflare/storage.test.mjs && node cloudflare/smoke.mjs",
+    "test:cloudflare": "node cloudflare/storage.test.mjs && node cloudflare/files.test.mjs && node cloudflare/smoke.mjs",
     "deploy:cloudflare": "wrangler deploy --config dist/server/wrangler.json"
   },
   "lint-staged": {

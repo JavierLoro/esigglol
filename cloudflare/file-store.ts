@@ -54,11 +54,14 @@ export async function readFile(filePath: string): Promise<Buffer> {
   return Buffer.from(await object.arrayBuffer())
 }
 
+const references = `SELECT json_extract(data, '$.logo') AS logo FROM teams
+  UNION ALL SELECT json_extract(payload, '$.logo') FROM team_change_requests WHERE status='pending' AND type='team_logo'
+  UNION ALL SELECT json_extract(data, '$.logo') FROM tournament_config WHERE key='site-branding'`
+const unreferenced = `FROM cloudflare_files WHERE state IN ('staging','live')
+  AND NOT EXISTS (SELECT 1 FROM (${references}) WHERE logo='/api/uploads/' || cloudflare_files.name)`
+
 export function isReferenced(filename: string): boolean {
-  const logo = `/api/uploads/${filename}`
-  return Boolean(getRuntime().database.prepare(`SELECT 1 FROM teams WHERE json_extract(data, '$.logo')=?
-    UNION ALL SELECT 1 FROM team_change_requests WHERE status='pending' AND type='team_logo' AND json_extract(payload, '$.logo')=?
-    UNION ALL SELECT 1 FROM tournament_config WHERE key='site-branding' AND json_extract(data, '$.logo')=? LIMIT 1`).get(logo, logo, logo))
+  return Boolean(getRuntime().database.prepare(`SELECT 1 FROM (${references}) WHERE logo=? LIMIT 1`).get(`/api/uploads/${filename}`))
 }
 
 export async function unlink(filePath: string): Promise<void> {
@@ -75,8 +78,18 @@ export async function unlink(filePath: string): Promise<void> {
 }
 
 export async function collectGarbage(): Promise<void> {
-  const stale = getRuntime().database.prepare("SELECT name FROM cloudflare_files WHERE state IN ('staging','live') AND created_at<? LIMIT 10").all(Date.now() - 300000) as Array<{ name: string }>
-  for (const row of stale) if (!isReferenced(row.name)) getRuntime().database.prepare("UPDATE cloudflare_files SET state='deleting' WHERE name=?").run(row.name)
-  const rows = getRuntime().database.prepare("SELECT name FROM cloudflare_files WHERE state='deleting' LIMIT 10").all() as Array<{ name: string }>
-  for (const row of rows) await unlink(`/data/uploads/${row.name}`)
+  const { database } = getRuntime()
+  try {
+    // Filter references before LIMIT so older live logos cannot starve orphans.
+    const stale = database.prepare(`SELECT name ${unreferenced} AND created_at<=? ORDER BY created_at LIMIT 10`).all(Date.now() - 300000) as Array<{ name: string }>
+    for (const row of stale) database.prepare("UPDATE cloudflare_files SET state='deleting' WHERE name=?").run(row.name)
+    const rows = database.prepare("SELECT name FROM cloudflare_files WHERE state='deleting' LIMIT 10").all() as Array<{ name: string }>
+    for (const row of rows) await unlink(`/data/uploads/${row.name}`)
+  } finally {
+    // Each alarm handles a bounded batch, then schedules young or remaining
+    // orphans even if there are no further uploads or Riot refreshes.
+    const next = database.prepare(`SELECT MIN(created_at) AS created_at ${unreferenced}`).get() as { created_at: number | null }
+    if (next.created_at !== null) await scheduleWork(Math.max(Date.now() + 1000, next.created_at + 300000))
+    if (database.prepare("SELECT 1 FROM cloudflare_files WHERE state='deleting' LIMIT 1").get()) await scheduleWork(Date.now() + 60000)
+  }
 }
