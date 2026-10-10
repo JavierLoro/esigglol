@@ -70,4 +70,9 @@ next-env.d.ts
 
 /.next-valorant-sandbox/
 /.next-e2e/
+/dist/
+/.vinext/
+/.wrangler/
+/.dev.vars*
+/cloudflare/generated/
 /public/valorant/

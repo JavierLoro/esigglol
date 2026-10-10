@@ -25,10 +25,11 @@ configurar el título, subtítulo, logo y canal de Twitch de la portada; esta
 configuración es común a todos los torneos de la instalación. Los valores
 iniciales conservan la identidad del torneo original de ESIUCLM.
 
-El despliegue soportado utiliza **Node.js y Docker con SQLite**. La migración a
-Cloudflare está en una [fase de viabilidad](docs/deploy-cloudflare/README.md): la
-PoC aislada funciona localmente y tiene un piloto privado en Workers Free.
-El despliegue completo y el gate de viabilidad siguen pendientes.
+El despliegue estable utiliza **Node.js y Docker con SQLite**. También hay una
+adaptación completa de la aplicación a **Cloudflare Workers Free**, actualmente
+experimental, con SQLite en Durable Objects y logos en R2. La instalación cloud
+está en [esiggesports.jlc-dev.me](https://esiggesports.jlc-dev.me).
+Consulta [la arquitectura, límites y operación](docs/deploy-cloudflare/application.md).
 
 [Inicio rápido](#inicio-rápido) · [Configuración](#configuración) ·
 [Desarrollo](#desarrollo-y-validación) · [Despliegue](#docker-y-despliegue) ·
@@ -264,7 +265,7 @@ copias de datos en Git, logs o incidencias.
 | Operar y recuperar SQLite | [Backups](docs/backups.md) |
 | Usar herramientas de mantenimiento | [Scripts](docs/scripts.md) |
 | Consultar la estructura técnica | [Arquitectura](docs/architecture.md), [modelo de datos](docs/data-model.md), [API y métricas](docs/api-reference.md) |
-| Revisar la viabilidad de Cloudflare | [Estado F0, PoC y piloto privado](docs/deploy-cloudflare/README.md) |
+| Desplegar en Cloudflare | [Aplicación, controles de gasto y limitaciones](docs/deploy-cloudflare/application.md) |
 | Mantener las guías publicadas | [Publicación en GitHub Pages](docs/guias/README.md) |
 
 Al añadir, modificar o eliminar funcionalidades del admin global o del portal

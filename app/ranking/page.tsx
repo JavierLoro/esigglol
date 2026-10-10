@@ -9,6 +9,7 @@ import { triggerAutoRefresh } from '@/lib/refresh'
 import RankingTable from '@/components/PlayerRankingTable'
 import RefreshStatsButton from '@/components/RefreshStatsButton'
 import type { PlayerRow } from '@/lib/types'
+import { runtimeServices } from '@/lib/runtime-services'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +23,10 @@ const RANK_ORDER: Record<string, number> = { I: 4, II: 3, III: 2, IV: 1 }
 async function RankingPage() {
   const isAdmin = await getSessionFromCookies()
   const tournamentId = currentTournamentId()
-  if (getTournament()?.status === 'published') after(() => inTournament(tournamentId, triggerAutoRefresh))
+  if (getTournament()?.status === 'published') {
+    if (runtimeServices()) await triggerAutoRefresh()
+    else after(() => inTournament(tournamentId, triggerAutoRefresh))
+  }
 
   const cache = getPlayerStatsCache()
   const teams = getTeams()

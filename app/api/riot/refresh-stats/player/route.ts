@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { getRefreshState, getRefreshTarget, runPlayerRefresh } from '@/lib/refresh'
 import logger from '@/lib/logger'
+import { runtimeServices } from '@/lib/runtime-services'
 
 const log = logger.child({ module: 'refresh-player' })
 
@@ -38,7 +39,9 @@ async function handlePOST(req: Request) {
     )
   }
 
-  after(async () => {
+  const services = runtimeServices()
+  if (services) await services.enqueueRefresh(undefined, summonerName)
+  else after(async () => {
     try {
       await runPlayerRefresh(summonerName)
     } catch (err) {

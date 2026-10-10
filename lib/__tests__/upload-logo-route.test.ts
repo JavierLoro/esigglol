@@ -18,7 +18,7 @@ vi.mock('@/lib/data', () => ({
   updateTeamLogo: mocks.updateTeamLogo,
 }))
 vi.mock('@/lib/env', () => ({ UPLOADS_DIR: 'C:/test-uploads' }))
-vi.mock('fs/promises', () => ({
+vi.mock('@/lib/file-store', () => ({
   mkdir: mocks.mkdir,
   writeFile: mocks.writeFile,
   unlink: mocks.unlink,

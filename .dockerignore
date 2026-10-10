@@ -13,3 +13,7 @@ npm-debug.log*
 .DS_Store
 .vercel
 tools/cloudflare-poc
+cloudflare
+dist
+.vinext
+.wrangler
