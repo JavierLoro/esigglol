@@ -2,7 +2,9 @@ import bcrypt from 'bcryptjs'
 import { getRuntime } from './context'
 
 export const SETUP_SCHEMA = `CREATE TABLE IF NOT EXISTS cloudflare_admin_config (id INTEGER PRIMARY KEY CHECK(id=1), hash TEXT NOT NULL)`
-const headers = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'" }
+// no-referrer turns Origin into null on browser form POSTs. strict-origin
+// preserves the CSRF origin check without disclosing the activation URL/token.
+const headers = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'strict-origin', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'" }
 function page(content: string, status = 200) {
   return new Response(`<!doctype html><html lang="es"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Activar administración · ESIgg</title><style>body{background:#10131a;color:#f4f4f4;font:18px system-ui;max-width:32rem;margin:10vh auto;padding:1.5rem}input,button{font:inherit;box-sizing:border-box;width:100%;padding:.8rem;margin:.5rem 0}button{background:#c89b3c;color:#10131a;border:0;cursor:pointer}</style>${content}</html>`, { status, headers })
 }

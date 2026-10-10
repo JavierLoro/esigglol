@@ -53,7 +53,8 @@ edición seleccionada. En móvil están disponibles en el menú inferior.
 
 En una instalación nueva de Cloudflare, el responsable del despliegue entrega
 un enlace privado de activación válido durante 24 horas. Ábrelo, elige una
-contraseña de entre 12 caracteres y 72 bytes y entra después en `/admin/login`.
+contraseña de entre 12 caracteres y 72 bytes y pulsa **Guardar y entrar**.
+Te redirigirá a `/admin/login`: introduce allí la contraseña que acabas de elegir.
 El enlace deja de funcionar al activar la administración. No compartas ese
 enlace ni lo incluyas en GitHub. Las sesiones duran 12 horas.
 
