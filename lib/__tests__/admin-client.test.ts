@@ -11,6 +11,7 @@ import {
   isPhaseArray,
   isTeamArray,
   isTournamentCodesResponse,
+  isTournamentArray,
 } from '@/lib/admin-client'
 
 function response(status: number, body: unknown) {
@@ -74,6 +75,13 @@ describe('contratos de respuestas del panel admin', () => {
     expect(isPhaseArray([{ id: 'phase-1', name: 'Roto' }])).toBe(false)
     expect(isMatchArray([match])).toBe(true)
     expect(isMatchArray([{ id: 'match-1' }])).toBe(false)
+  })
+
+  it('valida las ediciones antes de usarlas en navegación WebMCP', () => {
+    const tournament = { id: 'a', name: 'Edición', slug: 'edicion', game: 'lol', platform: 'pc', region: 'eu', status: 'draft' }
+    expect(isTournamentArray([tournament])).toBe(true)
+    expect(isTournamentArray([{ ...tournament, game: 'unknown' }])).toBe(false)
+    expect(isTournamentArray([{ id: 'a', name: 'Edición' }])).toBe(false)
   })
 
   it('exige respuestas no vacías y contadores válidos para las mutaciones', () => {

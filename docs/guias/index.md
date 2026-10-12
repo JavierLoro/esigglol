@@ -195,6 +195,55 @@ Riot y una configuración compatible. Consulta la
 con la persona responsable de la instalación si los códigos son de prueba
 o la integración no está disponible.
 
+### 9. Usar un agente con WebMCP
+
+1. Abre el panel con un navegador y un agente compatibles con WebMCP.
+   Para probarlo en Chrome, activa `chrome://flags/#enable-webmcp-testing`
+   y reinicia el navegador. Usa HTTPS o una dirección local de desarrollo
+   como `http://localhost`; una dirección LAN por HTTP puede no ofrecer la API.
+2. Inicia sesión como **admin global**. Las herramientas utilizan esa sesión;
+   no tienes que facilitar al agente la contraseña ni claves de Riot.
+3. Pide al agente que consulte los torneos y abra la edición y la sección
+   que quieres gestionar. Comprueba **Edición activa** antes de ordenar cambios.
+4. En **Equipos**, puede consultar plantillas, crear equipos y actualizar su
+   nombre o plantilla completa, incluidos los roles. Al reemplazar la plantilla,
+   debe conservar los IDs de los jugadores que siguen en ella y asignar IDs
+   nuevos y únicos a las incorporaciones de cada edición. Cada jugador requiere
+   un rol principal compatible con el juego.
+5. En **Partidos**, puede consultar partidos, crear un partido pendiente,
+   fijar o quitar su horario y guardar un marcador parcial o final. Los horarios
+   requieren fecha ISO con zona horaria. En Valorant también puede introducir
+   los resultados por mapa. Los datos de partidas LoL ya registrados se conservan
+   y el servidor comprueba que coincidan con el marcador solicitado. Para borrar
+   un resultado derivado de partidas LoL, elimina primero esos datos desde el panel.
+6. Revisa la confirmación de guardado y los datos en pantalla. Guardar un resultado
+   actualiza también los cruces y el estado de la fase cuando corresponde.
+
+Por ejemplo: «Abre Equipos de la edición de Valorant y crea el equipo Academia»
+o «Consulta este partido y programa su inicio para mañana a las 18:00 de Madrid».
+El agente debe resolver la fecha y su zona horaria antes de enviarla.
+
+Las consultas devuelven datos guardados, no borradores del formulario. Guarda
+o cancela las ediciones pendientes antes de pedir escrituras o navegación desde
+**Equipos** o **Partidos**. Si hay cambios en otra sesión, el agente debe volver
+a consultar la versión actual antes de guardar; no se reintenta automáticamente.
+Para descartar modificaciones de fichas guardadas, recarga la pantalla.
+Si una llamada se cancela después de enviar un cambio, consulta sus datos antes
+de repetirla: puede haberse guardado. Si se confirma el guardado pero falla la
+actualización del cuadro, recarga el panel antes de continuar.
+
+En una edición archivada, equipos y partidos solo ofrecen consultas. Al salir de
+una pantalla se retiran sus herramientas; al cerrar sesión o detectar que ha
+caducado se retiran todas. Las herramientas de **Fases** solo permiten consultar
+la configuración. Esta versión no ofrece borrados, publicación, configuración
+de integraciones, cargas de archivos ni gestión de credenciales. El admin de
+equipo no dispone de herramientas WebMCP.
+
+WebMCP es experimental: si el navegador no lo soporta, usa el panel normalmente.
+El agente o su extensión pueden pedir permiso antes de ejecutar un cambio.
+Consulta la [documentación de WebMCP](https://developer.chrome.com/docs/ai/webmcp)
+para comprobar la compatibilidad de tu navegador y agente.
+
 ## Guía del admin de equipo
 {: #admin-equipo}
 

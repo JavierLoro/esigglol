@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { LayoutDashboard, Users, Trophy, Calendar, LogOut, Inbox, Monitor } from 'lucide-react'
@@ -8,6 +8,12 @@ import { clsx } from 'clsx'
 import RiotResultNotifications from '@/components/admin/RiotResultNotifications'
 import { AdminTournamentProvider } from '@/components/admin/AdminTournamentContext'
 import type { Tournament } from '@/lib/types'
+import { z } from 'zod'
+import { adminRequest, isPhaseArray, isTournamentArray } from '@/lib/admin-client'
+import { phaseForAgent, tournamentForAgent, tournamentInput } from '@/lib/admin-webmcp'
+import { assertWebMCPNavigation, assertWebMCPTournament, webMCPTool, WebMCPError } from '@/lib/webmcp'
+import { useWebMCP } from '@/lib/use-webmcp'
+import { scopedFetch } from '@/lib/scoped-fetch'
 
 const navItems = [
   { href: '/admin/apariencia', label: 'Apariencia', icon: LayoutDashboard, global: true },
@@ -22,6 +28,9 @@ const navItems = [
 
 const scopedPaths = new Set<string>(navItems.filter(item => !item.global).map(item => item.href))
 const statusLabel = { draft: 'Borrador', published: 'Publicado', archived: 'Archivado' } as const
+const subscribeToPreference = () => () => {}
+const getPreference = () => sessionStorage.getItem('adminTournamentId') ?? ''
+const getServerPreference = () => null
 
 function adminHref(href: string, selected?: Tournament) {
   if (!scopedPaths.has(href) || !selected) return href
@@ -40,21 +49,21 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   const scoped = scopedPaths.has(pathname)
   const [tournaments, setTournaments] = useState<Tournament[] | null>(null)
   const [loadError, setLoadError] = useState(false)
-  const [rememberedId, setRememberedId] = useState<string | null>(null)
-  const [preferenceLoaded, setPreferenceLoaded] = useState(false)
+  const [sessionExpired, setSessionExpired] = useState(false)
+  const rememberedId = useSyncExternalStore(subscribeToPreference, getPreference, getServerPreference)
+  const preferenceLoaded = rememberedId !== null
 
   useEffect(() => {
-    setRememberedId(sessionStorage.getItem('adminTournamentId'))
-    setPreferenceLoaded(true)
+    const expired = () => setSessionExpired(true)
+    window.addEventListener('admin-session-expired', expired)
+    return () => window.removeEventListener('admin-session-expired', expired)
   }, [])
 
   useEffect(() => {
     let active = true
     async function load() {
       try {
-        const response = await fetch('/api/admin/torneos', { cache: 'no-store' })
-        if (!response.ok) throw new Error('No se pudieron cargar los torneos')
-        const items = await response.json() as Tournament[]
+        const items = await adminRequest(fetch('/api/admin/torneos', { cache: 'no-store' }), isTournamentArray)
         if (active) { setTournaments(items); setLoadError(false) }
       } catch {
         if (active) setLoadError(true)
@@ -98,6 +107,39 @@ function AdminShell({ children }: { children: React.ReactNode }) {
     window.location.assign(adminHref(pathname, next))
   }
 
+  async function readTournaments(signal: AbortSignal) {
+    return adminRequest(fetch('/api/admin/torneos', { cache: 'no-store', signal }), isTournamentArray)
+  }
+
+  const toolsReady = !sessionExpired && preferenceLoaded && tournaments !== null && (!scoped || ready || !selected)
+  useWebMCP(toolsReady ? [
+    webMCPTool('admin_list_tournaments', 'Lista las ediciones de LoL y Valorant disponibles para el admin.', z.strictObject({}), async (_input, signal) => (await readTournaments(signal)).map(tournamentForAgent)),
+    webMCPTool('admin_context', 'Consulta la pantalla y el torneo activo. Las herramientas de equipos y partidos aparecen al abrir su sección.', z.strictObject({}), async (_input, signal) => {
+      const items = await readTournaments(signal)
+      const current = scoped && ready ? items.find(item => item.id === selected?.id) : undefined
+      return { section: pathname, tournament: current ? tournamentForAgent(current) : null, sections: navItems.map(item => ({ path: item.href, name: item.label })) }
+    }),
+    webMCPTool('admin_open_section', 'Abre una sección y selecciona una edición. Rechaza navegar si hay cambios pendientes en Equipos o Partidos.', z.strictObject({
+      section: z.enum(['dashboard', 'torneos', 'apariencia', 'equipos', 'solicitudes', 'fases', 'partidos', 'overlay']),
+      tournamentId: z.string().min(1).optional(),
+    }), async ({ section, tournamentId }, signal) => {
+      assertWebMCPNavigation()
+      const items = await readTournaments(signal)
+      signal.throwIfAborted()
+      assertWebMCPNavigation()
+      const href = section === 'dashboard' ? '/admin' : `/admin/${section}`
+      const target = items.find(item => item.id === (tournamentId ?? selected?.id))
+      if (scopedPaths.has(href) && !target) throw new WebMCPError('WRONG_TOURNAMENT', 'Indica el identificador de un torneo existente.')
+      if (target) sessionStorage.setItem('adminTournamentId', target.id)
+      window.location.assign(adminHref(href, target))
+      return { navigating: true }
+    }, false),
+    ...(scoped && ready && selected ? [webMCPTool('admin_list_phases', 'Consulta las fases y su configuración en el torneo activo.', tournamentInput, async ({ tournamentId }, signal) => {
+      assertWebMCPTournament(selected.id, tournamentId)
+      return (await adminRequest(scopedFetch('/api/admin/fases', { cache: 'no-store', signal }), isPhaseArray)).map(phaseForAgent)
+    })] : []),
+  ] : [], `${pathname}:${ready}:${selected?.id}:${selected?.status}`)
+
   const context = selected
   const archived = scoped && ready && selected?.status === 'archived'
 
@@ -119,6 +161,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="min-w-0 flex-1 overflow-auto p-4 pb-36 md:p-6">
+        {sessionExpired && <p role="alert" className="mb-5 text-sm text-red-400">Sesión expirada. <Link href="/admin/login" className="underline">Vuelve a iniciar sesión.</Link></p>}
         {scoped && ready && selected && <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-[#0d1321] px-4 py-3">
           <label htmlFor="admin-tournament" className="text-sm font-medium text-white/80">Edición activa</label>
           <select id="admin-tournament" aria-label="Edición activa" value={selected.id} onChange={event => selectTournament(event.target.value)} className="min-w-0 max-w-full rounded-lg border border-white/20 bg-[#1b2739] px-3 py-2 text-sm text-white">
