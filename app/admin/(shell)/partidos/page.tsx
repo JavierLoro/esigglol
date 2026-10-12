@@ -13,6 +13,7 @@ import { getEffectiveBO } from '@/lib/match-validation'
 import { getPhaseTeamIds } from '@/lib/phase-validation'
 import {
   adminRequest,
+  AdminRequestError,
   errorMessage,
   isMatch,
   isMatchArray,
@@ -25,6 +26,9 @@ import {
 } from '@/lib/admin-client'
 import TournamentCodeCard from '@/components/admin/TournamentCodeCard'
 import { isValidRiotMatchId, normalizeRiotMatchId, RIOT_MATCH_ID_ERROR } from '@/lib/riot-match-id'
+import { createMatchInput, entityInput, matchForAgent, saveResultInput, scheduleMatchInput, tournamentInput } from '@/lib/admin-webmcp'
+import { assertWebMCPTournament, webMCPTool, WebMCPError } from '@/lib/webmcp'
+import { useWebMCP, useWebMCPNavigationGuard } from '@/lib/use-webmcp'
 
 export default function AdminPartidos() {
   const tournament = useAdminTournament()
@@ -44,6 +48,9 @@ export default function AdminPartidos() {
   const [generatingCodes, setGeneratingCodes] = useState<string | null>(null)
   const [gameModal, setGameModal] = useState<{ matchId: string; gameIndex: number } | null>(null)
   const [loadError, setLoadError] = useState('')
+  const [loaded, setLoaded] = useState(false)
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set())
+  const [webmcpBusy, setWebmcpBusy] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -53,7 +60,7 @@ export default function AdminPartidos() {
       // immediately and never leak through a shared cache.
       adminRequest<Team[]>(scopedFetch('/api/admin/equipos', { cache: 'no-store' }), isTeamArray),
       adminRequest<Phase[]>(scopedFetch('/api/admin/fases'), isPhaseArray),
-    ]).then(([m, t, p]) => { setMatches(m); setTeams(t); setPhases(p) }).catch(error => setLoadError(errorMessage(error)))
+    ]).then(([m, t, p]) => { setMatches(m); setTeams(t); setPhases(p); setLoaded(true) }).catch(error => setLoadError(errorMessage(error)))
     if (isLol) {
       adminRequest<{ providerId?: number; configured?: boolean }>(scopedFetch('/api/admin/tournament'), isTournamentStatus).then(data => {
         setHasTournamentConfig(data.configured === true && typeof data.providerId === 'number')
@@ -72,18 +79,27 @@ export default function AdminPartidos() {
       notify('La fase necesita al menos dos participantes válidos')
       return
     }
+    try { await createMatch({ phaseId, round: 1, team1Id: participants[0].id, team2Id: participants[1].id }) }
+    catch (error) { notify(errorMessage(error)) }
+  }
+
+  async function createMatch(input: Pick<Match, 'phaseId' | 'round' | 'team1Id' | 'team2Id' | 'bracketPosition' | 'scheduledAt'>, signal?: AbortSignal) {
+    const { phaseId } = input
     setAdding(phaseId)
     try {
       const data = await adminRequest(scopedFetch('/api/admin/partidos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phaseId, round: 1, team1Id: participants[0].id, team2Id: participants[1].id, result: null, riotMatchIds: [] }),
+        body: JSON.stringify({ ...input, result: null, riotMatchIds: [] }),
+        signal,
       }), isNonEmptyMatchArray)
       const match = data[0]
       setMatches(prev => [...prev, match])
       setCollapsedPhases(prev => { const next = new Set(prev); next.delete(phaseId); return next })
       setCollapsedRounds(prev => { const next = new Set(prev); next.delete(`${phaseId}:${match.round}`); return next })
-    } catch (error) { notify(errorMessage(error)) } finally { setAdding(null) }
+      notify('Partido creado')
+      return match
+    } finally { setAdding(null) }
   }
 
   function togglePhaseCollapse(phaseId: string) {
@@ -114,11 +130,10 @@ export default function AdminPartidos() {
     })
   }
 
-  async function saveMatch(match: Match) {
+  async function saveMatch(match: Match, signal?: AbortSignal) {
     const invalidIndex = (match.riotMatchIds ?? []).findIndex(id => id !== null && !isValidRiotMatchId(id))
     if (invalidIndex !== -1) {
-      notify(`Error de validación: ${RIOT_MATCH_ID_ERROR} (Partida ${invalidIndex + 1})`)
-      return
+      throw new AdminRequestError('validation', `${RIOT_MATCH_ID_ERROR} (Partida ${invalidIndex + 1})`)
     }
     setSaving(match.id)
     try {
@@ -126,16 +141,82 @@ export default function AdminPartidos() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(match),
+        signal,
       }), isMatch)
+      setMatches(prev => prev.map(item => item.id === match.id ? updated : item))
       // Refrescar todos los matches para ver avances de bracket
-      const all = await adminRequest<Match[]>(scopedFetch('/api/admin/partidos'), isMatchArray)
-      setMatches(all)
-      // Refrescar fases por si cambió el estado
-      const allPhases = await adminRequest<Phase[]>(scopedFetch('/api/admin/fases'), isPhaseArray)
-      setPhases(allPhases)
+      try {
+        const [all, allPhases] = await Promise.all([
+          adminRequest<Match[]>(scopedFetch('/api/admin/partidos', { cache: 'no-store', signal }), isMatchArray),
+          adminRequest<Phase[]>(scopedFetch('/api/admin/fases', { cache: 'no-store', signal }), isPhaseArray),
+        ])
+        setMatches(prev => all.map(item => dirtyIds.has(item.id) && item.id !== match.id ? prev.find(local => local.id === item.id) ?? item : item))
+        setPhases(allPhases)
+      } catch (error) {
+        if (error instanceof AdminRequestError && error.kind === 'session') throw error
+        throw new WebMCPError('SAVED_REFRESH_FAILED', 'El partido se guardó, pero no se pudo refrescar el cuadro. Recarga antes de continuar.')
+      }
+      setDirtyIds(prev => { const next = new Set(prev); next.delete(match.id); return next })
       notify(updated.winnerId ? '¡Guardado — bracket actualizado!' : 'Guardado')
-    } catch (error) { notify(errorMessage(error)) } finally { setSaving(null) }
+      return updated
+    } finally { setSaving(null) }
   }
+
+  useWebMCPNavigationGuard(dirtyIds.size > 0 || Boolean(adding || saving || deleting || generatingCodes || gameModal || webmcpBusy))
+
+  async function readMatches(requested: string, signal: AbortSignal) {
+    assertWebMCPTournament(tournament?.id, requested)
+    return adminRequest(scopedFetch('/api/admin/partidos', { cache: 'no-store', signal }), isMatchArray)
+  }
+
+  async function readVersionedMatch(requested: string, id: string, version: number, signal: AbortSignal) {
+    const match = (await readMatches(requested, signal)).find(item => item.id === id)
+    if (!match) throw new WebMCPError('NOT_FOUND', 'Partido no encontrado en este torneo.')
+    if (match.version !== version) throw new WebMCPError('CONFLICT', 'El partido cambió. Consulta de nuevo sus datos antes de guardar.')
+    return match
+  }
+
+  async function writeWithWebMCP<T>(action: () => Promise<T>) {
+    if (archived) throw new WebMCPError('ARCHIVED', 'El torneo está archivado: solo admite consultas.')
+    if (dirtyIds.size || gameModal) throw new WebMCPError('PENDING_CHANGES', 'Guarda o descarta las ediciones pendientes antes de ejecutar un cambio.')
+    if (adding || saving || deleting || generatingCodes || webmcpBusy) throw new WebMCPError('BUSY', 'Espera a que termine la operación actual.')
+    setWebmcpBusy(true)
+    try { return await action() } finally { setWebmcpBusy(false) }
+  }
+
+  useWebMCP(loaded ? [
+    webMCPTool('admin_list_matches', 'Consulta los partidos guardados del torneo activo, con sus versiones, horarios y resultados.', tournamentInput, async ({ tournamentId }, signal) => (await readMatches(tournamentId, signal)).map(matchForAgent)),
+    webMCPTool('admin_get_match', 'Consulta un partido guardado. Usa su versión para cambiar el horario o el resultado.', entityInput, async ({ tournamentId, id }, signal) => {
+      const match = (await readMatches(tournamentId, signal)).find(item => item.id === id)
+      if (!match) throw new WebMCPError('NOT_FOUND', 'Partido no encontrado en este torneo.')
+      return matchForAgent(match)
+    }),
+    ...(!archived ? [
+      webMCPTool('admin_create_match', 'Crea un partido pendiente entre dos equipos de una fase. Indica ronda y posición del cuadro cuando corresponda.', createMatchInput, ({ tournamentId, ...input }, signal) => writeWithWebMCP(async () => {
+        assertWebMCPTournament(tournament?.id, tournamentId)
+        return matchForAgent(await createMatch({ ...input, ...(input.scheduledAt ? { scheduledAt: new Date(input.scheduledAt).toISOString() } : {}) }, signal))
+      }), false),
+      webMCPTool('admin_schedule_match', 'Guarda el horario de un partido. Usa fecha ISO con zona horaria; null elimina el horario. Requiere la versión consultada.', scheduleMatchInput, ({ tournamentId, id, version, scheduledAt }, signal) => writeWithWebMCP(async () => {
+        const match = await readVersionedMatch(tournamentId, id, version, signal)
+        signal.throwIfAborted()
+        assertWebMCPTournament(tournament?.id, tournamentId)
+        return matchForAgent(await saveMatch({ ...match, scheduledAt: scheduledAt === null ? undefined : new Date(scheduledAt).toISOString() }, signal))
+      }), false),
+      webMCPTool('admin_save_result', 'Guarda marcador parcial o final y recalcula el cuadro. null borra el resultado si no hay partidas LoL registradas. En Valorant admite mapas.', saveResultInput, ({ tournamentId, id, version, result, maps }, signal) => writeWithWebMCP(async () => {
+        const match = await readVersionedMatch(tournamentId, id, version, signal)
+        if (result === null && match.games?.some(Boolean)) throw new WebMCPError('VALIDATION', 'El marcador se deriva de partidas LoL registradas. Elimina esos datos desde el panel antes de borrar el resultado.')
+        const currentPhases = await adminRequest(scopedFetch('/api/admin/fases', { cache: 'no-store', signal }), isPhaseArray)
+        const phase = currentPhases.find(item => item.id === match.phaseId)
+        if (!phase) throw new WebMCPError('NOT_FOUND', 'Fase no encontrada en este torneo.')
+        const wins = Math.ceil(getEffectiveBO(phase, match.round) / 2)
+        const winnerId = result && result.team1Score >= wins && result.team1Score > result.team2Score ? match.team1Id
+          : result && result.team2Score >= wins && result.team2Score > result.team1Score ? match.team2Id : undefined
+        signal.throwIfAborted()
+        assertWebMCPTournament(tournament?.id, tournamentId)
+        return matchForAgent(await saveMatch({ ...match, result, winnerId, ...(maps !== undefined ? { maps } : {}) }, signal))
+      }), false),
+    ] : []),
+  ] : [], `${tournament?.id}:${archived}:${loaded}`)
 
   async function deleteSelected() {
     if (selected.size === 0) return
@@ -152,16 +233,19 @@ export default function AdminPartidos() {
         }),
       }), isOk)
       setMatches(prev => prev.filter(m => !selected.has(m.id)))
+      setDirtyIds(prev => new Set([...prev].filter(id => !selected.has(id))))
       setSelected(new Set())
       notify(`${count} partido(s) eliminado(s)`)
     } catch (error) { notify(errorMessage(error)) } finally { setDeleting(false) }
   }
 
   function update(id: string, patch: Partial<Match>) {
+    setDirtyIds(prev => new Set(prev).add(id))
     setMatches(prev => prev.map(m => m.id === id ? { ...m, ...patch } : m))
   }
 
   function updateScore(id: string, key: 'team1Score' | 'team2Score', val: string) {
+    setDirtyIds(prev => new Set(prev).add(id))
     setMatches(prev => prev.map(m => {
       if (m.id !== id) return m
       const result = m.result ?? { team1Score: 0, team2Score: 0 }
@@ -180,6 +264,7 @@ export default function AdminPartidos() {
   }
 
   function setWinner(matchId: string, winnerId: string) {
+    setDirtyIds(prev => new Set(prev).add(matchId))
     setMatches(prev => prev.map(m => {
       if (m.id !== matchId) return m
       const phase = phases.find(p => p.id === m.phaseId)
@@ -198,6 +283,7 @@ export default function AdminPartidos() {
   }
 
   function clearResult(matchId: string) {
+    setDirtyIds(prev => new Set(prev).add(matchId))
     setMatches(prev => prev.map(m =>
       m.id === matchId ? { ...m, result: null, winnerId: undefined } : m
     ))
@@ -220,6 +306,7 @@ export default function AdminPartidos() {
   }
 
   function applyGameData(matchId: string, gameIndex: number, gameData: GameData) {
+    setDirtyIds(prev => new Set(prev).add(matchId))
     setMatches(prev => prev.map(m => {
       if (m.id !== matchId) return m
       const games = [...(m.games ?? [])]
@@ -296,7 +383,7 @@ export default function AdminPartidos() {
           {selected.size > 0 && (
             <button
               onClick={deleteSelected}
-              disabled={archived || deleting}
+              disabled={archived || webmcpBusy || deleting}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 text-sm font-bold hover:bg-red-500/30 transition-colors disabled:opacity-50"
             >
               <Trash2 size={14} />
@@ -310,7 +397,7 @@ export default function AdminPartidos() {
         <label className="flex items-center gap-2 text-xs text-white/40 cursor-pointer w-fit">
           <input
             type="checkbox"
-            disabled={archived}
+            disabled={archived || webmcpBusy}
             checked={allSelected}
             onChange={toggleSelectAll}
             className="accent-[#0097D7]"
@@ -359,7 +446,7 @@ export default function AdminPartidos() {
                 <button
                   type="button"
                   onClick={e => { e.stopPropagation(); addMatch(phase.id) }}
-                  disabled={archived || !canAddMatch || adding === phase.id}
+                  disabled={archived || webmcpBusy || !canAddMatch || adding === phase.id}
                   title={canAddMatch ? 'Añadir partido' : 'La fase necesita al menos dos participantes válidos'}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#0097D7]/20 border border-[#0097D7]/30 text-[#0097D7] text-xs font-bold hover:bg-[#0097D7]/30 transition-colors shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
                 >
@@ -369,7 +456,7 @@ export default function AdminPartidos() {
 
               {/* ── Partidos de la fase (colapsables) ── */}
               {!isCollapsed && (
-                <fieldset disabled={archived}
+                <fieldset disabled={archived || webmcpBusy}
                   id={`phase-matches-${phase.id}`}
                   role="region"
                   aria-labelledby={`phase-toggle-${phase.id}`}
@@ -730,7 +817,7 @@ export default function AdminPartidos() {
                             Vista fija
                           </button>
                           <button
-                            onClick={() => saveMatch(match)}
+                            onClick={() => void saveMatch(match).catch(error => notify(error instanceof WebMCPError ? error.message : errorMessage(error)))}
                             disabled={saving === match.id}
                             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
                           >

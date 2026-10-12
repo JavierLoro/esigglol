@@ -1,4 +1,4 @@
-import type { LobbyEvent, Match, Phase, Team } from './types'
+import type { LobbyEvent, Match, Phase, Team, Tournament } from './types'
 
 export type AdminErrorKind = 'validation' | 'session' | 'internal' | 'network'
 
@@ -61,6 +61,7 @@ export async function adminRequest<T>(request: Promise<Response>, validate: (val
   try { body = await response.json() } catch { body = undefined }
   if (!response.ok) {
     const message = firstErrorDetail(body) ?? (response.statusText || 'La petición ha fallado')
+    if (errorKind(response.status) === 'session' && typeof window !== 'undefined') window.dispatchEvent(new Event('admin-session-expired'))
     throw new AdminRequestError(errorKind(response.status), message, response.status)
   }
   if (!validate(body)) throw new AdminRequestError('internal', 'La respuesta del servidor no tiene un formato válido', response.status)
@@ -194,6 +195,14 @@ export function isMatch(value: unknown): value is Match {
 
 export function isTeamArray(value: unknown): value is Team[] {
   return Array.isArray(value) && value.every(isTeam)
+}
+
+export function isTournamentArray(value: unknown): value is Tournament[] {
+  return Array.isArray(value) && value.every(item => isEntity(item)
+    && typeof item.name === 'string' && typeof item.slug === 'string'
+    && (item.game === 'lol' || item.game === 'valorant')
+    && item.platform === 'pc' && item.region === 'eu'
+    && (item.status === 'draft' || item.status === 'published' || item.status === 'archived'))
 }
 
 export function isPhaseArray(value: unknown): value is Phase[] {

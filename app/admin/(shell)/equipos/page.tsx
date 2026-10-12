@@ -8,6 +8,9 @@ import { Plus, Trash2, Save, ChevronDown, ChevronRight, Upload, X } from 'lucide
 import { adminRequest, errorMessage, isOk, isPathResponse, isTeam, isTeamArray } from '@/lib/admin-client'
 import TeamAccessControl from '@/components/admin/TeamAccessControl'
 import { useAdminTournament } from '@/components/admin/AdminTournamentContext'
+import { createTeamInput, entityInput, teamForAgent, tournamentInput, updateTeamInput } from '@/lib/admin-webmcp'
+import { assertWebMCPTournament, webMCPTool, WebMCPError } from '@/lib/webmcp'
+import { useWebMCP, useWebMCPNavigationGuard } from '@/lib/use-webmcp'
 
 const PRIMARY_ROLES: Role[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill', 'Suplente']
 const SECONDARY_ROLES: Exclude<Role, 'Suplente'>[] = ['Top', 'Jungle', 'Mid', 'Bot', 'Support', 'Fill']
@@ -15,7 +18,8 @@ const SECONDARY_ROLES: Exclude<Role, 'Suplente'>[] = ['Top', 'Jungle', 'Mid', 'B
 function genId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 6)}` }
 
 export default function AdminEquipos() {
-  const archived = useAdminTournament()?.status === 'archived'
+  const tournament = useAdminTournament()
+  const archived = tournament?.status === 'archived'
   const search = useSearchParams()
   const [selectedGame, setSelectedGame] = useState(search.get('game') ?? 'lol')
   const tournamentId = search.get('tournament') ?? 'legacy-lol'
@@ -30,42 +34,85 @@ export default function AdminEquipos() {
   const [uploading, setUploading] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
   const [loadError, setLoadError] = useState('')
+  const [loaded, setLoaded] = useState(false)
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set())
+  const [webmcpBusy, setWebmcpBusy] = useState(false)
 
   useEffect(() => {
-    adminRequest<Team[]>(scopedFetch('/api/admin/equipos'), isTeamArray).then(setTeams).catch(error => setLoadError(errorMessage(error)))
+    adminRequest<Team[]>(scopedFetch('/api/admin/equipos'), isTeamArray).then(items => { setTeams(items); setLoaded(true) }).catch(error => setLoadError(errorMessage(error)))
   }, [])
 
   function notify(text: string) { setMsg(text); setTimeout(() => setMsg(''), 3000) }
 
-  async function saveTeam(team: Team) {
-    const isDraft = draftIds.has(team.id)
+  async function saveTeam(team: Team, isDraft = draftIds.has(team.id), signal?: AbortSignal) {
     setSaving(team.id)
     try {
-      if (isDraft) {
-        const created = await adminRequest<Team>(scopedFetch('/api/admin/equipos', {
+      const saved = isDraft
+        ? await adminRequest<Team>(scopedFetch('/api/admin/equipos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: team.name, logo: team.logo, players: team.players }),
+          signal,
         }), isTeam)
-        setTeams(prev => prev.map(candidate => candidate.id === team.id ? created : candidate))
+        : await adminRequest<Team>(scopedFetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team), signal }), isTeam)
+      setTeams(prev => prev.some(candidate => candidate.id === team.id) ? prev.map(candidate => candidate.id === team.id ? saved : candidate) : [...prev, saved])
+      setDirtyIds(prev => { const next = new Set(prev); next.delete(team.id); return next })
+      if (isDraft) {
         setDraftIds(prev => {
           const next = new Set(prev)
           next.delete(team.id)
           return next
         })
-        setExpanded(created.id)
-      } else {
-        const saved = await adminRequest<Team>(scopedFetch('/api/admin/equipos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(team) }), isTeam)
-        setTeams(prev => prev.map(candidate => candidate.id === team.id ? saved : candidate))
+        setExpanded(saved.id)
       }
       notify('Cambios guardados')
+      return saved
     } catch (error) {
       // A draft is only a client-side preview. Remove it when the server did
       // not accept the create request so a rejected entity cannot look saved.
       if (isDraft) cancelDraft(team.id)
-      notify(errorMessage(error))
+      throw error
     } finally { setSaving(null) }
   }
+
+  useWebMCPNavigationGuard(dirtyIds.size > 0 || draftIds.size > 0 || Boolean(saving || deleting || uploading || webmcpBusy))
+
+  async function readTeams(requested: string, signal: AbortSignal) {
+    assertWebMCPTournament(tournament?.id, requested)
+    return adminRequest(scopedFetch('/api/admin/equipos', { cache: 'no-store', signal }), isTeamArray)
+  }
+
+  async function writeWithWebMCP<T>(action: () => Promise<T>) {
+    if (archived) throw new WebMCPError('ARCHIVED', 'El torneo está archivado: solo admite consultas.')
+    if (dirtyIds.size || draftIds.size) throw new WebMCPError('PENDING_CHANGES', 'Guarda o cancela las ediciones pendientes antes de ejecutar un cambio.')
+    if (saving || deleting || uploading || webmcpBusy) throw new WebMCPError('BUSY', 'Espera a que termine la operación actual.')
+    setWebmcpBusy(true)
+    try { return await action() } finally { setWebmcpBusy(false) }
+  }
+
+  useWebMCP(loaded ? [
+    webMCPTool('admin_list_teams', 'Lista los equipos guardados del torneo activo. Usa admin_get_team para consultar la plantilla.', tournamentInput, async ({ tournamentId }, signal) =>
+      (await readTeams(tournamentId, signal)).map(({ id, version, name, players }) => ({ id, version, name, playerCount: players.length }))),
+    webMCPTool('admin_get_team', 'Consulta un equipo guardado y su plantilla. Devuelve la versión necesaria para actualizarlo.', entityInput, async ({ tournamentId, id }, signal) => {
+      const team = (await readTeams(tournamentId, signal)).find(item => item.id === id)
+      if (!team) throw new WebMCPError('NOT_FOUND', 'Equipo no encontrado en este torneo.')
+      return teamForAgent(team)
+    }),
+    ...(!archived ? [
+      webMCPTool('admin_create_team', 'Crea un equipo con nombre y plantilla. Los IDs de jugadores deben ser únicos entre ediciones. Genera el acceso sin devolver credenciales.', createTeamInput, ({ tournamentId, name, players }, signal) => writeWithWebMCP(async () => {
+        assertWebMCPTournament(tournament?.id, tournamentId)
+        return teamForAgent(await saveTeam({ id: `draft-${genId()}`, name, logo: '', players: players ?? [] }, true, signal))
+      }), false),
+      webMCPTool('admin_update_team', 'Actualiza el nombre o reemplaza la plantilla completa. Conserva los IDs existentes; los nuevos deben ser únicos entre ediciones. Usa la versión consultada.', updateTeamInput, ({ tournamentId, id, version, name, players }, signal) => writeWithWebMCP(async () => {
+        const team = (await readTeams(tournamentId, signal)).find(item => item.id === id)
+        if (!team) throw new WebMCPError('NOT_FOUND', 'Equipo no encontrado en este torneo.')
+        if (team.version !== version) throw new WebMCPError('CONFLICT', 'El equipo cambió. Consulta de nuevo sus datos antes de guardar.')
+        signal.throwIfAborted()
+        assertWebMCPTournament(tournament?.id, tournamentId)
+        return teamForAgent(await saveTeam({ ...team, ...(name !== undefined ? { name } : {}), ...(players !== undefined ? { players } : {}) }, false, signal))
+      }), false),
+    ] : []),
+  ] : [], `${tournament?.id}:${archived}:${loaded}`)
 
   function addTeam() {
     const team: Team = { id: `draft-${genId()}`, name: '', logo: '', players: [] }
@@ -75,6 +122,7 @@ export default function AdminEquipos() {
   }
 
   function cancelDraft(id: string) {
+    setDirtyIds(prev => { const next = new Set(prev); next.delete(id); return next })
     setTeams(prev => prev.filter(team => team.id !== id))
     setDraftIds(prev => {
       const next = new Set(prev)
@@ -91,10 +139,12 @@ export default function AdminEquipos() {
       const team = teams.find(candidate => candidate.id === id)
       await adminRequest(scopedFetch('/api/admin/equipos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, version: team?.version }) }), isOk)
       setTeams(prev => prev.filter(t => t.id !== id)); notify('Equipo eliminado')
+      setDirtyIds(prev => { const next = new Set(prev); next.delete(id); return next })
     } catch (error) { notify(errorMessage(error)) } finally { setDeleting(null) }
   }
 
   function updateTeam(id: string, patch: Partial<Team>) {
+    setDirtyIds(prev => new Set(prev).add(id))
     setTeams(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t))
   }
 
@@ -111,17 +161,20 @@ export default function AdminEquipos() {
   }
 
   function addPlayer(teamId: string) {
+    setDirtyIds(prev => new Set(prev).add(teamId))
     const player: Player = { id: genId(), summonerName: '', primaryRole: valorant ? 'Flexible' : 'Fill', rosterStatus: 'starter' }
     setTeams(prev => prev.map(t => t.id === teamId ? { ...t, players: [...t.players, player] } : t))
   }
 
   function updatePlayer(teamId: string, playerId: string, patch: Partial<Player>) {
+    setDirtyIds(prev => new Set(prev).add(teamId))
     setTeams(prev => prev.map(t =>
       t.id === teamId ? { ...t, players: t.players.map(p => p.id === playerId ? { ...p, ...patch } : p) } : t
     ))
   }
 
   function removePlayer(teamId: string, playerId: string) {
+    setDirtyIds(prev => new Set(prev).add(teamId))
     setTeams(prev => prev.map(t =>
       t.id === teamId ? { ...t, players: t.players.filter(p => p.id !== playerId) } : t
     ))
@@ -133,7 +186,7 @@ export default function AdminEquipos() {
         <h1 className="text-xl font-bold">Equipos</h1>
         <div className="flex items-center gap-3">
           {(msg || loadError) && <span className={(loadError || msg.startsWith('Error') || msg.startsWith('Sesión')) ? 'text-red-400 text-sm' : 'text-green-400 text-sm'}>{loadError || msg}</span>}
-          <button onClick={addTeam} disabled={archived} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:cursor-not-allowed disabled:opacity-40">
+          <button onClick={addTeam} disabled={!loaded || archived || webmcpBusy} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:cursor-not-allowed disabled:opacity-40">
             <Plus size={15} /> Añadir equipo
           </button>
         </div>
@@ -157,13 +210,13 @@ export default function AdminEquipos() {
               e.stopPropagation()
               if (draftIds.has(team.id)) cancelDraft(team.id)
               else deleteTeam(team.id)
-            }} disabled={archived || saving === team.id || deleting === team.id || uploading === team.id} aria-label={`${draftIds.has(team.id) ? 'Cancelar' : 'Eliminar'} equipo ${team.name || 'nuevo'}`} className="text-white/20 hover:text-red-400 transition-colors ml-2 disabled:opacity-50">
+            }} disabled={archived || webmcpBusy || saving === team.id || deleting === team.id || uploading === team.id} aria-label={`${draftIds.has(team.id) ? 'Cancelar' : 'Eliminar'} equipo ${team.name || 'nuevo'}`} className="text-white/20 hover:text-red-400 transition-colors ml-2 disabled:opacity-50">
               <Trash2 size={15} />
             </button>
           </div>
 
           {expanded === team.id && (
-            <fieldset disabled={archived} id={`team-details-${team.id}`} className="m-0 min-w-0 border-0 border-t border-white/10 p-4 flex flex-col gap-4 disabled:opacity-70">
+            <fieldset disabled={archived || webmcpBusy} id={`team-details-${team.id}`} className="m-0 min-w-0 border-0 border-t border-white/10 p-4 flex flex-col gap-4 disabled:opacity-70">
               {!draftIds.has(team.id) && <TeamAccessControl teamId={team.id} teamName={team.name} tournamentId={tournamentId} />}
               {/* Datos del equipo */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -265,7 +318,7 @@ export default function AdminEquipos() {
                   </button>
                 )}
                 <button
-                  onClick={() => saveTeam(team)}
+                  onClick={() => void saveTeam(team).catch(error => notify(errorMessage(error)))}
                   disabled={saving === team.id || deleting === team.id || uploading === team.id}
                   className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0097D7] text-white text-sm font-bold hover:bg-[#33b3e8] transition-colors disabled:opacity-50"
                 >
