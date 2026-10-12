@@ -105,11 +105,11 @@ async function collectChampionData(playerId: string, summonerName: string, puuid
   log.info({ summonerName, mastery: masteries.length, matchesSaved: saved, matchesNew: newIds.length }, 'Player refreshed')
 }
 
-async function loadPlayerRow(player: Player, team: Team, championMap: Map<number, string>): Promise<PlayerRow> {
+export async function loadPlayerRow(player: Player, team: Team, championMap: Map<number, string>, includeHistory = true): Promise<PlayerRow> {
   const stats = await getPlayerStats(player.summonerName)
   ensureProfileIcon(stats.profileIconId).catch(() => {})
 
-  if (stats.puuid) {
+  if (stats.puuid && includeHistory) {
     try {
       await collectChampionData(player.id, player.summonerName, stats.puuid, championMap)
     } catch (err) {
@@ -154,6 +154,14 @@ export async function runPlayerRefresh(summonerName: string): Promise<PlayerRow>
   } finally {
     state().isRunning = false
   }
+}
+
+export function failedPlayerRow(player: Player, team: Team, previous?: PlayerRow): PlayerRow {
+  if (previous) return { ...previous, apiError: true }
+  return { playerId: player.id, summonerName: player.summonerName, puuid: '', profileIconId: 0,
+    level: 0, tier: 'UNRANKED', rank: 'IV', lp: 0, wins: 0, losses: 0, winrate: 0,
+    teamId: team.id, teamName: team.name, teamLogo: team.logo,
+    primaryRole: player.primaryRole, secondaryRole: player.secondaryRole, apiError: true }
 }
 
 export async function runRefresh(teamIds?: string[]) {

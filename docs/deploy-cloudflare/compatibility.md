@@ -1,4 +1,6 @@
-# Compatibilidad y decisión F0
+# Compatibilidad y decisión F0 (piloto D1)
+
+Registro histórico de la PoC D1. La continuación de producto usa otra arquitectura: [aplicación con Durable Objects](application.md). El HOLD de D1 no se presenta como resuelto ni como el estado del despliegue actual.
 
 Fecha de revisión: 2026-10-10. Base: `6a431db`. Alcance: primera PR incremental de #136.
 

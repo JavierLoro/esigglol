@@ -8,14 +8,11 @@ import { TeamLoginSchema } from '@/lib/schemas'
 import { getTeamById } from '@/lib/data'
 import { getTeamAccessSecret, markTeamLogin } from '@/lib/team-portal-data'
 
-const attempts = new Map<string, { count: number; resetAt: number }>()
+import { loginIp, consumeLoginAttempt, clearLoginAttempts } from '@/lib/login-rate-limit'
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
-  const now = Date.now()
-  const record = attempts.get(ip)
-  if (record && record.resetAt > now && record.count >= 8) return NextResponse.json({ error: 'Demasiados intentos. Inténtalo más tarde.' }, { status: 429 })
-  attempts.set(ip, record && record.resetAt > now ? { ...record, count: record.count + 1 } : { count: 1, resetAt: now + 15 * 60 * 1000 })
+  const ip = loginIp(req)
+  if (!consumeLoginAttempt('team', ip, 8)) return NextResponse.json({ error: 'Demasiados intentos. Inténtalo más tarde.' }, { status: 429 })
 
   let raw: unknown
   try { raw = await req.json() } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }
@@ -25,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (!access?.enabled || !(await bcrypt.compare(parsed.data.password, access.passwordHash))) {
     return NextResponse.json({ error: 'Equipo o contraseña incorrectos' }, { status: 401 })
   }
-  attempts.delete(ip)
+  clearLoginAttempts('team', ip)
   markTeamLogin(parsed.data.teamId)
   const row = db.prepare('SELECT data FROM teams WHERE id = ?').get(parsed.data.teamId) as { data: string } | undefined
   const team = row ? inTournament(JSON.parse(row.data).tournamentId, () => getTeamById(parsed.data.teamId)) : undefined

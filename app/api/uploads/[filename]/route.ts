@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getUploadFilename, resolveUploadPath } from '@/lib/upload-files'
-import { readFile } from 'fs/promises'
+import { readFile } from '@/lib/file-store'
+import { StorageQuotaError } from '@/lib/storage-quota'
 
 export const runtime = 'nodejs'
 
@@ -42,7 +43,8 @@ export async function GET(
         'Cache-Control': 'public, max-age=86400, immutable',
       },
     })
-  } catch {
+  } catch (error) {
+    if (error instanceof StorageQuotaError) return NextResponse.json({ error: error.message }, { status: 429 })
     return NextResponse.json({ error: 'Archivo no encontrado' }, { status: 404 })
   }
 }

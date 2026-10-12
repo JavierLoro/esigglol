@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { after } from 'next/server'
 import { runRefresh, getRefreshState } from '@/lib/refresh'
 import { requireAdminSession } from '@/lib/auth'
+import { runtimeServices } from '@/lib/runtime-services'
 
 // GET: devuelve el estado actual (para polling desde el cliente)
 async function handleGET(_request?: Request) {
@@ -24,7 +25,9 @@ async function handlePOST(req: Request) {
   const body = await req.json().catch(() => ({})) as { teamIds?: string[] }
   const teamIds = Array.isArray(body.teamIds) ? body.teamIds : undefined
 
-  after(async () => { await runRefresh(teamIds) })
+  const services = runtimeServices()
+  if (services) await services.enqueueRefresh(teamIds)
+  else after(async () => { await runRefresh(teamIds) })
 
   return NextResponse.json({ status: 'started' })
 }

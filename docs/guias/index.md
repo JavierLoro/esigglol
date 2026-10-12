@@ -17,9 +17,10 @@ y de la edición seleccionada.
 
 ## Antes de empezar
 
-La aplicación está en [esigglol.jlc-dev.me](https://esigglol.jlc-dev.me).
-Las rutas de este manual corresponden a esa aplicación. Las guías se pueden
-consultar sin iniciar sesión.
+La instalación cloud está en [esiggesports.jlc-dev.me](https://esiggesports.jlc-dev.me).
+La instalación Docker original usa `esigglol.jlc-dev.me`; su disponibilidad
+depende del servidor de la organización. Las rutas y permisos de este manual
+son comunes a ambas instalaciones. Las guías se pueden consultar sin sesión.
 
 | Operación | Admin global | Admin de equipo |
 | --- | --- | --- |
@@ -38,7 +39,7 @@ consultar sin iniciar sesión.
 
 ### 1. Entrar y seleccionar la edición
 
-1. Abre [Acceso de administración](https://esigglol.jlc-dev.me/admin/login).
+1. Abre **/admin/login** en el dominio de tu instalación.
 2. Introduce la contraseña de administración facilitada por la organización.
 3. En las pantallas del torneo, revisa **Edición activa**: nombre, juego y estado.
 4. Selecciona la edición que quieres gestionar antes de modificar datos.
@@ -49,6 +50,23 @@ edición seleccionada. En móvil están disponibles en el menú inferior.
 
 > Un torneo archivado se consulta en modo lectura. Para editarlo, entra en
 > **Torneos** y pulsa **Reabrir torneo**.
+
+En una instalación nueva de Cloudflare, el responsable del despliegue entrega
+un enlace privado de activación válido durante 24 horas. Ábrelo, elige una
+contraseña de entre 12 caracteres y 72 bytes y pulsa **Guardar y entrar**.
+Te redirigirá a `/admin/login`: introduce allí la contraseña que acabas de elegir.
+El enlace deja de funcionar al activar la administración. No compartas ese
+enlace ni lo incluyas en GitHub. Las sesiones duran 12 horas.
+
+Las actualizaciones de Riot en Cloudflare se procesan en pasos guardados:
+el botón confirma la puesta en cola y el estado se consulta por polling. Un
+límite temporal de Riot aplaza el trabajo; un reinicio permite reanudarlo.
+Configura tu API key en **Ajustes** para obtener datos reales.
+
+Si se agota la cuota de logos de la instalación cloud, la subida o lectura
+devuelve un error de cuota y se bloquea para evitar cargos. Contacta con el
+responsable del despliegue; volver a intentar o borrar archivos no devuelve
+cuota consumida. Este control se aplica también a solicitudes del equipo.
 
 ### 2. Crear y publicar un torneo
 
@@ -82,7 +100,10 @@ se conservan. Si quieres mantener los datos, usa **Archivar torneo**.
 
 Para cambiar el logo de un equipo guardado, pulsa **Subir logo** y espera
 **Logo guardado**. Después puedes guardar los demás cambios o eliminar el
-equipo sin recargar la página. Mientras se sube el archivo, esas acciones
+equipo sin recargar la página. En Cloudflare, los archivos de subidas
+abandonadas se limpian automáticamente cuando llevan más de cinco minutos
+sin estar asociados a ningún equipo, solicitud pendiente o apariencia.
+Mientras se sube el archivo, esas acciones
 permanecen desactivadas. Solo se pueden eliminar equipos sin referencias
 en fases o partidos.
 

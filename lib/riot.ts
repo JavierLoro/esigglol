@@ -1,6 +1,11 @@
 import type { RiotSummoner, RiotLeagueEntry, PlayerStats } from './types'
 import { RIOT_REGION, MATCH_CLUSTER } from './env'
 import { getRiotApiKey } from './data'
+import { runtimeServices } from './runtime-services'
+
+export class RiotRetryDeferred extends Error {
+  constructor(readonly delayMs: number) { super('Riot API retry deferred') }
+}
 
 export class RiotApiKeyError extends Error {
   constructor(status: number) {
@@ -73,7 +78,7 @@ async function riotFetch<T>(url: string): Promise<T> {
     try {
       res = await fetch(url, {
         headers: { 'X-Riot-Token': getRiotApiKey() },
-        next: { revalidate: 0 },
+        cache: 'no-store',
         signal: controller.signal,
       })
     } catch (error) {
@@ -85,6 +90,7 @@ async function riotFetch<T>(url: string): Promise<T> {
     }
     if (res.status === 429) {
       clearTimeout(timeout)
+      if (runtimeServices()?.deferRiotRetry) throw new RiotRetryDeferred(Math.max(1000, backoffMs(attempt, res.headers.get('Retry-After'))))
       if (attempt === MAX_ATTEMPTS - 1) {
         throw new Error(`Riot API rate limited after ${MAX_ATTEMPTS} attempts: ${url}`)
       }

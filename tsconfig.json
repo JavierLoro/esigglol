@@ -42,6 +42,7 @@
   ],
   "exclude": [
     "node_modules",
-    "tools/cloudflare-poc"
+    "tools/cloudflare-poc",
+    "cloudflare"
   ]
 }

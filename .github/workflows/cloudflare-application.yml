@@ -1,0 +1,29 @@
+name: Cloudflare application
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  application:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:cloudflare
+      - run: npm run check:cloudflare
+      - run: npm run test:cloudflare
+      - name: Validate Free bundle without deploying
+        run: npx wrangler deploy --config dist/server/wrangler.json --dry-run
