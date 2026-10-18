@@ -104,8 +104,26 @@ Después de cada build hay que generar la sesión con el manifiesto completo,
 subir los archivos pendientes y publicar el Worker con ese JWT de assets.
 No uses `keep_assets` para publicar un servidor recién compilado: conserva
 el manifiesto anterior y puede dejar los nuevos chunks JavaScript en 404.
-Estos archivos operativos no se versionan. La CI comprueba build, tipos,
-SQL, HTTP, JavaScript/CSS y tamaño sin desplegar ni cargar credenciales.
+Estos archivos operativos no se versionan.
+
+### Despliegue automático desde GitHub
+
+El workflow `cloudflare-application.yml` comprueba build, tipos, SQL, HTTP,
+JavaScript/CSS y tamaño tanto en las PR como en los pushes a `main`.
+Las PR terminan con `--dry-run`, sin credenciales de despliegue.
+Tras pasar las comprobaciones, un push a `main` publica la aplicación en
+`https://esiggesports.jlc-dev.me` y verifica seis páginas públicas y los
+JavaScript/CSS de la misma compilación. Esta verificación no modifica datos;
+si falla, el workflow queda en rojo y no revierte automáticamente la publicación.
+Las ejecuciones de una misma rama no se solapan ni cancelan un despliegue en curso.
+
+Configura `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` en los secretos de
+GitHub Actions del repositorio. El token necesita permisos de despliegue de
+Workers, limitados a la cuenta y zona de la aplicación. Solo el paso de
+publicación recibe estas credenciales. `--keep-vars` conserva las variables
+remotas que no están en la configuración; los secretos de la aplicación,
+incluido `SESSION_SECRET`, permanecen en el Worker y no se regeneran.
+El workflow de Docker mantiene su despliegue independiente.
 
 Tras publicar, verifica también el frontal del dominio con la misma compilación:
 
