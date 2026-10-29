@@ -1,10 +1,19 @@
 # Aplicación completa en Cloudflare (experimental)
 
-La aplicación está desplegada en `https://esiggesports.jlc-dev.me` desde el
-2026-10-10. Sustituye el piloto privado en ese dominio: la web pública no pide
-el Bearer de la PoC; administración y portal de equipos conservan sus sesiones
-JWT y permisos. Docker sigue disponible con su build, SQLite WAL y backups.
-Proxmox no forma parte del despliegue cloud ni se han importado sus datos.
+## Estado de la instalación del autor
+
+La instancia experimental estuvo publicada en `esiggesports.jlc-dev.me` desde
+el 2026-10-10. **Se retiró el 2026-10-29 por decisión del autor**: se desvinculó
+el dominio y se eliminaron los Workers de la aplicación y del piloto, los
+Durable Objects con sus datos, la base D1 del piloto y ambos buckets R2.
+Esa dirección ya no es una demo disponible.
+
+El código de la adaptación se conserva para estudio y para quien quiera
+preparar su propia instalación. Las instrucciones siguientes requieren
+recursos y configuración propios; no hay una instalación del autor que se
+pueda recuperar asociando de nuevo el dominio. Docker sigue disponible con
+su build, SQLite WAL y backups. La retirada de Cloudflare no modificó el
+despliegue del homelab ni importó o eliminó sus datos.
 
 ## Decisión de arquitectura
 
@@ -108,11 +117,17 @@ Estos archivos operativos no se versionan.
 
 ### Despliegue automático desde GitHub
 
+**Revisa este workflow antes de fusionar cambios en `main` o reutilizarlo.**
+El archivo conserva los pasos de publicación de la instalación retirada.
+Eliminar los recursos remotos no desactiva esos pasos: si siguen disponibles
+las credenciales y los prerrequisitos, un push a `main` intentará desplegar de
+nuevo. La retirada de infraestructura no modificó el workflow ni sus secretos.
+
 El workflow `cloudflare-application.yml` comprueba build, tipos, SQL, HTTP,
 JavaScript/CSS y tamaño tanto en las PR como en los pushes a `main`.
 Las PR terminan con `--dry-run`, sin credenciales de despliegue.
-Tras pasar las comprobaciones, un push a `main` publica la aplicación en
-`https://esiggesports.jlc-dev.me` y verifica seis páginas públicas y los
+Tras pasar las comprobaciones, el paso de un push a `main` está configurado
+para publicar en el antiguo dominio `esiggesports.jlc-dev.me` y verificar seis páginas públicas y los
 JavaScript/CSS de la misma compilación. Esta verificación no modifica datos;
 si falla, el workflow queda en rojo y no revierte automáticamente la publicación.
 Las ejecuciones de una misma rama no se solapan ni cancelan un despliegue en curso.
@@ -158,6 +173,10 @@ el trabajo según Retry-After. Un 401/403 marca la key inválida. Los fallos
 transitorios tienen reintentos limitados; se conserva el fallback de ranking.
 
 ## Evidencia y alcance de la beta
+
+Los resultados remotos y de dominio de esta sección son históricos, anteriores
+a la retirada del 2026-10-29. No describen un servicio activo ni una nueva
+validación del código tras esa fecha.
 
 | Verificación | Resultado |
 |---|---|
